@@ -8,7 +8,7 @@ export const Role = list({
   access: {
     operation: {
       ...allOperations(permissions.canManageRoles),
-      query: isSignedIn,
+      query: () => true,
     },
   },
   ui: {
@@ -29,6 +29,7 @@ export const Role = list({
     canEditOtherPeople: checkbox({ defaultValue: false }),
     canManagePeople: checkbox({ defaultValue: false }),
     canManageRoles: checkbox({ defaultValue: false }),
+    canManageOnboarding: checkbox({ defaultValue: true }),
     canAccessDashboard: checkbox({ defaultValue: false }),
     assignedTo: relationship({
       ref: 'User.role',

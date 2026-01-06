@@ -1,0 +1,46 @@
+import { list } from "@keystone-6/core";
+import { allOperations } from "@keystone-6/core/access";
+import { relationship, integer } from "@keystone-6/core/fields";
+
+import { isSignedIn } from "../access";
+
+export const PrepStation = list({
+  access: {
+    operation: {
+      query: () => true,
+      create: isSignedIn,
+      update: isSignedIn,
+      delete: isSignedIn,
+    },
+  },
+  ui: {
+    listView: {
+      initialColumns: ["menuItem", "station", "preparationTime"],
+    },
+    labelField: "menuItem",
+  },
+  fields: {
+    menuItem: relationship({
+      ref: "MenuItem",
+      ui: {
+        displayMode: "select",
+        description: "Menu item to be prepared at this station",
+      },
+    }),
+
+    station: relationship({
+      ref: "KitchenStation.prepStations",
+      ui: {
+        displayMode: "select",
+        description: "Kitchen station for preparation",
+      },
+    }),
+
+    preparationTime: integer({
+      defaultValue: 15,
+      ui: {
+        description: "Expected preparation time in minutes",
+      },
+    }),
+  },
+});

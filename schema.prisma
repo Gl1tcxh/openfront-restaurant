@@ -12,69 +12,486 @@ generator client {
 }
 
 model User {
-  id                      String    @id @default(cuid())
-  name                    String    @default("")
-  email                   String    @unique @default("")
-  password                String
-  role                    Role?     @relation("User_role", fields: [roleId], references: [id])
-  roleId                  String?   @map("role")
-  tasks                   Todo[]    @relation("Todo_assignedTo")
-  passwordResetToken      String?
-  passwordResetIssuedAt   DateTime?
-  passwordResetRedeemedAt DateTime?
+  id                                String            @id @default(cuid())
+  name                              String            @default("")
+  email                             String            @unique @default("")
+  password                          String
+  role                              Role?             @relation("User_role", fields: [roleId], references: [id])
+  roleId                            String?           @map("role")
+  apiKeys                           ApiKey[]          @relation("ApiKey_user")
+  employeeId                        String            @unique @default("")
+  staffRole                         String?
+  hireDate                          DateTime?
+  hourlyRate                        Decimal?          @postgresql.Decimal(10, 2)
+  pin                               String            @default("")
+  staffPermissions                  Json?
+  isActive                          Boolean           @default(true)
+  onboardingStatus                  String?           @default("not_started")
+  photo_id                          String?
+  photo_filesize                    Int?
+  photo_width                       Int?
+  photo_height                      Int?
+  photo_extension                   String?
+  emergencyContactName              String            @default("")
+  emergencyContactPhone             String            @default("")
+  certifications                    Json?
+  passwordResetToken                String?
+  passwordResetIssuedAt             DateTime?
+  passwordResetRedeemedAt           DateTime?
+  from_RestaurantOrder_server       RestaurantOrder[] @relation("RestaurantOrder_server")
+  from_RestaurantOrder_createdBy    RestaurantOrder[] @relation("RestaurantOrder_createdBy")
+  from_Payment_processedBy          Payment[]         @relation("Payment_processedBy")
+  from_KitchenStation_assignedStaff KitchenStation[]  @relation("KitchenStation_assignedStaff")
+  from_KitchenTicket_preparedBy     KitchenTicket[]   @relation("KitchenTicket_preparedBy")
+  from_StockMovement_createdBy      StockMovement[]   @relation("StockMovement_createdBy")
 
   @@index([roleId])
 }
 
 model Role {
-  id                 String  @id @default(cuid())
-  name               String  @default("")
-  canCreateTodos     Boolean @default(false)
-  canManageAllTodos  Boolean @default(false)
-  canSeeOtherPeople  Boolean @default(false)
-  canEditOtherPeople Boolean @default(false)
-  canManagePeople    Boolean @default(false)
-  canManageRoles     Boolean @default(false)
-  canAccessDashboard Boolean @default(false)
-  assignedTo         User[]  @relation("User_role")
+  id                  String  @id @default(cuid())
+  name                String  @default("")
+  canCreateTodos      Boolean @default(false)
+  canManageAllTodos   Boolean @default(false)
+  canSeeOtherPeople   Boolean @default(false)
+  canEditOtherPeople  Boolean @default(false)
+  canManagePeople     Boolean @default(false)
+  canManageRoles      Boolean @default(false)
+  canManageOnboarding Boolean @default(true)
+  canAccessDashboard  Boolean @default(false)
+  assignedTo          User[]  @relation("User_role")
 }
 
-model Todo {
-  id                   String      @id @default(cuid())
-  label                String      @default("")
-  description          Json        @default("[{\"type\":\"paragraph\",\"children\":[{\"text\":\"\"}]}]")
-  isComplete           Boolean     @default(false)
-  status               String?     @default("todo")
-  priority             Int?        @default(1)
-  tags                 Json        @default("[]")
-  dueDate              DateTime?
-  weight               Float?      @default(1)
-  budget               Decimal?    @default("0.00") @postgresql.Decimal(10, 2)
-  isPrivate            Boolean     @default(false)
-  largeNumber          BigInt?
+model Section {
+  id     String  @id @default(cuid())
+  name   String  @unique @default("")
+  tables Table[] @relation("Table_section")
+}
+
+model Floor {
+  id       String  @id @default(cuid())
+  name     String  @default("")
+  level    Int     @default(1)
+  isActive Boolean @default(true)
+  tables   Table[] @relation("Table_floor")
+}
+
+model Table {
+  id                             String            @id @default(cuid())
+  tableNumber                    String            @default("")
+  capacity                       Int               @default(4)
+  status                         String?           @default("available")
+  shape                          String?           @default("rectangle")
+  positionX                      Float?            @default(0)
+  positionY                      Float?            @default(0)
+  metadata                       Json?
+  floor                          Floor?            @relation("Table_floor", fields: [floorId], references: [id])
+  floorId                        String?           @map("floor")
+  section                        Section?          @relation("Table_section", fields: [sectionId], references: [id])
+  sectionId                      String?           @map("section")
+  from_RestaurantOrder_table     RestaurantOrder[] @relation("RestaurantOrder_table")
+  from_Reservation_assignedTable Reservation[]     @relation("Reservation_assignedTable")
+
+  @@index([tableNumber])
+  @@index([floorId])
+  @@index([sectionId])
+}
+
+model MenuCategory {
+  id          String     @id @default(cuid())
+  name        String     @default("")
+  icon        String     @default("🍽️")
+  description String     @default("")
+  mealPeriods Json       @default("[\"all_day\"]")
+  sortOrder   Int?       @default(0)
+  menuItems   MenuItem[] @relation("MenuItem_category")
+}
+
+model MenuItem {
+  id                        String             @id @default(cuid())
+  name                      String             @default("")
+  image_id                  String?
+  image_filesize            Int?
+  image_width               Int?
+  image_height              Int?
+  image_extension           String?
+  description               Json               @default("[{\"type\":\"paragraph\",\"children\":[{\"text\":\"\"}]}]")
+  price                     Decimal            @postgresql.Decimal(10, 2)
+  available                 Boolean            @default(true)
+  featured                  Boolean            @default(false)
+  popular                   Boolean            @default(false)
+  prepTime                  Int?               @default(15)
+  calories                  Int?
+  kitchenStation            String?            @default("grill")
+  allergens                 Json               @default("[]")
+  dietaryFlags              Json               @default("[]")
+  mealPeriods               Json               @default("[\"all_day\"]")
+  category                  MenuCategory?      @relation("MenuItem_category", fields: [categoryId], references: [id])
+  categoryId                String?            @map("category")
+  modifiers                 MenuItemModifier[] @relation("MenuItemModifier_menuItem")
+  from_OrderItem_menuItem   OrderItem[]        @relation("OrderItem_menuItem")
+  from_PrepStation_menuItem PrepStation[]      @relation("PrepStation_menuItem")
+
+  @@index([categoryId])
+}
+
+model MenuItemModifier {
+  id                              String      @id @default(cuid())
+  name                            String      @default("")
+  modifierGroup                   String?     @default("addons")
+  modifierGroupLabel              String      @default("")
+  required                        Boolean     @default(false)
+  minSelections                   Int?        @default(0)
+  maxSelections                   Int?        @default(1)
+  priceAdjustment                 Decimal?    @default("0.00") @postgresql.Decimal(10, 2)
+  calories                        Int?
+  defaultSelected                 Boolean     @default(false)
+  menuItem                        MenuItem?   @relation("MenuItemModifier_menuItem", fields: [menuItemId], references: [id])
+  menuItemId                      String?     @map("menuItem")
+  from_OrderItem_appliedModifiers OrderItem[] @relation("OrderItem_appliedModifiers")
+
+  @@index([menuItemId])
+}
+
+model RestaurantOrder {
+  id                             String                @id @default(cuid())
+  orderNumber                    String                @unique @default("")
+  orderType                      String?               @default("dine_in")
+  orderSource                    String?               @default("pos")
+  status                         String?               @default("open")
+  guestCount                     Int?                  @default(1)
+  specialInstructions            String                @default("")
+  subtotal                       Decimal?              @default("0.00") @postgresql.Decimal(10, 2)
+  tax                            Decimal?              @default("0.00") @postgresql.Decimal(10, 2)
+  tip                            Decimal?              @default("0.00") @postgresql.Decimal(10, 2)
+  discount                       Decimal?              @default("0.00") @postgresql.Decimal(10, 2)
+  total                          Decimal?              @default("0.00") @postgresql.Decimal(10, 2)
+  table                          Table?                @relation("RestaurantOrder_table", fields: [tableId], references: [id])
+  tableId                        String?               @map("table")
+  server                         User?                 @relation("RestaurantOrder_server", fields: [serverId], references: [id])
+  serverId                       String?               @map("server")
+  createdBy                      User?                 @relation("RestaurantOrder_createdBy", fields: [createdById], references: [id])
+  createdById                    String?               @map("createdBy")
+  orderItems                     OrderItem[]           @relation("OrderItem_order")
+  payments                       Payment[]             @relation("Payment_order")
+  discounts                      Discount[]            @relation("Discount_orders")
+  giftCards                      GiftCard[]            @relation("GiftCard_order")
+  createdAt                      DateTime              @default(now())
+  updatedAt                      DateTime              @default(now()) @updatedAt
+  from_GiftCardTransaction_order GiftCardTransaction[] @relation("GiftCardTransaction_order")
+  from_KitchenTicket_order       KitchenTicket[]       @relation("KitchenTicket_order")
+  from_StockMovement_order       StockMovement[]       @relation("StockMovement_order")
+
+  @@index([tableId])
+  @@index([serverId])
+  @@index([createdById])
+}
+
+model OrderItem {
+  id                  String             @id @default(cuid())
+  quantity            Int                @default(1)
+  price               Decimal            @postgresql.Decimal(10, 2)
+  specialInstructions String             @default("")
+  courseNumber        Int?               @default(1)
+  seatNumber          Int?
+  sentToKitchen       DateTime?
+  order               RestaurantOrder?   @relation("OrderItem_order", fields: [orderId], references: [id])
+  orderId             String?            @map("order")
+  menuItem            MenuItem?          @relation("OrderItem_menuItem", fields: [menuItemId], references: [id])
+  menuItemId          String?            @map("menuItem")
+  appliedModifiers    MenuItemModifier[] @relation("OrderItem_appliedModifiers")
+
+  @@index([orderId])
+  @@index([menuItemId])
+}
+
+model Reservation {
+  id              String   @id @default(cuid())
+  customerName    String   @default("")
+  customerPhone   String   @default("")
+  customerEmail   String   @default("")
+  reservationDate DateTime
+  partySize       Int      @default(2)
+  duration        Int?     @default(90)
+  status          String?  @default("pending")
+  specialRequests String   @default("")
+  assignedTable   Table?   @relation("Reservation_assignedTable", fields: [assignedTableId], references: [id])
+  assignedTableId String?  @map("assignedTable")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  @@index([assignedTableId])
+}
+
+model Payment {
+  id                    String           @id @default(cuid())
+  amount                Decimal          @postgresql.Decimal(10, 2)
+  status                String           @default("pending")
+  paymentMethod         String?          @default("credit_card")
+  paymentProvider       PaymentProvider? @relation("Payment_paymentProvider", fields: [paymentProviderId], references: [id])
+  paymentProviderId     String?          @map("paymentProvider")
+  providerPaymentId     String           @default("")
+  stripePaymentIntentId String           @unique @default("")
+  stripeChargeId        String           @default("")
+  stripeRefundId        String           @default("")
+  cardLast4             String           @default("")
+  cardBrand             String           @default("")
+  tipAmount             Decimal?         @default("0.00") @postgresql.Decimal(10, 2)
+  isSplitPayment        Boolean          @default(false)
+  splitPaymentIndex     Int?
+  splitTotal            Int?
+  processedAt           DateTime?
+  errorMessage          String           @default("")
+  notes                 String           @default("")
+  order                 RestaurantOrder? @relation("Payment_order", fields: [orderId], references: [id])
+  orderId               String?          @map("order")
+  processedBy           User?            @relation("Payment_processedBy", fields: [processedById], references: [id])
+  processedById         String?          @map("processedBy")
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @default(now()) @updatedAt
+
+  @@index([paymentProviderId])
+  @@index([orderId])
+  @@index([processedById])
+}
+
+model PaymentProvider {
+  id                           String    @id @default(cuid())
+  name                         String    @default("")
+  code                         String    @unique @default("")
+  isInstalled                  Boolean   @default(true)
+  credentials                  Json?     @default("{}")
+  metadata                     Json?     @default("{}")
+  createPaymentFunction        String    @default("")
+  capturePaymentFunction       String    @default("")
+  refundPaymentFunction        String    @default("")
+  getPaymentStatusFunction     String    @default("")
+  generatePaymentLinkFunction  String    @default("")
+  handleWebhookFunction        String    @default("")
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @default(now()) @updatedAt
+  from_Payment_paymentProvider Payment[] @relation("Payment_paymentProvider")
+}
+
+model ApiKey {
+  id              String            @id @default(cuid())
+  name            String            @default("")
+  tokenSecret     String
+  tokenPreview    String            @default("")
+  scopes          Json?             @default("[]")
+  status          ApiKeyStatusType? @default(active)
+  expiresAt       DateTime?
+  lastUsedAt      DateTime?
+  usageCount      Json?             @default("{\"total\":0,\"daily\":{}}")
+  restrictedToIPs Json?             @default("[]")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @default(now()) @updatedAt
+  user            User?             @relation("ApiKey_user", fields: [userId], references: [id])
+  userId          String?           @map("user")
+
+  @@index([userId])
+}
+
+model Discount {
+  id             String            @id @default(cuid())
+  code           String            @unique @default("")
+  isDynamic      Boolean           @default(false)
+  isDisabled     Boolean           @default(false)
+  stackable      Boolean           @default(false)
+  startsAt       DateTime          @default(now())
+  endsAt         DateTime?
+  metadata       Json?
+  usageLimit     Int?
+  usageCount     Int               @default(0)
+  validDuration  String            @default("")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @default(now()) @updatedAt
+  discountRule   DiscountRule?     @relation("Discount_discountRule", fields: [discountRuleId], references: [id])
+  discountRuleId String?           @map("discountRule")
+  orders         RestaurantOrder[] @relation("Discount_orders")
+
+  @@index([discountRuleId])
+}
+
+model DiscountRule {
+  id          String                      @id @default(cuid())
+  description String                      @default("")
+  type        DiscountRuleTypeType
+  value       Int
+  allocation  DiscountRuleAllocationType?
+  metadata    Json?
+  discounts   Discount[]                  @relation("Discount_discountRule")
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @default(now()) @updatedAt
+}
+
+model GiftCard {
+  id                   String                @id @default(cuid())
+  code                 String                @unique @default("")
+  value                Int
+  balance              Int
+  isDisabled           Boolean               @default(false)
+  endsAt               DateTime?
   metadata             Json?
-  secretNote           String?
-  coverImage_id        String?
-  coverImage_filesize  Int?
-  coverImage_width     Int?
-  coverImage_height    Int?
-  coverImage_extension String?
-  todoImages           TodoImage[] @relation("Todo_todoImages")
-  assignedTo           User?       @relation("Todo_assignedTo", fields: [assignedToId], references: [id])
-  assignedToId         String?     @map("assignedTo")
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @default(now()) @updatedAt
+  order                RestaurantOrder?      @relation("GiftCard_order", fields: [orderId], references: [id])
+  orderId              String?               @map("order")
+  giftCardTransactions GiftCardTransaction[] @relation("GiftCardTransaction_giftCard")
 
-  @@index([assignedToId])
+  @@index([orderId])
 }
 
-model TodoImage {
-  id              String  @id @default(cuid())
-  image_id        String?
-  image_filesize  Int?
-  image_width     Int?
-  image_height    Int?
-  image_extension String?
-  imagePath       String  @default("")
-  altText         String  @default("")
-  todos           Todo[]  @relation("Todo_todoImages")
-  metadata        Json?
+model GiftCardTransaction {
+  id         String           @id @default(cuid())
+  amount     Int
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @default(now()) @updatedAt
+  giftCard   GiftCard?        @relation("GiftCardTransaction_giftCard", fields: [giftCardId], references: [id])
+  giftCardId String?          @map("giftCard")
+  order      RestaurantOrder? @relation("GiftCardTransaction_order", fields: [orderId], references: [id])
+  orderId    String?          @map("order")
+
+  @@index([giftCardId])
+  @@index([orderId])
+}
+
+model KitchenStation {
+  id            String          @id @default(cuid())
+  name          String          @default("")
+  displayOrder  Int?            @default(0)
+  isActive      Boolean         @default(true)
+  assignedStaff User[]          @relation("KitchenStation_assignedStaff")
+  tickets       KitchenTicket[] @relation("KitchenTicket_station")
+  prepStations  PrepStation[]   @relation("PrepStation_station")
+}
+
+model PrepStation {
+  id              String          @id @default(cuid())
+  menuItem        MenuItem?       @relation("PrepStation_menuItem", fields: [menuItemId], references: [id])
+  menuItemId      String?         @map("menuItem")
+  station         KitchenStation? @relation("PrepStation_station", fields: [stationId], references: [id])
+  stationId       String?         @map("station")
+  preparationTime Int?            @default(15)
+
+  @@index([menuItemId])
+  @@index([stationId])
+}
+
+model KitchenTicket {
+  id           String           @id @default(cuid())
+  status       String           @default("new")
+  priority     Int?             @default(0)
+  items        Json?
+  firedAt      DateTime?        @default(now())
+  completedAt  DateTime?
+  servedAt     DateTime?
+  order        RestaurantOrder? @relation("KitchenTicket_order", fields: [orderId], references: [id])
+  orderId      String?          @map("order")
+  station      KitchenStation?  @relation("KitchenTicket_station", fields: [stationId], references: [id])
+  stationId    String?          @map("station")
+  preparedBy   User?            @relation("KitchenTicket_preparedBy", fields: [preparedById], references: [id])
+  preparedById String?          @map("preparedBy")
+
+  @@index([orderId])
+  @@index([stationId])
+  @@index([preparedById])
+}
+
+model Vendor {
+  id           String       @id @default(cuid())
+  name         String       @default("")
+  contact      String       @default("")
+  email        String       @default("")
+  phone        String       @default("")
+  paymentTerms String       @default("")
+  leadTime     Int?
+  ingredients  Ingredient[] @relation("Ingredient_vendor")
+}
+
+model InventoryLocation {
+  id          String       @id @default(cuid())
+  name        String       @default("")
+  description String       @default("")
+  isActive    Boolean      @default(true)
+  ingredients Ingredient[] @relation("Ingredient_location")
+}
+
+model Ingredient {
+  id              String             @id @default(cuid())
+  name            String             @default("")
+  unit            String             @default("lb")
+  category        String?
+  currentStock    Decimal            @default("0.00") @postgresql.Decimal(10, 2)
+  parLevel        Decimal?           @postgresql.Decimal(10, 2)
+  reorderPoint    Decimal?           @postgresql.Decimal(10, 2)
+  reorderQuantity Decimal?           @postgresql.Decimal(10, 2)
+  costPerUnit     Decimal?           @postgresql.Decimal(10, 2)
+  expirationDate  DateTime?
+  sku             String             @default("")
+  vendor          Vendor?            @relation("Ingredient_vendor", fields: [vendorId], references: [id])
+  vendorId        String?            @map("vendor")
+  location        InventoryLocation? @relation("Ingredient_location", fields: [locationId], references: [id])
+  locationId      String?            @map("location")
+  stockMovements  StockMovement[]    @relation("StockMovement_ingredient")
+
+  @@index([vendorId])
+  @@index([locationId])
+}
+
+model StockMovement {
+  id           String           @id @default(cuid())
+  type         String
+  quantity     Decimal          @postgresql.Decimal(10, 2)
+  reason       String           @default("")
+  ingredient   Ingredient?      @relation("StockMovement_ingredient", fields: [ingredientId], references: [id])
+  ingredientId String?          @map("ingredient")
+  createdBy    User?            @relation("StockMovement_createdBy", fields: [createdById], references: [id])
+  createdById  String?          @map("createdBy")
+  order        RestaurantOrder? @relation("StockMovement_order", fields: [orderId], references: [id])
+  orderId      String?          @map("order")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @default(now()) @updatedAt
+
+  @@index([ingredientId])
+  @@index([createdById])
+  @@index([orderId])
+}
+
+model StoreSettings {
+  id                Int      @id
+  name              String   @default("")
+  tagline           String   @default("")
+  address           String   @default("")
+  phone             String   @default("")
+  email             String   @default("")
+  hours             Json?    @default("{\"monday\":\"11:00 AM - 10:00 PM\",\"tuesday\":\"11:00 AM - 10:00 PM\",\"wednesday\":\"11:00 AM - 10:00 PM\",\"thursday\":\"11:00 AM - 10:00 PM\",\"friday\":\"11:00 AM - 11:00 PM\",\"saturday\":\"10:00 AM - 11:00 PM\",\"sunday\":\"10:00 AM - 9:00 PM\"}")
+  deliveryFee       Decimal? @default("4.99") @postgresql.Decimal(10, 2)
+  deliveryMinimum   Decimal? @default("15.00") @postgresql.Decimal(10, 2)
+  pickupDiscount    Int?     @default(10)
+  estimatedDelivery String   @default("30-45 min")
+  estimatedPickup   String   @default("15-20 min")
+  heroHeadline      String   @default("Thoughtfully crafted burgers.")
+  heroSubheadline   String   @default("Premium ingredients from local farms, bold flavors, and a commitment to quality in every bite.")
+  heroTagline       String   @default("Locally Sourced · Made Fresh Daily")
+  promoBanner       String   @default("Free pickup discount · 10% off all pickup orders")
+  rating            Decimal? @default("4.8") @postgresql.Decimal(2, 1)
+  reviewCount       Int?     @default(0)
+}
+
+enum ApiKeyStatusType {
+  active
+  inactive
+  revoked
+}
+
+enum DiscountRuleTypeType {
+  fixed
+  percentage
+  free_item
+}
+
+enum DiscountRuleAllocationType {
+  total
+  item
 }

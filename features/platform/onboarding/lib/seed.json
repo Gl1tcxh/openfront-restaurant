@@ -1,0 +1,548 @@
+{
+  "storeInfo": {
+    "name": "Stack Burger Co.",
+    "tagline": "Stacked Fresh, Served Bold",
+    "address": "742 Artisan Way, Brooklyn, NY 11201",
+    "phone": "(718) 555-0142",
+    "hours": {
+      "monday": "11:00 AM - 10:00 PM",
+      "tuesday": "11:00 AM - 10:00 PM",
+      "wednesday": "11:00 AM - 10:00 PM",
+      "thursday": "11:00 AM - 10:00 PM",
+      "friday": "11:00 AM - 11:00 PM",
+      "saturday": "10:00 AM - 11:00 PM",
+      "sunday": "10:00 AM - 9:00 PM"
+    },
+    "deliveryFee": 4.99,
+    "deliveryMinimum": 15.0,
+    "pickupDiscount": 10,
+    "estimatedDelivery": "30-45 min",
+    "estimatedPickup": "15-20 min",
+    "heroHeadline": "Thoughtfully crafted burgers.",
+    "heroSubheadline": "Premium ingredients from local farms, bold flavors, and a commitment to quality in every bite.",
+    "heroTagline": "Locally Sourced · Made Fresh Daily",
+    "promoBanner": "Free pickup discount · 10% off all pickup orders",
+    "rating": 4.8,
+    "reviewCount": 2341
+  },
+  "kitchenStations": [
+    {
+      "name": "Grill",
+      "code": "grill",
+      "description": "Burger patties, chicken sandwiches, grilled items"
+    },
+    {
+      "name": "Fryer",
+      "code": "fryer",
+      "description": "French fries, onion rings, chicken tenders, fried items"
+    },
+    {
+      "name": "Salad",
+      "code": "salad",
+      "description": "Coleslaw, salads, cold prep"
+    },
+    {
+      "name": "Bar",
+      "code": "bar",
+      "description": "Drinks, milkshakes, beverages"
+    },
+    {
+      "name": "Dessert",
+      "code": "dessert",
+      "description": "Sundaes, pies, cookies, desserts"
+    },
+    {
+      "name": "Prep",
+      "code": "prep",
+      "description": "Food preparation, assembly"
+    }
+  ],
+  "floors": [
+    {
+      "name": "Main Floor",
+      "level": 1,
+      "isActive": true
+    }
+  ],
+  "sections": [
+    {
+      "name": "Main Dining",
+      "floor": "Main Floor",
+      "description": "Primary dining area"
+    },
+    {
+      "name": "Patio",
+      "floor": "Main Floor",
+      "description": "Outdoor seating area"
+    }
+  ],
+  "tables": [
+    {
+      "tableNumber": "1",
+      "capacity": 2,
+      "section": "Main Dining",
+      "positionX": 100,
+      "positionY": 100
+    },
+    {
+      "tableNumber": "2",
+      "capacity": 2,
+      "section": "Main Dining",
+      "positionX": 200,
+      "positionY": 100
+    },
+    {
+      "tableNumber": "3",
+      "capacity": 4,
+      "section": "Main Dining",
+      "positionX": 100,
+      "positionY": 250
+    },
+    {
+      "tableNumber": "4",
+      "capacity": 4,
+      "section": "Main Dining",
+      "positionX": 200,
+      "positionY": 250
+    },
+    {
+      "tableNumber": "5",
+      "capacity": 6,
+      "section": "Main Dining",
+      "positionX": 300,
+      "positionY": 175
+    },
+    {
+      "tableNumber": "6",
+      "capacity": 2,
+      "section": "Patio",
+      "positionX": 100,
+      "positionY": 100
+    },
+    {
+      "tableNumber": "7",
+      "capacity": 4,
+      "section": "Patio",
+      "positionX": 200,
+      "positionY": 100
+    },
+    {
+      "tableNumber": "8",
+      "capacity": 6,
+      "section": "Patio",
+      "positionX": 300,
+      "positionY": 100
+    }
+  ],
+  "paymentMethods": [
+    {
+      "name": "Cash",
+      "code": "cash",
+      "description": "Pay with cash"
+    },
+    {
+      "name": "Credit Card",
+      "code": "card",
+      "description": "Credit/Debit card payments"
+    },
+    {
+      "name": "Mobile Payment",
+      "code": "mobile",
+      "description": "Apple Pay, Google Pay, etc."
+    }
+  ],
+  "categories": [
+    { "name": "Featured", "icon": "⭐", "sortOrder": 1 },
+    { "name": "Burgers", "icon": "🍔", "sortOrder": 2 },
+    { "name": "Chicken", "icon": "🍗", "sortOrder": 3 },
+    { "name": "Sides", "icon": "🍟", "sortOrder": 4 },
+    { "name": "Drinks", "icon": "🥤", "sortOrder": 5 },
+    { "name": "Desserts", "icon": "🍦", "sortOrder": 6 }
+  ],
+  "menuItems": [
+    {
+      "name": "The Big Stack",
+      "description": "Our signature double patty burger with American cheese, Stack Sauce, lettuce, tomato, pickles, and onions on a toasted brioche bun.",
+      "price": "12.99",
+      "category": "Featured",
+      "image": "/double-cheeseburger-with-sauce-and-toppings.jpg",
+      "calories": 890,
+      "popular": true,
+      "featured": true,
+      "available": true,
+      "kitchenStation": "grill",
+      "prepTime": 15
+    },
+    {
+      "name": "BBQ Bacon Burger",
+      "description": "Juicy beef patty topped with crispy bacon, cheddar cheese, onion rings, and tangy BBQ sauce.",
+      "price": "13.99",
+      "category": "Featured",
+      "image": "/bacon-bbq-burger-onion-rings.png",
+      "calories": 950,
+      "popular": true,
+      "featured": true,
+      "available": true,
+      "kitchenStation": "grill",
+      "prepTime": 15
+    },
+    {
+      "name": "Classic Burger",
+      "description": "Simple and delicious. Beef patty with lettuce, tomato, onion, and pickles.",
+      "price": "9.99",
+      "category": "Burgers",
+      "image": "/classic-hamburger-with-lettuce-tomato.jpg",
+      "calories": 650,
+      "available": true,
+      "kitchenStation": "grill",
+      "prepTime": 12
+    },
+    {
+      "name": "Mushroom Swiss",
+      "description": "Beef patty topped with sautéed mushrooms and melted Swiss cheese.",
+      "price": "12.49",
+      "category": "Burgers",
+      "image": "/mushroom-swiss-burger.png",
+      "calories": 780,
+      "available": true,
+      "kitchenStation": "grill",
+      "prepTime": 15
+    },
+    {
+      "name": "Spicy Jalapeño",
+      "description": "For heat lovers! Pepper jack cheese, fresh jalapeños, and buffalo sauce.",
+      "price": "11.99",
+      "category": "Burgers",
+      "image": "/spicy-jalapeno-burger-with-pepper-jack.jpg",
+      "calories": 720,
+      "available": true,
+      "kitchenStation": "grill",
+      "prepTime": 15
+    },
+    {
+      "name": "Western Burger",
+      "description": "BBQ sauce, bacon, cheddar, and a crispy onion ring on top.",
+      "price": "13.49",
+      "category": "Burgers",
+      "image": "/western-burger-with-bbq-and-bacon.jpg",
+      "calories": 920,
+      "available": true,
+      "kitchenStation": "grill",
+      "prepTime": 15
+    },
+    {
+      "name": "Garden Veggie Burger",
+      "description": "House-made black bean patty with avocado, lettuce, tomato, and chipotle mayo.",
+      "price": "10.99",
+      "category": "Burgers",
+      "image": "/veggie-burger-avocado.png",
+      "calories": 520,
+      "available": true,
+      "kitchenStation": "grill",
+      "prepTime": 12
+    },
+    {
+      "name": "Crispy Chicken Sandwich",
+      "description": "Breaded chicken breast with pickles and mayo on a toasted bun.",
+      "price": "10.99",
+      "category": "Chicken",
+      "image": "/crispy-chicken-sandwich-with-pickles.jpg",
+      "calories": 680,
+      "popular": true,
+      "available": true,
+      "kitchenStation": "fryer",
+      "prepTime": 12
+    },
+    {
+      "name": "Spicy Chicken Sandwich",
+      "description": "Spicy breaded chicken with pepper jack, jalapeños, and spicy mayo.",
+      "price": "11.49",
+      "category": "Chicken",
+      "image": "/spicy-chicken-sandwich.png",
+      "calories": 720,
+      "available": true,
+      "kitchenStation": "fryer",
+      "prepTime": 12
+    },
+    {
+      "name": "Grilled Chicken Sandwich",
+      "description": "Marinated grilled chicken with Swiss cheese, lettuce, and honey mustard.",
+      "price": "11.99",
+      "category": "Chicken",
+      "image": "/grilled-chicken-sandwich-healthy.jpg",
+      "calories": 550,
+      "available": true,
+      "kitchenStation": "grill",
+      "prepTime": 12
+    },
+    {
+      "name": "Chicken Tenders",
+      "description": "5 piece hand-breaded chicken tenders with your choice of dipping sauce.",
+      "price": "9.99",
+      "category": "Chicken",
+      "image": "/chicken-tenders-basket.jpg",
+      "calories": 620,
+      "available": true,
+      "kitchenStation": "fryer",
+      "prepTime": 10
+    },
+    {
+      "name": "Classic Fries",
+      "description": "Golden crispy fries seasoned with our signature salt blend.",
+      "price": "3.99",
+      "category": "Sides",
+      "image": "/golden-french-fries.jpg",
+      "calories": 320,
+      "available": true,
+      "kitchenStation": "fryer",
+      "prepTime": 5
+    },
+    {
+      "name": "Loaded Fries",
+      "description": "Fries topped with cheese sauce, bacon bits, and sour cream.",
+      "price": "6.99",
+      "category": "Sides",
+      "image": "/loaded-fries.png",
+      "calories": 680,
+      "popular": true,
+      "available": true,
+      "kitchenStation": "fryer",
+      "prepTime": 8
+    },
+    {
+      "name": "Onion Rings",
+      "description": "Beer-battered onion rings, crispy and golden.",
+      "price": "4.99",
+      "category": "Sides",
+      "image": "/crispy-onion-rings.png",
+      "calories": 410,
+      "available": true,
+      "kitchenStation": "fryer",
+      "prepTime": 6
+    },
+    {
+      "name": "Sweet Potato Fries",
+      "description": "Crispy sweet potato fries with a touch of cinnamon.",
+      "price": "4.49",
+      "category": "Sides",
+      "image": "/sweet-potato-fries.png",
+      "calories": 350,
+      "available": true,
+      "kitchenStation": "fryer",
+      "prepTime": 6
+    },
+    {
+      "name": "Creamy Coleslaw",
+      "description": "Fresh-made coleslaw with a tangy dressing.",
+      "price": "2.99",
+      "category": "Sides",
+      "image": "/creamy-coleslaw.jpg",
+      "calories": 180,
+      "available": true,
+      "kitchenStation": "salad",
+      "prepTime": 2
+    },
+    {
+      "name": "Fountain Drink",
+      "description": "Coca-Cola, Diet Coke, Sprite, Dr Pepper, or Lemonade.",
+      "price": "2.99",
+      "category": "Drinks",
+      "image": "/fountain-soda-drink-cup.jpg",
+      "calories": 150,
+      "available": true,
+      "kitchenStation": "bar",
+      "prepTime": 1
+    },
+    {
+      "name": "Hand-Spun Milkshake",
+      "description": "Thick and creamy. Chocolate, vanilla, strawberry, or cookies & cream.",
+      "price": "5.99",
+      "category": "Drinks",
+      "image": "/thick-milkshake-with-whipped-cream.jpg",
+      "calories": 650,
+      "popular": true,
+      "available": true,
+      "kitchenStation": "bar",
+      "prepTime": 3
+    },
+    {
+      "name": "Fresh Brewed Iced Tea",
+      "description": "Unsweetened or sweet tea, brewed fresh daily.",
+      "price": "2.49",
+      "category": "Drinks",
+      "image": "/iced-tea-glass.png",
+      "calories": 0,
+      "available": true,
+      "kitchenStation": "bar",
+      "prepTime": 1
+    },
+    {
+      "name": "Bottled Water",
+      "description": "Purified bottled water.",
+      "price": "1.99",
+      "category": "Drinks",
+      "image": "/bottled-water.png",
+      "calories": 0,
+      "available": true,
+      "kitchenStation": "bar",
+      "prepTime": 1
+    },
+    {
+      "name": "Brownie Sundae",
+      "description": "Warm chocolate brownie with vanilla ice cream and chocolate sauce.",
+      "price": "6.99",
+      "category": "Desserts",
+      "image": "/brownie-sundae-with-ice-cream.jpg",
+      "calories": 780,
+      "popular": true,
+      "available": true,
+      "kitchenStation": "dessert",
+      "prepTime": 5
+    },
+    {
+      "name": "Warm Apple Pie",
+      "description": "Classic apple pie slice served warm with a scoop of vanilla ice cream.",
+      "price": "5.49",
+      "category": "Desserts",
+      "image": "/warm-apple-pie-with-ice-cream.jpg",
+      "calories": 520,
+      "available": true,
+      "kitchenStation": "dessert",
+      "prepTime": 5
+    },
+    {
+      "name": "Fresh Baked Cookies",
+      "description": "3 warm chocolate chip cookies, baked fresh.",
+      "price": "3.99",
+      "category": "Desserts",
+      "image": "/fresh-chocolate-chip-cookies.jpg",
+      "calories": 360,
+      "available": true,
+      "kitchenStation": "dessert",
+      "prepTime": 3
+    }
+  ],
+  "modifiers": [
+    {
+      "name": "Single Patty",
+      "modifierGroup": "size",
+      "modifierGroupLabel": "Patty Size",
+      "priceAdjustment": "0.00",
+      "defaultSelected": true,
+      "required": true,
+      "minSelections": 1,
+      "maxSelections": 1,
+      "menuItemName": "Classic Burger"
+    },
+    {
+      "name": "Double Patty",
+      "modifierGroup": "size",
+      "modifierGroupLabel": "Patty Size",
+      "priceAdjustment": "3.50",
+      "defaultSelected": false,
+      "required": true,
+      "minSelections": 1,
+      "maxSelections": 1,
+      "menuItemName": "Classic Burger"
+    },
+    {
+      "name": "Triple Patty",
+      "modifierGroup": "size",
+      "modifierGroupLabel": "Patty Size",
+      "priceAdjustment": "6.00",
+      "defaultSelected": false,
+      "required": true,
+      "minSelections": 1,
+      "maxSelections": 1,
+      "menuItemName": "Classic Burger"
+    },
+    {
+      "name": "American Cheese",
+      "modifierGroup": "addons",
+      "modifierGroupLabel": "Extra Toppings",
+      "priceAdjustment": "0.75",
+      "defaultSelected": false,
+      "required": false,
+      "minSelections": 0,
+      "maxSelections": 10,
+      "menuItemName": "Classic Burger"
+    },
+    {
+      "name": "Cheddar Cheese",
+      "modifierGroup": "addons",
+      "modifierGroupLabel": "Extra Toppings",
+      "priceAdjustment": "0.75",
+      "defaultSelected": false,
+      "required": false,
+      "minSelections": 0,
+      "maxSelections": 10,
+      "menuItemName": "Classic Burger"
+    },
+    {
+      "name": "Crispy Bacon",
+      "modifierGroup": "addons",
+      "modifierGroupLabel": "Extra Toppings",
+      "priceAdjustment": "2.00",
+      "defaultSelected": false,
+      "required": false,
+      "minSelections": 0,
+      "maxSelections": 10,
+      "menuItemName": "Classic Burger"
+    },
+    {
+      "name": "Regular Size",
+      "modifierGroup": "size",
+      "modifierGroupLabel": "Size",
+      "priceAdjustment": "0.00",
+      "defaultSelected": true,
+      "required": true,
+      "minSelections": 1,
+      "maxSelections": 1,
+      "menuItemName": "Classic Fries"
+    },
+    {
+      "name": "Large Size",
+      "modifierGroup": "size",
+      "modifierGroupLabel": "Size",
+      "priceAdjustment": "1.50",
+      "defaultSelected": false,
+      "required": true,
+      "minSelections": 1,
+      "maxSelections": 1,
+      "menuItemName": "Classic Fries"
+    },
+    {
+      "name": "Small (16 oz)",
+      "modifierGroup": "size",
+      "modifierGroupLabel": "Size",
+      "priceAdjustment": "0.00",
+      "defaultSelected": true,
+      "required": true,
+      "minSelections": 1,
+      "maxSelections": 1,
+      "menuItemName": "Fountain Drink"
+    },
+    {
+      "name": "Medium (22 oz)",
+      "modifierGroup": "size",
+      "modifierGroupLabel": "Size",
+      "priceAdjustment": "0.50",
+      "defaultSelected": false,
+      "required": true,
+      "minSelections": 1,
+      "maxSelections": 1,
+      "menuItemName": "Fountain Drink"
+    },
+    {
+      "name": "Large (32 oz)",
+      "modifierGroup": "size",
+      "modifierGroupLabel": "Size",
+      "priceAdjustment": "1.00",
+      "defaultSelected": false,
+      "required": true,
+      "minSelections": 1,
+      "maxSelections": 1,
+      "menuItemName": "Fountain Drink"
+    }
+  ]
+}

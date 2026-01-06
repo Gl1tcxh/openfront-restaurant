@@ -1,6 +1,16 @@
 import { list } from '@keystone-6/core'
 import { allOperations, denyAll } from '@keystone-6/core/access'
-import { checkbox, password, relationship, text } from '@keystone-6/core/fields'
+import {
+  checkbox,
+  password,
+  relationship,
+  text,
+  timestamp,
+  decimal,
+  select,
+  json,
+  image,
+} from '@keystone-6/core/fields'
 
 import { isSignedIn, permissions, rules } from '../access'
 import type { Session } from '../access'
@@ -8,7 +18,7 @@ import type { Session } from '../access'
 export const User = list({
   access: {
     operation: {
-      ...allOperations(isSignedIn),
+      query: () => true,
       create: (args) => {
         // Allow public sign-ups if environment variable is set to true
         if (process.env.PUBLIC_SIGNUPS_ALLOWED === 'true') {
@@ -17,6 +27,7 @@ export const User = list({
         // Otherwise, require canManagePeople permission
         return permissions.canManagePeople(args);
       },
+      update: isSignedIn,
       delete: permissions.canManagePeople,
     },
     filter: {
@@ -28,7 +39,7 @@ export const User = list({
     hideCreate: args => !permissions.canManagePeople(args),
     hideDelete: args => !permissions.canManagePeople(args),
     listView: {
-      initialColumns: ['name', 'email', 'role', 'tasks'],
+      initialColumns: ['name', 'email', 'role', 'employeeId', 'staffRole', 'isActive'],
     },
     itemView: {
       defaultFieldMode: ({ session, item }) => {
@@ -77,19 +88,114 @@ export const User = list({
         },
       },
     }),
-    tasks: relationship({
-      ref: 'Todo.assignedTo',
+
+    apiKeys: relationship({
+      ref: 'ApiKey.user',
       many: true,
+      ui: {
+        itemView: { fieldMode: 'read' },
+      },
+    }),
+
+    // Restaurant Staff Fields
+    employeeId: text({
+      isIndexed: 'unique',
+      ui: {
+        description: 'Unique employee identifier',
+      },
+    }),
+
+    staffRole: select({
+      type: 'string',
+      options: [
+        { label: 'Server', value: 'server' },
+        { label: 'Bartender', value: 'bartender' },
+        { label: 'Host', value: 'host' },
+        { label: 'Cook', value: 'cook' },
+        { label: 'Manager', value: 'manager' },
+        { label: 'Admin', value: 'admin' },
+        { label: 'Busser', value: 'busser' },
+        { label: 'Chef', value: 'chef' },
+      ],
+      ui: {
+        displayMode: 'select',
+        description: 'Staff role in the restaurant',
+      },
+    }),
+
+    hireDate: timestamp({
+      ui: {
+        description: 'Date employee was hired',
+      },
+    }),
+
+    hourlyRate: decimal({
+      precision: 10,
+      scale: 2,
+      ui: {
+        description: 'Hourly wage rate',
+      },
+    }),
+
+    pin: text({
       access: {
-        create: permissions.canManageAllTodos,
+        read: denyAll,
         update: ({ session, item }) =>
-          permissions.canManageAllTodos({ session }) || session?.itemId === item.id,
+          permissions.canManagePeople({ session }) || session?.itemId === item.id,
       },
       ui: {
-        createView: {
-          fieldMode: args => (permissions.canManageAllTodos(args) ? 'edit' : 'hidden'),
-        },
-        // itemView: { fieldMode: 'read' },
+        description: '4-digit PIN for quick POS login',
+      },
+    }),
+
+    staffPermissions: json({
+      ui: {
+        description: 'Additional staff permissions and settings',
+      },
+    }),
+
+    isActive: checkbox({
+      defaultValue: true,
+      ui: {
+        description: 'Whether this employee is currently active',
+      },
+    }),
+
+    onboardingStatus: select({
+      type: 'string',
+      options: [
+        { label: 'Not Started', value: 'not_started' },
+        { label: 'In Progress', value: 'in_progress' },
+        { label: 'Completed', value: 'completed' },
+        { label: 'Dismissed', value: 'dismissed' },
+      ],
+      defaultValue: 'not_started',
+      ui: {
+        description: 'Restaurant onboarding progress',
+      },
+    }),
+
+    photo: image({
+      storage: 'my_images',
+    }),
+
+    // Emergency Contact Info
+    emergencyContactName: text({
+      ui: {
+        description: 'Emergency contact person name',
+      },
+    }),
+
+    emergencyContactPhone: text({
+      ui: {
+        description: 'Emergency contact phone number',
+      },
+    }),
+
+    // Certifications
+    certifications: json({
+      ui: {
+        description: 'Food handler, alcohol service, and other certifications (JSON)',
       },
     }),
   },
