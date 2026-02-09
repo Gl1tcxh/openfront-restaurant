@@ -4,12 +4,20 @@ import React from 'react';
 import {
   AlertCircle,
   AppWindowIcon as Apps,
+  ArrowUpRight,
   Loader2,
   Utensils,
   UtensilsCrossed,
   CircleCheck,
-  ArrowUpRight,
+  Eye,
+  InfoIcon,
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -29,10 +37,72 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge-button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CustomSetupSteps } from './CustomSetupSteps';
 import { SectionRenderer } from './SectionRenderer';
 import { useOnboardingState } from '../hooks/useOnboardingState';
 import { useOnboardingApi } from '../hooks/useOnboardingApi';
+import { getItemsFromJsonData } from '../utils/dataUtils';
 import { RESTAURANT_TEMPLATES, SECTION_DEFINITIONS } from '../config/templates';
+
+// Payment provider environment variable mapping adapted for restaurant
+const PAYMENT_METHOD_ENV_VARS: Record<string, string[]> = {
+  'Credit Card': ['NEXT_PUBLIC_STRIPE_KEY', 'STRIPE_SECRET_KEY'],
+};
+
+// Component to display payment method environment variables
+interface PaymentMethodEnvDisplayProps {
+  createdMethods: string[];
+}
+
+const PaymentMethodEnvDisplay: React.FC<PaymentMethodEnvDisplayProps> = ({
+  createdMethods,
+}) => {
+  const providersWithEnvVars = createdMethods.filter(
+    (method) => PAYMENT_METHOD_ENV_VARS[method]
+  );
+
+  if (providersWithEnvVars.length === 0) {
+    return null;
+  }
+
+  const renderEnvVars = (method: string) => {
+    const envVars = PAYMENT_METHOD_ENV_VARS[method];
+    if (!envVars) return null;
+
+    return (
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground mb-3">
+          For {method} to work, you need to add these environment variables to your .env file:
+        </p>
+        {envVars.map((envVar: string) => (
+          <div key={envVar} className="flex items-center gap-2">
+            <code className="bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded text-xs font-mono">
+              {envVar}
+            </code>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Eye className="ml-2 h-3 w-3 cursor-help text-red-500" />
+        </TooltipTrigger>
+        <TooltipContent
+          side="bottom"
+          align="start"
+          className="p-3 text-xs max-w-sm z-[100]"
+        >
+          {renderEnvVars(providersWithEnvVars[0])}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
 
 interface OnboardingDialogProps {
   isOpen: boolean;
@@ -48,6 +118,7 @@ const OnboardingDialog: React.FC<OnboardingDialogProps> = ({
     step,
     selectedTemplate,
     currentJsonData,
+    customJsonApplied,
     progressMessage,
     loadingItems,
     completedItems,
@@ -56,6 +127,8 @@ const OnboardingDialog: React.FC<OnboardingDialogProps> = ({
     isLoading,
     setStep,
     setSelectedTemplate,
+    setCurrentJsonData,
+    setCustomJsonApplied,
     setProgress,
     setItemLoading,
     setItemCompleted,
@@ -82,6 +155,19 @@ const OnboardingDialog: React.FC<OnboardingDialogProps> = ({
   if (!isOpen) return null;
 
   const templateConfig = RESTAURANT_TEMPLATES[selectedTemplate];
+  const displayNames = currentJsonData 
+    ? {
+        storeInfo: getItemsFromJsonData(currentJsonData, 'storeInfo'),
+        categories: getItemsFromJsonData(currentJsonData, 'categories'),
+        menuItems: getItemsFromJsonData(currentJsonData, 'menuItems'),
+        modifiers: getItemsFromJsonData(currentJsonData, 'modifiers'),
+        tables: getItemsFromJsonData(currentJsonData, 'tables'),
+        paymentMethods: getItemsFromJsonData(currentJsonData, 'paymentMethods'),
+        kitchenStations: getItemsFromJsonData(currentJsonData, 'kitchenStations'),
+        floors: getItemsFromJsonData(currentJsonData, 'floors'),
+        sections: getItemsFromJsonData(currentJsonData, 'sections'),
+      }
+    : templateConfig.displayNames;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -133,26 +219,37 @@ const OnboardingDialog: React.FC<OnboardingDialogProps> = ({
                       <div className="flex items-center space-x-2 text-muted-foreground">
                         <CircleCheck className="h-4 w-4 fill-muted-foreground text-background" />
                         <span className="font-medium">
-                          {templateConfig.displayNames.categories.length} categories created
+                          {displayNames.categories.length} category{displayNames.categories.length === 1 ? '' : 'ies'} created
                         </span>
                       </div>
                       <div className="flex items-center space-x-2 text-muted-foreground">
                         <CircleCheck className="h-4 w-4 fill-muted-foreground text-background" />
                         <span className="font-medium">
-                          {templateConfig.displayNames.menuItems.length} menu items created
+                          {displayNames.menuItems.length} menu item{displayNames.menuItems.length === 1 ? '' : 's'} created
                         </span>
                       </div>
                       <div className="flex items-center space-x-2 text-muted-foreground">
                         <CircleCheck className="h-4 w-4 fill-muted-foreground text-background" />
                         <span className="font-medium">
-                          {templateConfig.displayNames.modifiers.length} modifiers created
+                          {displayNames.modifiers.length} modifier{displayNames.modifiers.length === 1 ? '' : 's'} created
                         </span>
                       </div>
                       <div className="flex items-center space-x-2 text-muted-foreground">
                         <CircleCheck className="h-4 w-4 fill-muted-foreground text-background" />
                         <span className="font-medium">
-                          {templateConfig.displayNames.tables.length} tables created
+                          {displayNames.tables.length} table{displayNames.tables.length === 1 ? '' : 's'} created
                         </span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-muted-foreground">
+                        <CircleCheck className="h-4 w-4 fill-muted-foreground text-background" />
+                        <span className="font-medium">
+                          {displayNames.paymentMethods.length} payment method{displayNames.paymentMethods.length === 1 ? '' : 's'} created
+                        </span>
+                        <PaymentMethodEnvDisplay
+                          createdMethods={
+                            displayNames.paymentMethods
+                          }
+                        />
                       </div>
                     </div>
                   </>
@@ -166,22 +263,28 @@ const OnboardingDialog: React.FC<OnboardingDialogProps> = ({
                     <div className="block lg:hidden">
                       <Select
                         value={selectedTemplate}
-                        onValueChange={(value) => setSelectedTemplate(value as 'minimal' | 'full')}
+                        onValueChange={(value) => setSelectedTemplate(value as 'minimal' | 'full' | 'custom')}
                       >
                         <SelectTrigger className="w-full h-auto py-3">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="minimal">
+                            <div className="flex flex-col items-start text-left">
+                              <span className="font-medium">Basic Setup</span>
+                              <span className="text-xs text-muted-foreground">A few sample items to get started</span>
+                            </div>
+                          </SelectItem>
                           <SelectItem value="full">
                             <div className="flex flex-col items-start text-left">
                               <span className="font-medium">Complete Setup</span>
                               <span className="text-xs text-muted-foreground">All categories, menu items, and modifiers</span>
                             </div>
                           </SelectItem>
-                          <SelectItem value="minimal">
+                          <SelectItem value="custom">
                             <div className="flex flex-col items-start text-left">
-                              <span className="font-medium">Basic Setup</span>
-                              <span className="text-xs text-muted-foreground">A few sample items to get started</span>
+                              <span className="font-medium">Custom Setup</span>
+                              <span className="text-xs text-muted-foreground">Use your own JSON templates</span>
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -193,10 +296,48 @@ const OnboardingDialog: React.FC<OnboardingDialogProps> = ({
                       <RadioGroup
                         value={selectedTemplate}
                         onValueChange={(value) =>
-                          setSelectedTemplate(value as 'minimal' | 'full')
+                          setSelectedTemplate(value as 'minimal' | 'full' | 'custom')
                         }
                         className="space-y-4"
                       >
+                        <div
+                          className={`border p-4 rounded-md transition-colors cursor-pointer ${
+                            selectedTemplate === 'minimal'
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                              : 'hover:border-blue-200'
+                          }`}
+                          onClick={() => setSelectedTemplate('minimal')}
+                        >
+                          <div className="flex gap-4">
+                            <div className="flex-shrink-0 mt-[3px]">
+                              <UtensilsCrossed
+                                className={`h-5 w-5 ${
+                                  selectedTemplate === 'minimal'
+                                    ? 'text-blue-600 dark:text-blue-400'
+                                    : 'text-muted-foreground'
+                                }`}
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <RadioGroupItem
+                                value="minimal"
+                                id="minimal"
+                                className="sr-only"
+                              />
+                              <Label
+                                htmlFor="minimal"
+                                className="flex-1 cursor-pointer"
+                              >
+                                <div className="font-medium text-base mb-1">
+                                  Basic Setup
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  A few sample items to get started
+                                </div>
+                              </Label>
+                            </div>
+                          </div>
+                        </div>
                         <div
                           className={`border p-4 rounded-md transition-colors cursor-pointer ${
                             selectedTemplate === 'full'
@@ -237,17 +378,17 @@ const OnboardingDialog: React.FC<OnboardingDialogProps> = ({
                         </div>
                         <div
                           className={`border p-4 rounded-md transition-colors cursor-pointer ${
-                            selectedTemplate === 'minimal'
+                            selectedTemplate === 'custom'
                               ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                               : 'hover:border-blue-200'
                           }`}
-                          onClick={() => setSelectedTemplate('minimal')}
+                          onClick={() => setSelectedTemplate('custom')}
                         >
                           <div className="flex gap-4">
                             <div className="flex-shrink-0 mt-[3px]">
-                              <UtensilsCrossed
+                              <CircleCheck
                                 className={`h-5 w-5 ${
-                                  selectedTemplate === 'minimal'
+                                  selectedTemplate === 'custom'
                                     ? 'text-blue-600 dark:text-blue-400'
                                     : 'text-muted-foreground'
                                 }`}
@@ -255,19 +396,19 @@ const OnboardingDialog: React.FC<OnboardingDialogProps> = ({
                             </div>
                             <div className="flex-1">
                               <RadioGroupItem
-                                value="minimal"
-                                id="minimal"
+                                value="custom"
+                                id="custom"
                                 className="sr-only"
                               />
                               <Label
-                                htmlFor="minimal"
+                                htmlFor="custom"
                                 className="flex-1 cursor-pointer"
                               >
                                 <div className="font-medium text-base mb-1">
-                                  Basic Setup
+                                  Custom Setup
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                  A few sample items to get started
+                                  Use your own JSON templates
                                 </div>
                               </Label>
                             </div>
@@ -349,18 +490,30 @@ const OnboardingDialog: React.FC<OnboardingDialogProps> = ({
           </div>
 
           <div className="flex-1 max-h-[60vh] lg:max-h-[70vh] overflow-y-auto p-4 sm:p-6 order-2 lg:order-none">
-            {/* Unified Section Renderer Component */}
-            <SectionRenderer
-              sections={SECTION_DEFINITIONS}
-              selectedTemplate={selectedTemplate}
-              isLoading={isLoading}
-              loadingItems={loadingItems}
-              completedItems={completedItems}
-              itemErrors={itemErrors}
-              error={error}
-              step={step}
-              currentJsonData={currentJsonData}
-            />
+            {selectedTemplate === 'custom' && step === 'template' && !customJsonApplied ? (
+              /* Custom Setup Steps */
+              <CustomSetupSteps
+                currentJson={currentJsonData}
+                onJsonUpdate={(newJsonData) => {
+                  setCurrentJsonData(newJsonData);
+                  setCustomJsonApplied(true);
+                }}
+                onBack={() => setCustomJsonApplied(false)}
+              />
+            ) : (
+              /* Unified Section Renderer Component */
+              <SectionRenderer
+                sections={SECTION_DEFINITIONS}
+                selectedTemplate={selectedTemplate}
+                isLoading={isLoading}
+                loadingItems={loadingItems}
+                completedItems={completedItems}
+                itemErrors={itemErrors}
+                error={error}
+                step={step}
+                currentJsonData={currentJsonData}
+              />
+            )}
           </div>
         </div>
 

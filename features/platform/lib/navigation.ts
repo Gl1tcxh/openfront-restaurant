@@ -20,7 +20,8 @@ import {
   Building,
   Key,
   CalendarDays,
-  BookOpen
+  BookOpen,
+  Trash2
 } from 'lucide-react'
 
 export interface PlatformNavItem {
@@ -44,10 +45,18 @@ export const platformNavItems: PlatformNavItem[] = [
   // Standalone Items
   {
     title: 'Orders',
-    href: '/orders',
+    href: '/platform/orders',
     color: 'blue',
     description: 'Manage customer orders, delivery, and dine-in.',
     icon: Ticket,
+    group: 'standalone'
+  },
+  {
+    title: 'KDS',
+    href: '/platform/kds',
+    color: 'orange',
+    description: 'Kitchen Display System for order fulfillment.',
+    icon: ChefHat,
     group: 'standalone'
   },
   {
@@ -60,7 +69,7 @@ export const platformNavItems: PlatformNavItem[] = [
   },
   {
     title: 'Reservations',
-    href: '/reservations',
+    href: '/platform/reservations',
     color: 'purple',
     description: 'Manage table reservations and booking schedule.',
     icon: CalendarDays,
@@ -68,7 +77,7 @@ export const platformNavItems: PlatformNavItem[] = [
   },
   {
     title: 'Store Settings',
-    href: '/store-settings',
+    href: '/platform/store-settings',
     color: 'slate',
     description: 'Configure restaurant settings, hours, and branding.',
     icon: Store,
@@ -78,7 +87,7 @@ export const platformNavItems: PlatformNavItem[] = [
   // Menu & Catalog
   {
     title: 'Menu Items',
-    href: '/menu-items',
+    href: '/platform/menu-items',
     color: 'green',
     description: 'Create and manage your menu items, pricing, and availability.',
     icon: Utensils,
@@ -86,7 +95,7 @@ export const platformNavItems: PlatformNavItem[] = [
   },
   {
     title: 'Categories',
-    href: '/menu-categories',
+    href: '/platform/menu-categories',
     color: 'lime',
     description: 'Organize menu items into categories.',
     icon: BookOpen,
@@ -94,19 +103,37 @@ export const platformNavItems: PlatformNavItem[] = [
   },
   {
     title: 'Modifiers',
-    href: '/menu-modifiers',
+    href: '/platform/menu-modifiers',
     color: 'amber',
     description: 'Create modifiers for customization options.',
     icon: UtensilsCrossed,
     group: 'menu'
   },
+
+  // Inventory
   {
     title: 'Ingredients',
-    href: '/ingredients',
+    href: '/platform/ingredients',
     color: 'emerald',
     description: 'Manage ingredients and inventory tracking.',
-    icon: ChefHat,
-    group: 'menu'
+    icon: Boxes,
+    group: 'inventory'
+  },
+  {
+    title: 'Purchase Orders',
+    href: '/platform/inventory/purchase-orders',
+    color: 'blue',
+    description: 'Manage inventory replenishment.',
+    icon: FileText,
+    group: 'inventory'
+  },
+  {
+    title: 'Waste Log',
+    href: '/platform/inventory/waste',
+    color: 'red',
+    description: 'Track food waste and loss.',
+    icon: Trash2,
+    group: 'inventory'
   },
 
   // Operations
@@ -120,7 +147,7 @@ export const platformNavItems: PlatformNavItem[] = [
   },
   {
     title: 'Tables & Sections',
-    href: '/tables',
+    href: '/platform/tables',
     color: 'cyan',
     description: 'Manage dining room layout, tables, and sections.',
     icon: MapPin,
@@ -128,7 +155,7 @@ export const platformNavItems: PlatformNavItem[] = [
   },
   {
     title: 'Staff',
-    href: '/users',
+    href: '/platform/users',
     color: 'purple',
     description: 'Manage staff accounts, roles, and permissions.',
     icon: Users,
@@ -182,6 +209,12 @@ export const platformNavGroups: PlatformNavGroup[] = [
     title: 'Menu',
     icon: Utensils,
     items: platformNavItems.filter((item) => item.group === 'menu'),
+  },
+  {
+    id: 'inventory',
+    title: 'Inventory',
+    icon: Boxes,
+    items: platformNavItems.filter((item) => item.group === 'inventory'),
   },
   {
     id: 'operations',

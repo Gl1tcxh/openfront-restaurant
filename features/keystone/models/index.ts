@@ -5,11 +5,18 @@ import { Floor } from './Floor';
 import { Table } from './Table';
 import { MenuCategory } from './MenuCategory';
 import { MenuItem } from './MenuItem';
+import { MenuItemImage } from './MenuItemImage';
 import { MenuItemModifier } from './MenuItemModifier';
 import { RestaurantOrder } from './RestaurantOrder';
+import { Address } from './Address';
 import { OrderItem } from './OrderItem';
+import { OrderCourse } from './OrderCourse';
+import { KitchenMessage } from './KitchenMessage';
+import { Recipe } from './Recipe';
 import { Reservation } from './Reservation';
 import { Payment } from './Payment';
+import { Cart } from './Cart';
+import { CartItem } from './CartItem';
 import { PaymentProvider } from './PaymentProvider';
 import { ApiKey } from './ApiKey';
 import { Discount } from './Discount';
@@ -24,6 +31,12 @@ import { InventoryLocation } from './InventoryLocation';
 import { Ingredient } from './Ingredient';
 import { StockMovement } from './StockMovement';
 import { StoreSettings } from './StoreSettings';
+import { WaitlistEntry } from './WaitlistEntry';
+import { Shift } from './Shift';
+import { TipPool } from './TipPool';
+import { TimeEntry } from './TimeEntry';
+import { WasteLog } from './WasteLog';
+import { PurchaseOrder } from './PurchaseOrder';
 
 export const models = {
   User,
@@ -33,11 +46,18 @@ export const models = {
   Table,
   MenuCategory,
   MenuItem,
+  MenuItemImage,
   MenuItemModifier,
   RestaurantOrder,
+  Address,
   OrderItem,
+  OrderCourse,
+  KitchenMessage,
+  Recipe,
   Reservation,
   Payment,
+  Cart,
+  CartItem,
   PaymentProvider,
   ApiKey,
   Discount,
@@ -52,6 +72,12 @@ export const models = {
   Ingredient,
   StockMovement,
   StoreSettings,
+  WaitlistEntry,
+  Shift,
+  TipPool,
+  TimeEntry,
+  WasteLog,
+  PurchaseOrder,
 };
 
 export default models;

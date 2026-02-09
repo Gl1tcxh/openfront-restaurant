@@ -5,7 +5,7 @@ export function getItemsFromJsonData(jsonData: any, sectionType: string): string
 
   switch (sectionType) {
     case 'storeInfo':
-      return jsonData.storeInfo ? ['Store Settings'] : ['Store Settings'];
+      return jsonData.storeInfo ? [jsonData.storeInfo.name || 'Store Settings'] : ['Store Settings'];
     case 'kitchenStations':
       return (jsonData.kitchenStations || []).map((s: any) => s.name || 'Unknown Station');
     case 'floors':
@@ -27,8 +27,9 @@ export function getItemsFromJsonData(jsonData: any, sectionType: string): string
   }
 }
 
-export function getSeedForTemplate(template: 'full' | 'minimal', seedData: any) {
-  const tpl = RESTAURANT_TEMPLATES[template];
+export function getSeedForTemplate(template: 'full' | 'minimal' | 'custom', seedData: any) {
+  const templateToUse = template === 'custom' ? 'minimal' : template;
+  const tpl = RESTAURANT_TEMPLATES[templateToUse];
   
   return {
     storeInfo: seedData.storeInfo,

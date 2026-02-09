@@ -33,8 +33,18 @@ export const MenuItem = list({
       validation: { isRequired: true },
     }),
 
-    image: image({
-      storage: "my_images",
+    menuItemImages: relationship({
+      ref: "MenuItemImage.menuItems",
+      many: true,
+      ui: {
+        displayMode: "cards",
+        cardFields: ["image", "altText", "imagePath"],
+        inlineCreate: { fields: ["image", "altText", "imagePath"] },
+        inlineEdit: { fields: ["image", "altText", "imagePath"] },
+        inlineConnect: true,
+        removeMode: "disconnect",
+        linkToItem: false,
+      },
     }),
 
     description: document({
@@ -42,10 +52,11 @@ export const MenuItem = list({
       links: true,
     }),
 
-    price: decimal({
-      precision: 10,
-      scale: 2,
+    price: integer({
       validation: { isRequired: true },
+      ui: {
+        description: "Price in cents",
+      },
     }),
 
     available: checkbox({

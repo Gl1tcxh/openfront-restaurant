@@ -156,7 +156,7 @@ export async function createOrder(data: {
   items: Array<{
     menuItemId: string;
     quantity: number;
-    price: string;
+    price: number; // In cents
     specialInstructions?: string;
     modifierIds?: string[];
   }>;
@@ -164,11 +164,11 @@ export async function createOrder(data: {
   // Generate order number
   const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
 
-  // Calculate totals
+  // Calculate totals (in cents)
   const subtotal = data.items.reduce((sum, item) => {
-    return sum + parseFloat(item.price) * item.quantity;
+    return sum + item.price * item.quantity;
   }, 0);
-  const tax = subtotal * 0.08; // 8% tax
+  const tax = Math.round(subtotal * 0.08); // 8% tax
   const total = subtotal + tax;
 
   // Create the order
@@ -179,9 +179,9 @@ export async function createOrder(data: {
       status: 'open',
       guestCount: data.guestCount || 1,
       specialInstructions: data.specialInstructions || '',
-      subtotal: subtotal.toFixed(2),
-      tax: tax.toFixed(2),
-      total: total.toFixed(2),
+      subtotal,
+      tax,
+      total,
       table: data.tableId ? { connect: { id: data.tableId } } : undefined,
     },
     query: 'id orderNumber'

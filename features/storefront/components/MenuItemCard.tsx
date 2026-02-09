@@ -3,6 +3,7 @@
 import Image from "next/image"
 import { Plus } from "lucide-react"
 import type { MenuItem } from "@/features/storefront/lib/store-data"
+import { formatCurrency } from "@/features/storefront/lib/currency"
 
 interface MenuItemCardProps {
   item: MenuItem
@@ -10,9 +11,10 @@ interface MenuItemCardProps {
 }
 
 // Helper to get image URL
-function getImageUrl(image: any): string {
-  if (typeof image === 'string') return image
-  if (image?.url) return image.url
+function getImageUrl(item: MenuItem): string {
+  const firstImage = item.menuItemImages?.[0]
+  if (firstImage?.image?.url) return firstImage.image.url
+  if (firstImage?.imagePath) return firstImage.imagePath
   return '/placeholder.jpg'
 }
 
@@ -40,7 +42,7 @@ export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
       {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden mb-4 bg-muted">
         <Image
-          src={getImageUrl(item.image)}
+          src={getImageUrl(item)}
           alt={item.name}
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -65,7 +67,7 @@ export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-4">
           <h3 className="font-serif text-lg group-hover:text-primary transition-colors">{item.name}</h3>
-          <span className="text-sm font-medium shrink-0">${Number(item.price).toFixed(2)}</span>
+          <span className="text-sm font-medium shrink-0">{formatCurrency(item.price)}</span>
         </div>
         <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{getDescriptionText(item.description)}</p>
         {item.calories && <p className="text-xs text-muted-foreground">{item.calories} cal</p>}

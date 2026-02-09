@@ -1,9 +1,16 @@
+export interface MenuItemImage {
+  image?: { url: string }
+  imagePath?: string
+  altText?: string
+  order?: number
+}
+
 export interface MenuItem {
   id: string
   name: string
   description: string | { document: any }
   price: number | string
-  image?: { url: string; width?: number; height?: number } | string
+  menuItemImages?: MenuItemImage[]
   category?: { id: string; name: string } | string
   categoryId?: string
   calories?: number

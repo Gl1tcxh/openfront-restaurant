@@ -1,7 +1,3 @@
-export const dynamic = 'force-dynamic'
+import { Page } from '@/features/platform/operations/screens/OperationsPage';
 
-import { OperationalDashboard } from '@/features/platform/reports/screens/OperationalDashboard'
-
-export default function Page() {
-  return <OperationalDashboard />
-}
+export default Page;

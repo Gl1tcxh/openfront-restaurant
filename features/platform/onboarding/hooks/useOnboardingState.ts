@@ -4,12 +4,13 @@ import { getSeedForTemplate, getItemsFromJsonData } from '../utils/dataUtils';
 import seedData from '../lib/seed.json';
 
 export type OnboardingStep = 'template' | 'progress' | 'done';
-export type TemplateType = 'full' | 'minimal';
+export type TemplateType = 'full' | 'minimal' | 'custom';
 
 export interface OnboardingState {
   step: OnboardingStep;
   selectedTemplate: TemplateType;
   currentJsonData: any;
+  customJsonApplied: boolean;
   progressMessage: string;
   loadingItems: Record<string, string[]>;
   completedItems: Record<string, string[]>;
@@ -35,6 +36,7 @@ export function useOnboardingState() {
     step: 'template',
     selectedTemplate: 'full',
     currentJsonData: null,
+    customJsonApplied: false,
     progressMessage: '',
     loadingItems: { ...initialItemsState },
     completedItems: { ...initialItemsState },
@@ -43,12 +45,24 @@ export function useOnboardingState() {
     isLoading: false,
   });
 
+  // Load JSON data when template changes
   useEffect(() => {
-    const templateData = getSeedForTemplate(state.selectedTemplate, seedData);
-    setState(prev => ({
-      ...prev,
-      currentJsonData: templateData,
-    }));
+    if (state.selectedTemplate !== 'custom') {
+      const templateData = getSeedForTemplate(state.selectedTemplate, seedData);
+      setState(prev => ({
+        ...prev,
+        currentJsonData: templateData,
+        customJsonApplied: false,
+      }));
+    } else {
+      // For custom, start with minimal template
+      const minimalData = getSeedForTemplate('minimal', seedData);
+      setState(prev => ({
+        ...prev,
+        currentJsonData: minimalData,
+        customJsonApplied: false,
+      }));
+    }
   }, [state.selectedTemplate]);
 
   const setStep = (step: OnboardingStep) => {
@@ -61,6 +75,10 @@ export function useOnboardingState() {
 
   const setCurrentJsonData = (data: any) => {
     setState(prev => ({ ...prev, currentJsonData: data }));
+  };
+
+  const setCustomJsonApplied = (applied: boolean) => {
+    setState(prev => ({ ...prev, customJsonApplied: applied }));
   };
 
   const setIsLoading = (loading: boolean) => {
@@ -92,152 +110,74 @@ export function useOnboardingState() {
   const setProgress = (message: string) => {
     setProgressMessage(message);
 
+    // Get current display names for bulk completion logic
     const displayNames = state.currentJsonData
       ? getDisplayNamesFromData(state.currentJsonData)
       : RESTAURANT_TEMPLATES[state.selectedTemplate].displayNames;
 
-    // Progress through sections in order
-    if (message.includes('kitchen stations')) {
+    // Bulk completion logic matching OG Openfront exactly
+    if (message.includes('menu categories')) {
       setState(prev => ({
         ...prev,
-        completedItems: {
-          ...prev.completedItems,
-          storeInfo: [...displayNames.storeInfo],
-        },
-        loadingItems: {
-          ...prev.loadingItems,
-          storeInfo: [],
-        }
-      }));
-    } else if (message.includes('floors')) {
-      setState(prev => ({
-        ...prev,
-        completedItems: {
-          ...prev.completedItems,
-          storeInfo: [...displayNames.storeInfo],
-          kitchenStations: [...displayNames.kitchenStations],
-        },
-        loadingItems: {
-          ...prev.loadingItems,
-          kitchenStations: [],
-        }
-      }));
-    } else if (message.includes('sections')) {
-      setState(prev => ({
-        ...prev,
-        completedItems: {
-          ...prev.completedItems,
-          storeInfo: [...displayNames.storeInfo],
-          kitchenStations: [...displayNames.kitchenStations],
-          floors: [...displayNames.floors],
-        },
-        loadingItems: {
-          ...prev.loadingItems,
-          floors: [],
-        }
-      }));
-    } else if (message.includes('tables')) {
-      setState(prev => ({
-        ...prev,
-        completedItems: {
-          ...prev.completedItems,
-          storeInfo: [...displayNames.storeInfo],
-          kitchenStations: [...displayNames.kitchenStations],
-          floors: [...displayNames.floors],
-          sections: [...displayNames.sections],
-        },
-        loadingItems: {
-          ...prev.loadingItems,
-          sections: [],
-        }
-      }));
-    } else if (message.includes('payment')) {
-      setState(prev => ({
-        ...prev,
-        completedItems: {
-          ...prev.completedItems,
-          storeInfo: [...displayNames.storeInfo],
-          kitchenStations: [...displayNames.kitchenStations],
-          floors: [...displayNames.floors],
-          sections: [...displayNames.sections],
-          tables: [...displayNames.tables],
-        },
-        loadingItems: {
-          ...prev.loadingItems,
-          tables: [],
-        }
-      }));
-    } else if (message.includes('menu categories')) {
-      setState(prev => ({
-        ...prev,
-        completedItems: {
-          ...prev.completedItems,
-          storeInfo: [...displayNames.storeInfo],
-          kitchenStations: [...displayNames.kitchenStations],
-          floors: [...displayNames.floors],
-          sections: [...displayNames.sections],
-          tables: [...displayNames.tables],
-          paymentMethods: [...displayNames.paymentMethods],
-        },
-        loadingItems: {
-          ...prev.loadingItems,
-          paymentMethods: [],
-        }
+        completedItems: { ...prev.completedItems, storeInfo: [...displayNames.storeInfo] },
+        loadingItems: { ...prev.loadingItems, storeInfo: [] }
       }));
     } else if (message.includes('menu items')) {
       setState(prev => ({
         ...prev,
-        completedItems: {
-          ...prev.completedItems,
-          storeInfo: [...displayNames.storeInfo],
-          kitchenStations: [...displayNames.kitchenStations],
-          floors: [...displayNames.floors],
-          sections: [...displayNames.sections],
-          tables: [...displayNames.tables],
-          paymentMethods: [...displayNames.paymentMethods],
-          categories: [...displayNames.categories],
-        },
-        loadingItems: {
-          ...prev.loadingItems,
-          categories: [],
-        }
+        completedItems: { ...prev.completedItems, categories: [...displayNames.categories] },
+        loadingItems: { ...prev.loadingItems, categories: [] }
       }));
     } else if (message.includes('modifiers')) {
       setState(prev => ({
         ...prev,
-        completedItems: {
-          ...prev.completedItems,
-          storeInfo: [...displayNames.storeInfo],
-          kitchenStations: [...displayNames.kitchenStations],
-          floors: [...displayNames.floors],
-          sections: [...displayNames.sections],
-          tables: [...displayNames.tables],
-          paymentMethods: [...displayNames.paymentMethods],
-          categories: [...displayNames.categories],
-          menuItems: [...displayNames.menuItems],
-        },
-        loadingItems: {
-          ...prev.loadingItems,
-          menuItems: [],
-        }
+        completedItems: { ...prev.completedItems, menuItems: [...displayNames.menuItems] },
+        loadingItems: { ...prev.loadingItems, menuItems: [] }
+      }));
+    } else if (message.includes('payment methods')) {
+      setState(prev => ({
+        ...prev,
+        completedItems: { ...prev.completedItems, modifiers: [...displayNames.modifiers] },
+        loadingItems: { ...prev.loadingItems, modifiers: [] }
+      }));
+    } else if (message.includes('kitchen stations')) {
+      setState(prev => ({
+        ...prev,
+        completedItems: { ...prev.completedItems, paymentMethods: [...displayNames.paymentMethods] },
+        loadingItems: { ...prev.loadingItems, paymentMethods: [] }
+      }));
+    } else if (message.includes('floors')) {
+      setState(prev => ({
+        ...prev,
+        completedItems: { ...prev.completedItems, kitchenStations: [...displayNames.kitchenStations] },
+        loadingItems: { ...prev.loadingItems, kitchenStations: [] }
+      }));
+    } else if (message.includes('sections')) {
+      setState(prev => ({
+        ...prev,
+        completedItems: { ...prev.completedItems, floors: [...displayNames.floors] },
+        loadingItems: { ...prev.loadingItems, floors: [] }
+      }));
+    } else if (message.includes('tables')) {
+      setState(prev => ({
+        ...prev,
+        completedItems: { ...prev.completedItems, sections: [...displayNames.sections] },
+        loadingItems: { ...prev.loadingItems, sections: [] }
       }));
     } else if (message.includes('complete')) {
       setState(prev => ({
         ...prev,
-        loadingItems: {
-          ...prev.loadingItems,
-          modifiers: [],
-        },
+        loadingItems: { ...prev.loadingItems, tables: [] },
         completedItems: {
           storeInfo: [...displayNames.storeInfo],
+          categories: [...displayNames.categories],
+          menuItems: [...displayNames.menuItems],
+          modifiers: [...displayNames.modifiers],
+          paymentMethods: [...displayNames.paymentMethods],
           kitchenStations: [...displayNames.kitchenStations],
           floors: [...displayNames.floors],
           sections: [...displayNames.sections],
           tables: [...displayNames.tables],
-          paymentMethods: [...displayNames.paymentMethods],
-          categories: [...displayNames.categories],
-          menuItems: [...displayNames.menuItems],
-          modifiers: [...displayNames.modifiers],
         }
       }));
     }
@@ -325,6 +265,7 @@ export function useOnboardingState() {
     setStep,
     setSelectedTemplate,
     setCurrentJsonData,
+    setCustomJsonApplied,
     setIsLoading,
     setError,
     setProgress,

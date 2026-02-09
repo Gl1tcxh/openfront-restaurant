@@ -1,6 +1,6 @@
-import { list } from "@keystone-6/core";
+import { list, graphql } from "@keystone-6/core";
 import { allOperations } from "@keystone-6/core/access";
-import { text, integer, select, relationship, float, json } from "@keystone-6/core/fields";
+import { text, integer, select, relationship, float, json, virtual } from "@keystone-6/core/fields";
 
 import { isSignedIn } from "../access";
 
@@ -91,6 +91,35 @@ export const Table = list({
       ui: {
         displayMode: "select",
       },
+    }),
+
+    orders: relationship({
+      ref: "RestaurantOrder.tables",
+      many: true,
+      ui: {
+        createView: { fieldMode: 'hidden' },
+        itemView: { fieldMode: 'read' },
+      },
+    }),
+
+    turnoverRate: virtual({
+      field: graphql.field({
+        type: graphql.Float,
+        async resolve(item: any, args, context) {
+          const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+          const ordersCount = await context.sudo().query.RestaurantOrder.count({
+            where: {
+              tables: { some: { id: { equals: item.id as string } } },
+              createdAt: { gte: dayAgo.toISOString() },
+              status: { equals: 'completed' }
+            }
+          });
+          return ordersCount;
+        }
+      }),
+      ui: {
+        description: "Number of completed orders in the last 24 hours",
+      }
     }),
   },
 });

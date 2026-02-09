@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useMemo } from "react"
 import Image from "next/image"
-import { X, Minus, Plus, Check } from "lucide-react"
+import { Minus, Plus, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { useCart } from "@/features/storefront/lib/cart-context"
 import type { MenuItem, SelectedModifier, MenuItemModifier } from "@/features/storefront/lib/store-data"
+import { formatCurrency } from "@/features/storefront/lib/currency"
 
 interface ItemCustomizationModalProps {
   item: MenuItem | null
@@ -17,9 +18,10 @@ interface ItemCustomizationModalProps {
 }
 
 // Helper to get image URL
-function getImageUrl(image: any): string {
-  if (typeof image === 'string') return image
-  if (image?.url) return image.url
+function getImageUrl(item: MenuItem): string {
+  const firstImage = item.menuItemImages?.[0]
+  if (firstImage?.image?.url) return firstImage.image.url
+  if (firstImage?.imagePath) return firstImage.imagePath
   return '/placeholder.jpg'
 }
 
@@ -156,25 +158,20 @@ export function ItemCustomizationModal({ item, isOpen, onClose }: ItemCustomizat
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden p-0 bg-background">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden p-0 bg-background flex flex-col">
+        <DialogTitle className="sr-only">{item.name}</DialogTitle>
         {/* Image */}
-        <div className="relative h-56 sm:h-72 bg-muted">
-          <Image src={getImageUrl(item.image)} alt={item.name} fill className="object-cover" />
-          <button
-            className="absolute top-4 right-4 h-10 w-10 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors"
-            onClick={onClose}
-          >
-            <X className="h-5 w-5" />
-          </button>
+        <div className="relative h-56 sm:h-72 bg-muted shrink-0">
+          <Image src={getImageUrl(item)} alt={item.name} fill className="object-cover" />
         </div>
 
-        <div className="overflow-y-auto max-h-[calc(90vh-18rem)]">
+        <div className="overflow-y-auto flex-1 min-h-0">
           {/* Header */}
           <div className="px-6 pt-6 pb-4 border-b border-border">
             <h2 className="font-serif text-2xl md:text-3xl mb-2">{item.name}</h2>
             <p className="text-muted-foreground leading-relaxed">{getDescriptionText(item.description)}</p>
             <div className="flex items-center gap-4 mt-3 text-sm">
-              <span className="font-medium">${Number(item.price).toFixed(2)}</span>
+              <span className="font-medium">{formatCurrency(item.price)}</span>
               {item.calories && <span className="text-muted-foreground">{item.calories} cal</span>}
             </div>
           </div>
@@ -219,7 +216,7 @@ export function ItemCustomizationModal({ item, isOpen, onClose }: ItemCustomizat
                               )}
                             </div>
                           </div>
-                          {modifier.price > 0 && <span className="text-sm">+${modifier.price.toFixed(2)}</span>}
+                          {modifier.price > 0 && <span className="text-sm">+{formatCurrency(modifier.price)}</span>}
                         </button>
                       )
                     })}
@@ -243,7 +240,7 @@ export function ItemCustomizationModal({ item, isOpen, onClose }: ItemCustomizat
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border p-6 bg-muted/30">
+        <div className="border-t border-border p-6 bg-muted/30 shrink-0">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center border border-border bg-background">
               <button
@@ -265,7 +262,7 @@ export function ItemCustomizationModal({ item, isOpen, onClose }: ItemCustomizat
               className="flex-1 h-12 bg-foreground text-background hover:bg-foreground/90 uppercase tracking-widest text-xs"
               onClick={handleAddToCart}
             >
-              Add to Bag · ${itemTotal.toFixed(2)}
+              Add to Bag · {formatCurrency(itemTotal)}
             </Button>
           </div>
         </div>

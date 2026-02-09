@@ -1,7 +1,13 @@
+import StorefrontServer from "@/features/storefront/screens/StorefrontServer";
+
 export default function StorefrontLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <StorefrontServer>
+      {children}
+    </StorefrontServer>
+  );
 }

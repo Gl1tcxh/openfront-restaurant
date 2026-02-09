@@ -53,46 +53,7 @@ export const SectionRenderer: React.FC<SectionRendererProps> = ({
             {/* Section items */}
             <div className="pl-9">
               <div className="flex flex-wrap gap-2 pb-6">
-                {/* Special case for payment providers with Stripe tooltips */}
-                {section.type === 'paymentProviders' && selectedTemplate === 'full' ? (
-                  <>
-                    <SectionItem
-                      item="Stripe"
-                      sectionType={section.type}
-                      status={
-                        step === 'done'
-                          ? 'completed'
-                          : error && itemErrors[section.type]?.['Stripe']
-                          ? 'error'
-                          : completedItems[section.type]?.includes('Stripe')
-                          ? 'completed'
-                          : 'normal'
-                      }
-                      errorMessage={itemErrors[section.type]?.['Stripe']}
-                      requiresEnvVar={{
-                        vars: ['NEXT_PUBLIC_STRIPE_KEY', 'STRIPE_SECRET_KEY'],
-                      }}
-                      step={step}
-                    />
-                    <SectionItem
-                      item="Manual"
-                      sectionType={section.type}
-                      status={
-                        step === 'done'
-                          ? 'completed'
-                          : error && itemErrors[section.type]?.['Manual']
-                          ? 'error'
-                          : completedItems[section.type]?.includes('Manual')
-                          ? 'completed'
-                          : 'normal'
-                      }
-                      errorMessage={itemErrors[section.type]?.['Manual']}
-                      step={step}
-                    />
-                  </>
-                ) : (
-                  // Standard items rendering for all other cases
-                  items.map((item) => {
+                {items.map((item) => {
                     // Determine the status of this item
                     let status: 'normal' | 'loading' | 'completed' | 'error' = 'normal';
                     let errorMessage: string | undefined;
@@ -129,8 +90,7 @@ export const SectionRenderer: React.FC<SectionRendererProps> = ({
                         step={step}
                       />
                     );
-                  })
-                )}
+                  })}
               </div>
             </div>
           </div>

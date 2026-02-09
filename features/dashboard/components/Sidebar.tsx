@@ -68,9 +68,11 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
   const { isMobile, setOpenMobile } = useSidebar()
   const pathname = usePathname()
   const { basePath } = useDashboard()
+  const [mounted, setMounted] = React.useState(false)
 
-  const lists = adminMeta?.lists || {}
-  const listsArray = Object.values(lists)
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Function to check if a link is active
   const isLinkActive = React.useCallback(
@@ -91,6 +93,9 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
     },
     [pathname]
   )
+
+  const lists = adminMeta?.lists || {}
+  const listsArray = Object.values(lists)
 
   // Convert lists to sidebar links format
   const modelLinks = listsArray.map((list: any) => ({
@@ -119,6 +124,19 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
     href: `${basePath}${item.href}`,
   }))
 
+  // Prevent hydration errors by not rendering Radix components until mounted
+  if (!mounted) {
+    return (
+      <SidebarComponent collapsible="icon">
+        <SidebarHeader>
+           <div className="p-2 opacity-0"><Logo /></div>
+        </SidebarHeader>
+        <SidebarContent />
+        <SidebarFooter />
+      </SidebarComponent>
+    )
+  }
+
   return (
     <SidebarComponent collapsible="icon">
       <SidebarHeader>
@@ -129,7 +147,7 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
         </SidebarMenuButton>
         <SidebarMenuButton asChild>
           <div className="hidden group-has-[[data-collapsible=icon]]/sidebar-wrapper:block">
-            <LogoIcon />
+            <LogoIcon className="size-5 text-amber-500" suffix="-full-header" />
           </div>
         </SidebarMenuButton>
       </SidebarHeader>
@@ -237,14 +255,14 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
                           key={link.href}
                           className={
                             isLinkActive(link.href)
-                              ? 'bg-blue-50 text-blue-600'
+                              ? 'bg-primary/10 text-primary font-medium'
                               : ''
                           }
                         >
                           <Link href={link.href} onClick={() => setOpenMobile(false)}>
                             <span>{link.title}</span>
                             {isLinkActive(link.href) && (
-                              <div className="ml-auto h-2 w-2 rounded-full bg-blue-600" />
+                              <div className="ml-auto h-2 w-2 rounded-full bg-primary" />
                             )}
                           </Link>
                         </DropdownMenuItem>
@@ -314,14 +332,14 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
                         key={link.href}
                         className={
                           isLinkActive(link.href)
-                            ? 'bg-blue-50 text-blue-600'
+                            ? 'bg-primary/10 text-primary font-medium'
                             : ''
                         }
                       >
                         <Link href={link.href} onClick={() => setOpenMobile(false)}>
                           <span>{link.title}</span>
                           {isLinkActive(link.href) && (
-                            <div className="ml-auto h-2 w-2 rounded-full bg-blue-600" />
+                            <div className="ml-auto h-2 w-2 rounded-full bg-primary" />
                           )}
                         </Link>
                       </DropdownMenuItem>

@@ -5,8 +5,9 @@ import { Minus, Plus, X, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useCart } from "@/features/storefront/lib/cart-context"
-import { type StoreInfo } from "@/features/storefront/lib/store-data"
+import { type StoreInfo, type MenuItem } from "@/features/storefront/lib/store-data"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { formatCurrency } from "@/features/storefront/lib/currency"
 
 interface CartSidebarProps {
   orderType: "pickup" | "delivery"
@@ -15,9 +16,10 @@ interface CartSidebarProps {
 }
 
 // Helper function to get image URL
-function getImageUrl(image: any): string {
-  if (typeof image === 'string') return image
-  if (image?.url) return image.url
+function getImageUrl(item: MenuItem): string {
+  const firstImage = item.menuItemImages?.[0]
+  if (firstImage?.image?.url) return firstImage.image.url
+  if (firstImage?.imagePath) return firstImage.imagePath
   return '/placeholder.jpg'
 }
 
@@ -35,14 +37,6 @@ export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarPro
         <SheetHeader className="px-6 py-6 border-b border-border">
           <div className="flex items-center justify-between">
             <SheetTitle className="font-serif text-2xl">Your Bag</SheetTitle>
-            {items.length > 0 && (
-              <button
-                onClick={clearCart}
-                className="text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Clear
-              </button>
-            )}
           </div>
           <p className="text-sm text-muted-foreground">
             {orderType === "pickup"
@@ -75,7 +69,7 @@ export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarPro
                     <div key={item.id} className="flex gap-4">
                       <div className="relative h-20 w-20 shrink-0 bg-muted">
                         <Image
-                          src={getImageUrl(item.menuItem.image)}
+                          src={getImageUrl(item.menuItem)}
                           alt={item.menuItem.name}
                           fill
                           className="object-cover"
@@ -115,7 +109,7 @@ export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarPro
                               <Plus className="h-3 w-3" />
                             </button>
                           </div>
-                          <span className="text-sm">${itemPrice.toFixed(2)}</span>
+                          <span className="text-sm">{formatCurrency(itemPrice)}</span>
                         </div>
                       </div>
                     </div>
@@ -125,31 +119,40 @@ export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarPro
             </ScrollArea>
 
             <div className="border-t border-border p-6 space-y-4 bg-muted/30">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Order Summary</span>
+                <button
+                  onClick={clearCart}
+                  className="text-[10px] tracking-widest uppercase text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  Clear Bag
+                </button>
+              </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>{formatCurrency(subtotal)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-primary">
                     <span>Pickup Discount</span>
-                    <span>-${discount.toFixed(2)}</span>
+                    <span>-{formatCurrency(discount)}</span>
                   </div>
                 )}
                 {deliveryFee > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Delivery</span>
-                    <span>${deliveryFee.toFixed(2)}</span>
+                    <span>{formatCurrency(deliveryFee)}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tax</span>
-                  <span>${tax.toFixed(2)}</span>
+                  <span>{formatCurrency(tax)}</span>
                 </div>
               </div>
               <div className="flex justify-between font-serif text-lg pt-4 border-t border-border">
                 <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{formatCurrency(total)}</span>
               </div>
               <Button
                 className="w-full h-12 bg-foreground text-background hover:bg-foreground/90 uppercase tracking-widest text-xs"

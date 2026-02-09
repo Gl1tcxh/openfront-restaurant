@@ -69,12 +69,10 @@ export const MenuItemModifier = list({
       },
     }),
 
-    priceAdjustment: decimal({
-      precision: 10,
-      scale: 2,
-      defaultValue: "0.00",
+    priceAdjustment: integer({
+      defaultValue: 0,
       ui: {
-        description: "Price change (can be negative for removals like no-cheese)",
+        description: "Price adjustment in cents (can be negative for removals like no-cheese)",
       },
     }),
 

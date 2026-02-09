@@ -28,12 +28,10 @@ export const Payment = list({
     },
   },
   fields: {
-    amount: decimal({
-      precision: 10,
-      scale: 2,
+    amount: integer({
       validation: { isRequired: true },
       ui: {
-        description: "Payment amount in dollars",
+        description: "Payment amount in cents",
       },
     }),
 
@@ -113,12 +111,10 @@ export const Payment = list({
     }),
 
     // Tip handling
-    tipAmount: decimal({
-      precision: 10,
-      scale: 2,
-      defaultValue: "0.00",
+    tipAmount: integer({
+      defaultValue: 0,
       ui: {
-        description: "Tip amount included in payment",
+        description: "Tip amount included in payment in cents",
       },
     }),
 

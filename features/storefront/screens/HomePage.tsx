@@ -1,7 +1,8 @@
 import { Metadata } from "next"
 import { getMenuCategories, getMenuItems, getFeaturedMenuItems, getStoreSettings } from "@/features/storefront/lib/data/menu"
+import { getUser } from "@/features/storefront/lib/data/user"
 import { type StoreInfo } from "@/features/storefront/lib/store-data"
-import StorefrontClient from "./HomePageClient"
+import HomePageClient from "./HomePageClient"
 
 // Force dynamic rendering since we fetch data
 export const dynamic = 'force-dynamic'
@@ -18,11 +19,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function HomePage() {
   // Fetch all data server-side
-  const [categories, allItems, featuredItems, storeSettings] = await Promise.all([
+  const [categories, allItems, featuredItems, storeSettings, user] = await Promise.all([
     getMenuCategories(),
     getMenuItems(),
     getFeaturedMenuItems(8),
     getStoreSettings(),
+    getUser(),
   ])
 
   // If no store settings exist, return null (middleware will redirect to init)
@@ -57,11 +59,12 @@ export default async function HomePage() {
   ]
 
   return (
-    <StorefrontClient
+    <HomePageClient
       categories={allCategories}
       menuItems={allItems}
       featuredItems={featuredItems}
       storeInfo={storeInfo}
+      user={user}
     />
   )
 }

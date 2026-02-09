@@ -12,6 +12,7 @@ export const VIEW_ORDER = [
   "text",
   "password",
   "relationship",
+  "virtual",
   "select",
   "timestamp",
   "decimal",

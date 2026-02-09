@@ -1,11 +1,12 @@
-import { list } from "@keystone-6/core";
+import { list, graphql } from "@keystone-6/core";
 import { allOperations } from "@keystone-6/core/access";
 import {
   text,
   relationship,
   integer,
   timestamp,
-  decimal
+  decimal,
+  virtual
 } from "@keystone-6/core/fields";
 
 import { isSignedIn } from "../access";
@@ -30,13 +31,29 @@ export const OrderItem = list({
       validation: { min: 1, isRequired: true },
     }),
 
-    price: decimal({
-      precision: 10,
-      scale: 2,
+    price: integer({
       validation: { isRequired: true },
       ui: {
-        description: "Price at time of order (snapshot)",
+        description: "Price at time of order in cents (snapshot)",
       },
+    }),
+
+    unitPrice: virtual({
+      field: graphql.field({
+        type: graphql.Int,
+        resolve(item: any) {
+          return item.price || 0;
+        },
+      }),
+    }),
+
+    totalPrice: virtual({
+      field: graphql.field({
+        type: graphql.Int,
+        resolve(item: any) {
+          return (item.price || 0) * (item.quantity || 1);
+        },
+      }),
     }),
 
     specialInstructions: text({
@@ -67,6 +84,13 @@ export const OrderItem = list({
     // Relationships
     order: relationship({
       ref: "RestaurantOrder.orderItems",
+      ui: {
+        displayMode: "select",
+      },
+    }),
+
+    course: relationship({
+      ref: "OrderCourse.orderItems",
       ui: {
         displayMode: "select",
       },

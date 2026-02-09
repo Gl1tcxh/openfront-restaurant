@@ -19,6 +19,10 @@ model User {
   role                              Role?             @relation("User_role", fields: [roleId], references: [id])
   roleId                            String?           @map("role")
   apiKeys                           ApiKey[]          @relation("ApiKey_user")
+  phone                             String            @default("")
+  restaurantOrders                  RestaurantOrder[] @relation("RestaurantOrder_customer")
+  addresses                         Address[]         @relation("Address_user")
+  carts                             Cart[]            @relation("Cart_user")
   employeeId                        String            @unique @default("")
   staffRole                         String?
   hireDate                          DateTime?
@@ -35,15 +39,24 @@ model User {
   emergencyContactName              String            @default("")
   emergencyContactPhone             String            @default("")
   certifications                    Json?
+  createdAt                         DateTime          @default(now())
+  updatedAt                         DateTime          @default(now()) @updatedAt
   passwordResetToken                String?
   passwordResetIssuedAt             DateTime?
   passwordResetRedeemedAt           DateTime?
   from_RestaurantOrder_server       RestaurantOrder[] @relation("RestaurantOrder_server")
   from_RestaurantOrder_createdBy    RestaurantOrder[] @relation("RestaurantOrder_createdBy")
+  from_KitchenMessage_sender        KitchenMessage[]  @relation("KitchenMessage_sender")
   from_Payment_processedBy          Payment[]         @relation("Payment_processedBy")
   from_KitchenStation_assignedStaff KitchenStation[]  @relation("KitchenStation_assignedStaff")
   from_KitchenTicket_preparedBy     KitchenTicket[]   @relation("KitchenTicket_preparedBy")
   from_StockMovement_createdBy      StockMovement[]   @relation("StockMovement_createdBy")
+  from_WaitlistEntry_addedBy        WaitlistEntry[]   @relation("WaitlistEntry_addedBy")
+  from_Shift_staff                  Shift[]           @relation("Shift_staff")
+  from_TipPool_createdBy            TipPool[]         @relation("TipPool_createdBy")
+  from_TimeEntry_staff              TimeEntry[]       @relation("TimeEntry_staff")
+  from_WasteLog_loggedBy            WasteLog[]        @relation("WasteLog_loggedBy")
+  from_PurchaseOrder_createdBy      PurchaseOrder[]   @relation("PurchaseOrder_createdBy")
 
   @@index([roleId])
 }
@@ -89,8 +102,9 @@ model Table {
   floorId                        String?           @map("floor")
   section                        Section?          @relation("Table_section", fields: [sectionId], references: [id])
   sectionId                      String?           @map("section")
-  from_RestaurantOrder_table     RestaurantOrder[] @relation("RestaurantOrder_table")
+  orders                         RestaurantOrder[] @relation("RestaurantOrder_tables")
   from_Reservation_assignedTable Reservation[]     @relation("Reservation_assignedTable")
+  from_WaitlistEntry_table       WaitlistEntry[]   @relation("WaitlistEntry_table")
 
   @@index([tableNumber])
   @@index([floorId])
@@ -110,13 +124,9 @@ model MenuCategory {
 model MenuItem {
   id                        String             @id @default(cuid())
   name                      String             @default("")
-  image_id                  String?
-  image_filesize            Int?
-  image_width               Int?
-  image_height              Int?
-  image_extension           String?
+  menuItemImages            MenuItemImage[]    @relation("MenuItem_menuItemImages")
   description               Json               @default("[{\"type\":\"paragraph\",\"children\":[{\"text\":\"\"}]}]")
-  price                     Decimal            @postgresql.Decimal(10, 2)
+  price                     Int
   available                 Boolean            @default(true)
   featured                  Boolean            @default(false)
   popular                   Boolean            @default(false)
@@ -130,9 +140,25 @@ model MenuItem {
   categoryId                String?            @map("category")
   modifiers                 MenuItemModifier[] @relation("MenuItemModifier_menuItem")
   from_OrderItem_menuItem   OrderItem[]        @relation("OrderItem_menuItem")
+  from_Recipe_menuItem      Recipe[]           @relation("Recipe_menuItem")
+  from_CartItem_menuItem    CartItem[]         @relation("CartItem_menuItem")
   from_PrepStation_menuItem PrepStation[]      @relation("PrepStation_menuItem")
 
   @@index([categoryId])
+}
+
+model MenuItemImage {
+  id              String     @id @default(cuid())
+  image_id        String?
+  image_filesize  Int?
+  image_width     Int?
+  image_height    Int?
+  image_extension String?
+  imagePath       String     @default("")
+  altText         String     @default("")
+  order           Int?       @default(0)
+  menuItems       MenuItem[] @relation("MenuItem_menuItemImages")
+  metadata        Json?
 }
 
 model MenuItemModifier {
@@ -143,12 +169,13 @@ model MenuItemModifier {
   required                        Boolean     @default(false)
   minSelections                   Int?        @default(0)
   maxSelections                   Int?        @default(1)
-  priceAdjustment                 Decimal?    @default("0.00") @postgresql.Decimal(10, 2)
+  priceAdjustment                 Int?        @default(0)
   calories                        Int?
   defaultSelected                 Boolean     @default(false)
   menuItem                        MenuItem?   @relation("MenuItemModifier_menuItem", fields: [menuItemId], references: [id])
   menuItemId                      String?     @map("menuItem")
   from_OrderItem_appliedModifiers OrderItem[] @relation("OrderItem_appliedModifiers")
+  from_CartItem_modifiers         CartItem[]  @relation("CartItem_modifiers")
 
   @@index([menuItemId])
 }
@@ -161,47 +188,135 @@ model RestaurantOrder {
   status                         String?               @default("open")
   guestCount                     Int?                  @default(1)
   specialInstructions            String                @default("")
-  subtotal                       Decimal?              @default("0.00") @postgresql.Decimal(10, 2)
-  tax                            Decimal?              @default("0.00") @postgresql.Decimal(10, 2)
-  tip                            Decimal?              @default("0.00") @postgresql.Decimal(10, 2)
-  discount                       Decimal?              @default("0.00") @postgresql.Decimal(10, 2)
-  total                          Decimal?              @default("0.00") @postgresql.Decimal(10, 2)
-  table                          Table?                @relation("RestaurantOrder_table", fields: [tableId], references: [id])
-  tableId                        String?               @map("table")
+  onHold                         Boolean               @default(false)
+  holdReason                     String                @default("")
+  isUrgent                       Boolean               @default(false)
+  subtotal                       Int?                  @default(0)
+  tax                            Int?                  @default(0)
+  tip                            Int?                  @default(0)
+  discount                       Int?                  @default(0)
+  total                          Int?                  @default(0)
+  customerName                   String                @default("")
+  customerEmail                  String                @default("")
+  customerPhone                  String                @default("")
+  deliveryAddress                String                @default("")
+  deliveryCity                   String                @default("")
+  deliveryZip                    String                @default("")
+  secretKey                      String                @default("")
+  tableSeatedAt                  DateTime?             @default(now())
+  tableFreedAt                   DateTime?
+  tables                         Table[]               @relation("RestaurantOrder_tables")
+  customer                       User?                 @relation("RestaurantOrder_customer", fields: [customerId], references: [id])
+  customerId                     String?               @map("customer")
   server                         User?                 @relation("RestaurantOrder_server", fields: [serverId], references: [id])
   serverId                       String?               @map("server")
   createdBy                      User?                 @relation("RestaurantOrder_createdBy", fields: [createdById], references: [id])
   createdById                    String?               @map("createdBy")
+  courses                        OrderCourse[]         @relation("OrderCourse_order")
   orderItems                     OrderItem[]           @relation("OrderItem_order")
   payments                       Payment[]             @relation("Payment_order")
   discounts                      Discount[]            @relation("Discount_orders")
   giftCards                      GiftCard[]            @relation("GiftCard_order")
   createdAt                      DateTime              @default(now())
   updatedAt                      DateTime              @default(now()) @updatedAt
+  from_KitchenMessage_order      KitchenMessage[]      @relation("KitchenMessage_order")
   from_GiftCardTransaction_order GiftCardTransaction[] @relation("GiftCardTransaction_order")
   from_KitchenTicket_order       KitchenTicket[]       @relation("KitchenTicket_order")
   from_StockMovement_order       StockMovement[]       @relation("StockMovement_order")
 
-  @@index([tableId])
+  @@index([customerId])
   @@index([serverId])
   @@index([createdById])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  name       String   @default("")
+  address1   String   @default("")
+  address2   String   @default("")
+  city       String   @default("")
+  state      String   @default("")
+  postalCode String   @default("")
+  country    String   @default("USA")
+  phone      String   @default("")
+  isDefault  Boolean  @default(false)
+  isBilling  Boolean  @default(false)
+  metadata   Json?
+  user       User?    @relation("Address_user", fields: [userId], references: [id])
+  userId     String?  @map("user")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@index([userId])
 }
 
 model OrderItem {
   id                  String             @id @default(cuid())
   quantity            Int                @default(1)
-  price               Decimal            @postgresql.Decimal(10, 2)
+  price               Int
   specialInstructions String             @default("")
   courseNumber        Int?               @default(1)
   seatNumber          Int?
   sentToKitchen       DateTime?
   order               RestaurantOrder?   @relation("OrderItem_order", fields: [orderId], references: [id])
   orderId             String?            @map("order")
+  course              OrderCourse?       @relation("OrderItem_course", fields: [courseId], references: [id])
+  courseId            String?            @map("course")
   menuItem            MenuItem?          @relation("OrderItem_menuItem", fields: [menuItemId], references: [id])
   menuItemId          String?            @map("menuItem")
   appliedModifiers    MenuItemModifier[] @relation("OrderItem_appliedModifiers")
 
   @@index([orderId])
+  @@index([courseId])
+  @@index([menuItemId])
+}
+
+model OrderCourse {
+  id            String           @id @default(cuid())
+  courseType    String           @default("mains")
+  status        String?          @default("pending")
+  fireTime      DateTime?
+  autoFireAt    DateTime?
+  onHold        Boolean          @default(false)
+  allItemsReady Boolean          @default(false)
+  courseNumber  Int?             @default(1)
+  order         RestaurantOrder? @relation("OrderCourse_order", fields: [orderId], references: [id])
+  orderId       String?          @map("order")
+  orderItems    OrderItem[]      @relation("OrderItem_course")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @default(now()) @updatedAt
+
+  @@index([orderId])
+}
+
+model KitchenMessage {
+  id          String           @id @default(cuid())
+  content     String           @default("")
+  type        String?          @default("general")
+  fromStation String?          @default("foh")
+  order       RestaurantOrder? @relation("KitchenMessage_order", fields: [orderId], references: [id])
+  orderId     String?          @map("order")
+  sender      User?            @relation("KitchenMessage_sender", fields: [senderId], references: [id])
+  senderId    String?          @map("sender")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @default(now()) @updatedAt
+
+  @@index([orderId])
+  @@index([senderId])
+}
+
+model Recipe {
+  id                String    @id @default(cuid())
+  name              String    @default("")
+  menuItem          MenuItem? @relation("Recipe_menuItem", fields: [menuItemId], references: [id])
+  menuItemId        String?   @map("menuItem")
+  recipeIngredients Json?
+  yield             Int?      @default(1)
+  prepTime          Int?
+  instructions      String    @default("")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+
   @@index([menuItemId])
 }
 
@@ -225,7 +340,7 @@ model Reservation {
 
 model Payment {
   id                    String           @id @default(cuid())
-  amount                Decimal          @postgresql.Decimal(10, 2)
+  amount                Int
   status                String           @default("pending")
   paymentMethod         String?          @default("credit_card")
   paymentProvider       PaymentProvider? @relation("Payment_paymentProvider", fields: [paymentProviderId], references: [id])
@@ -236,7 +351,7 @@ model Payment {
   stripeRefundId        String           @default("")
   cardLast4             String           @default("")
   cardBrand             String           @default("")
-  tipAmount             Decimal?         @default("0.00") @postgresql.Decimal(10, 2)
+  tipAmount             Int?             @default(0)
   isSplitPayment        Boolean          @default(false)
   splitPaymentIndex     Int?
   splitTotal            Int?
@@ -253,6 +368,32 @@ model Payment {
   @@index([paymentProviderId])
   @@index([orderId])
   @@index([processedById])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  user      User?      @relation("Cart_user", fields: [userId], references: [id])
+  userId    String?    @map("user")
+  items     CartItem[] @relation("CartItem_cart")
+  orderType String?    @default("pickup")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @default(now()) @updatedAt
+
+  @@index([userId])
+}
+
+model CartItem {
+  id                  String             @id @default(cuid())
+  cart                Cart?              @relation("CartItem_cart", fields: [cartId], references: [id])
+  cartId              String?            @map("cart")
+  menuItem            MenuItem?          @relation("CartItem_menuItem", fields: [menuItemId], references: [id])
+  menuItemId          String?            @map("menuItem")
+  quantity            Int?               @default(1)
+  modifiers           MenuItemModifier[] @relation("CartItem_modifiers")
+  specialInstructions String             @default("")
+
+  @@index([cartId])
+  @@index([menuItemId])
 }
 
 model PaymentProvider {
@@ -399,14 +540,15 @@ model KitchenTicket {
 }
 
 model Vendor {
-  id           String       @id @default(cuid())
-  name         String       @default("")
-  contact      String       @default("")
-  email        String       @default("")
-  phone        String       @default("")
-  paymentTerms String       @default("")
-  leadTime     Int?
-  ingredients  Ingredient[] @relation("Ingredient_vendor")
+  id                        String          @id @default(cuid())
+  name                      String          @default("")
+  contact                   String          @default("")
+  email                     String          @default("")
+  phone                     String          @default("")
+  paymentTerms              String          @default("")
+  leadTime                  Int?
+  ingredients               Ingredient[]    @relation("Ingredient_vendor")
+  from_PurchaseOrder_vendor PurchaseOrder[] @relation("PurchaseOrder_vendor")
 }
 
 model InventoryLocation {
@@ -418,22 +560,23 @@ model InventoryLocation {
 }
 
 model Ingredient {
-  id              String             @id @default(cuid())
-  name            String             @default("")
-  unit            String             @default("lb")
-  category        String?
-  currentStock    Decimal            @default("0.00") @postgresql.Decimal(10, 2)
-  parLevel        Decimal?           @postgresql.Decimal(10, 2)
-  reorderPoint    Decimal?           @postgresql.Decimal(10, 2)
-  reorderQuantity Decimal?           @postgresql.Decimal(10, 2)
-  costPerUnit     Decimal?           @postgresql.Decimal(10, 2)
-  expirationDate  DateTime?
-  sku             String             @default("")
-  vendor          Vendor?            @relation("Ingredient_vendor", fields: [vendorId], references: [id])
-  vendorId        String?            @map("vendor")
-  location        InventoryLocation? @relation("Ingredient_location", fields: [locationId], references: [id])
-  locationId      String?            @map("location")
-  stockMovements  StockMovement[]    @relation("StockMovement_ingredient")
+  id                       String             @id @default(cuid())
+  name                     String             @default("")
+  unit                     String             @default("lb")
+  category                 String?
+  currentStock             Decimal            @default("0.00") @postgresql.Decimal(10, 2)
+  parLevel                 Decimal?           @postgresql.Decimal(10, 2)
+  reorderPoint             Decimal?           @postgresql.Decimal(10, 2)
+  reorderQuantity          Decimal?           @postgresql.Decimal(10, 2)
+  costPerUnit              Decimal?           @postgresql.Decimal(10, 2)
+  expirationDate           DateTime?
+  sku                      String             @default("")
+  vendor                   Vendor?            @relation("Ingredient_vendor", fields: [vendorId], references: [id])
+  vendorId                 String?            @map("vendor")
+  location                 InventoryLocation? @relation("Ingredient_location", fields: [locationId], references: [id])
+  locationId               String?            @map("location")
+  stockMovements           StockMovement[]    @relation("StockMovement_ingredient")
+  from_WasteLog_ingredient WasteLog[]         @relation("WasteLog_ingredient")
 
   @@index([vendorId])
   @@index([locationId])
@@ -477,6 +620,117 @@ model StoreSettings {
   promoBanner       String   @default("Free pickup discount · 10% off all pickup orders")
   rating            Decimal? @default("4.8") @postgresql.Decimal(2, 1)
   reviewCount       Int?     @default(0)
+}
+
+model WaitlistEntry {
+  id             String    @id @default(cuid())
+  customerName   String    @default("")
+  phoneNumber    String    @default("")
+  partySize      Int       @default(2)
+  quotedWaitTime Int?      @default(15)
+  status         String?   @default("waiting")
+  addedAt        DateTime  @default(now())
+  notifiedAt     DateTime?
+  seatedAt       DateTime?
+  notes          String    @default("")
+  table          Table?    @relation("WaitlistEntry_table", fields: [tableId], references: [id])
+  tableId        String?   @map("table")
+  addedBy        User?     @relation("WaitlistEntry_addedBy", fields: [addedById], references: [id])
+  addedById      String?   @map("addedBy")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+
+  @@index([tableId])
+  @@index([addedById])
+}
+
+model Shift {
+  id         String    @id @default(cuid())
+  startTime  DateTime
+  endTime    DateTime
+  role       String    @default("server")
+  status     String?   @default("scheduled")
+  hourlyRate Decimal?  @postgresql.Decimal(10, 2)
+  clockIn    DateTime?
+  clockOut   DateTime?
+  notes      String    @default("")
+  staff      User?     @relation("Shift_staff", fields: [staffId], references: [id])
+  staffId    String?   @map("staff")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  @@index([staffId])
+}
+
+model TipPool {
+  id            String   @id @default(cuid())
+  date          DateTime
+  tipPoolType   String?  @default("individual")
+  totalTips     Int      @default(0)
+  cashTips      Int?     @default(0)
+  creditTips    Int?     @default(0)
+  distributions Json?
+  status        String?  @default("open")
+  notes         String   @default("")
+  createdBy     User?    @relation("TipPool_createdBy", fields: [createdById], references: [id])
+  createdById   String?  @map("createdBy")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  @@index([createdById])
+}
+
+model TimeEntry {
+  id           String    @id @default(cuid())
+  clockIn      DateTime
+  clockOut     DateTime?
+  role         String?   @default("server")
+  hourlyRate   Decimal?  @postgresql.Decimal(10, 2)
+  tips         Decimal?  @default("0.00") @postgresql.Decimal(10, 2)
+  breakMinutes Decimal?  @default("0") @postgresql.Decimal(5, 0)
+  notes        String    @default("")
+  staff        User?     @relation("TimeEntry_staff", fields: [staffId], references: [id])
+  staffId      String?   @map("staff")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  @@index([staffId])
+}
+
+model WasteLog {
+  id           String      @id @default(cuid())
+  quantity     Decimal     @postgresql.Decimal(10, 2)
+  reason       String      @default("spoilage")
+  notes        String      @default("")
+  ingredient   Ingredient? @relation("WasteLog_ingredient", fields: [ingredientId], references: [id])
+  ingredientId String?     @map("ingredient")
+  loggedBy     User?       @relation("WasteLog_loggedBy", fields: [loggedById], references: [id])
+  loggedById   String?     @map("loggedBy")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @default(now()) @updatedAt
+
+  @@index([ingredientId])
+  @@index([loggedById])
+}
+
+model PurchaseOrder {
+  id               String    @id @default(cuid())
+  poNumber         String    @unique @default("")
+  orderDate        DateTime  @default(now())
+  expectedDelivery DateTime?
+  receivedDate     DateTime?
+  status           String?   @default("draft")
+  lineItems        Json?
+  notes            String    @default("")
+  vendor           Vendor?   @relation("PurchaseOrder_vendor", fields: [vendorId], references: [id])
+  vendorId         String?   @map("vendor")
+  createdBy        User?     @relation("PurchaseOrder_createdBy", fields: [createdById], references: [id])
+  createdById      String?   @map("createdBy")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @default(now()) @updatedAt
+
+  @@index([vendorId])
+  @@index([createdById])
 }
 
 enum ApiKeyStatusType {

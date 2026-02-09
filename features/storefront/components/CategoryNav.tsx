@@ -14,7 +14,7 @@ export function CategoryNav({ categories, activeCategory, onCategoryChange }: Ca
   const scrollRef = useRef<HTMLDivElement>(null)
 
   return (
-    <div className="sticky top-[105px] z-40 bg-background border-b border-border">
+    <div className="bg-background border-b border-border">
       <div className="container mx-auto px-6">
         <div ref={scrollRef} className="flex gap-8 overflow-x-auto scrollbar-hide py-4">
           {categories.map((category) => (

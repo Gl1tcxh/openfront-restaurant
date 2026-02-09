@@ -14,6 +14,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!data.items || data.items.length === 0) {
+      return NextResponse.json(
+        { error: "Order must contain at least one item" },
+        { status: 400 }
+      );
+    }
+
     // Generate order number
     const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
 
@@ -23,14 +30,30 @@ export async function POST(request: Request) {
     const tip = parseFloat(data.tip || "0");
     const total = parseFloat(data.total);
 
-    // Create the order
+    // Map frontend orderType to database values
+    // Frontend uses "pickup" or "delivery", database uses "takeout" or "delivery"
+    const orderTypeMap: Record<string, string> = {
+      "pickup": "takeout",
+      "delivery": "delivery",
+    };
+    const dbOrderType = orderTypeMap[data.orderType] || "takeout";
+
+    // Build special instructions including customer info for online orders
+    const customerNote = `Customer: ${data.customerInfo.name}, Email: ${data.customerInfo.email}, Phone: ${data.customerInfo.phone}`;
+    const deliveryNote = data.deliveryAddress 
+      ? `\nDelivery: ${data.deliveryAddress.address}, ${data.deliveryAddress.city} ${data.deliveryAddress.zip}`
+      : '';
+    const fullInstructions = `${customerNote}${deliveryNote}${data.specialInstructions ? '\n' + data.specialInstructions : ''}`;
+
+    // Create the order with status 'open' (valid status in the model)
     const order = await keystoneContext.sudo().query.RestaurantOrder.createOne({
       data: {
         orderNumber,
-        orderType: data.orderType,
-        status: 'pending', // Will be updated to 'paid' when payment succeeds
+        orderType: dbOrderType,
+        orderSource: 'online',
+        status: 'open',
         guestCount: data.guestCount || 1,
-        specialInstructions: data.specialInstructions || '',
+        specialInstructions: fullInstructions,
         subtotal: subtotal.toFixed(2),
         tax: tax.toFixed(2),
         tip: tip.toFixed(2),
@@ -45,7 +68,7 @@ export async function POST(request: Request) {
       await keystoneContext.sudo().query.OrderItem.createOne({
         data: {
           quantity: item.quantity,
-          price: item.price,
+          price: item.price.toString(),
           specialInstructions: item.specialInstructions || '',
           order: { connect: { id: order.id } },
           menuItem: { connect: { id: item.menuItemId } },
@@ -77,12 +100,12 @@ export async function POST(request: Request) {
 
       clientSecret = paymentIntent.client_secret;
 
-      // Create Payment record in database
+      // Create Payment record in database with correct payment method value
       await keystoneContext.sudo().query.Payment.createOne({
         data: {
           amount: total.toFixed(2),
           status: "pending",
-          paymentMethod: "card",
+          paymentMethod: "credit_card",
           stripePaymentIntentId: paymentIntent.id,
           tipAmount: tip.toFixed(2),
           order: { connect: { id: order.id } },

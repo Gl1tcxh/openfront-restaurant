@@ -1,5 +1,3 @@
-import { headers } from "next/headers";
-
 /**
  * Get the base URL for the application dynamically
  * Works both server-side and client-side without requiring environment variables
@@ -11,15 +9,12 @@ export async function getBaseUrl(): Promise<string> {
     return window.location.origin;
   }
 
-  // Build-time: return http://localhost:3000 as default
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    return process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  }
-
   // Server-side: try to get from headers
   if (typeof process !== 'undefined') {
     try {
-      // Import headers from next/headers (only works in app directory)
+      // Use dynamic import to prevent next/headers from being bundled in client components
+      // This is a more robust way to ensure client-safety than top-level imports
+      const { headers } = await import("next/headers");
       const headersList = await headers();
 
       // Try x-forwarded-host first (common in production deployments)
@@ -30,13 +25,12 @@ export async function getBaseUrl(): Promise<string> {
         return `${protocol}://${host}`;
       }
     } catch (e) {
-      // headers() might not be available in all contexts (e.g., API routes)
-      // Fall through to default
+      // headers() might not be available in all contexts
     }
   }
 
-  // Fallback to environment variable or localhost
-  return process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  // Production fallback - return empty string and let relative URLs work
+  return '';
 }
 
 /**

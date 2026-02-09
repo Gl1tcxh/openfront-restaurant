@@ -9,22 +9,22 @@ import { StoreInfoBar } from "@/features/storefront/components/StoreInfoBar"
 import { MenuSection } from "@/features/storefront/components/MenuSection"
 import { ItemCustomizationModal } from "@/features/storefront/components/ItemCustomizationModal"
 import { CartSidebar } from "@/features/storefront/components/CartSidebar"
-import { CheckoutModal } from "@/features/storefront/components/CheckoutModal"
+import { StripeCheckoutModal } from "@/features/storefront/components/StripeCheckoutModal"
 import { type MenuItem, type MenuCategory, type StoreInfo } from "@/features/storefront/lib/store-data"
 import Image from "next/image"
+import { formatCurrency } from "@/features/storefront/lib/currency"
 
 interface HomePageClientProps {
   categories: MenuCategory[]
   menuItems: MenuItem[]
   featuredItems: MenuItem[]
   storeInfo: StoreInfo
+  user: any
 }
 
-function StorefrontContent({ categories, menuItems, featuredItems, storeInfo }: HomePageClientProps) {
-  const [orderType, setOrderType] = useState<"pickup" | "delivery">("pickup")
+function StorefrontContent({ categories, menuItems, featuredItems, storeInfo, user }: HomePageClientProps) {
   const [activeCategory, setActiveCategory] = useState("all")
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   // Group menu items by category
@@ -51,10 +51,6 @@ function StorefrontContent({ categories, menuItems, featuredItems, storeInfo }: 
 
   const handleItemSelect = (item: MenuItem) => {
     setSelectedItem(item)
-  }
-
-  const handleCheckout = () => {
-    setIsCheckoutOpen(true)
   }
 
   // Intersection observer for scroll-based category highlighting
@@ -103,23 +99,25 @@ function StorefrontContent({ categories, menuItems, featuredItems, storeInfo }: 
     return ''
   }
 
-  // Helper to get image URL
-  const getImageUrl = (image: any): string => {
-    if (typeof image === 'string') return image
-    if (image?.url) return image.url
+  // Helper to get image URL from menuItemImages
+  const getImageUrl = (item: MenuItem): string => {
+    const firstImage = item.menuItemImages?.[0]
+    if (firstImage?.image?.url) return firstImage.image.url
+    if (firstImage?.imagePath) return firstImage.imagePath
     return '/placeholder.jpg'
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <StoreHeader orderType={orderType} setOrderType={setOrderType} storeInfo={storeInfo} />
+    <div className="flex flex-col">
+      <div className="sticky top-[65px] z-40 bg-background border-b border-border">
+        <CategoryNav
+          categories={categories}
+          activeCategory={activeCategory}
+          onCategoryChange={handleCategoryChange}
+        />
+      </div>
       <HeroBanner onOrderNow={() => handleCategoryChange(categories[1]?.id || "all")} storeInfo={storeInfo} />
       <StoreInfoBar storeInfo={storeInfo} />
-      <CategoryNav
-        categories={categories}
-        activeCategory={activeCategory}
-        onCategoryChange={handleCategoryChange}
-      />
 
       <main className="container mx-auto px-6 py-12">
         <div className="space-y-16">
@@ -142,7 +140,7 @@ function StorefrontContent({ categories, menuItems, featuredItems, storeInfo }: 
                   >
                     <div className="aspect-[16/10] relative">
                       <Image
-                        src={getImageUrl(item.image)}
+                        src={getImageUrl(item)}
                         alt={item.name}
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -155,7 +153,7 @@ function StorefrontContent({ categories, menuItems, featuredItems, storeInfo }: 
                           {getDescriptionText(item.description)}
                         </p>
                         <div className="flex items-center gap-4 mt-4">
-                          <span className="text-lg">${Number(item.price).toFixed(2)}</span>
+                          <span className="text-lg">{formatCurrency(item.price)}</span>
                           {item.calories && <span className="text-sm opacity-70">{item.calories} cal</span>}
                         </div>
                       </div>
@@ -187,42 +185,8 @@ function StorefrontContent({ categories, menuItems, featuredItems, storeInfo }: 
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border mt-16">
-        <div className="container mx-auto px-6 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="md:col-span-2">
-              <h3 className="font-serif text-2xl mb-4">{storeInfo.name}</h3>
-              <p className="text-muted-foreground max-w-sm leading-relaxed">
-                {storeInfo.heroSubheadline || storeInfo.tagline}
-              </p>
-            </div>
-            <div>
-              <h4 className="text-sm font-medium uppercase tracking-wide mb-4">Hours</h4>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>Mon-Thu: {storeInfo.hours?.monday || '11 AM - 10 PM'}</p>
-                <p>Fri-Sat: {storeInfo.hours?.friday || '11 AM - 11 PM'}</p>
-                <p>Sunday: {storeInfo.hours?.sunday || '10 AM - 9 PM'}</p>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-medium uppercase tracking-wide mb-4">Contact</h4>
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>{storeInfo.address}</p>
-                <p>{storeInfo.phone}</p>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-border mt-12 pt-8 text-center text-sm text-muted-foreground">
-            <p>© {new Date().getFullYear()} {storeInfo.name}. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
-
       {/* Modals and Sidebars */}
       <ItemCustomizationModal item={selectedItem} isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} />
-      <CartSidebar orderType={orderType} onCheckout={handleCheckout} storeInfo={storeInfo} />
-      <CheckoutModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} orderType={orderType} storeInfo={storeInfo} />
     </div>
   )
 }

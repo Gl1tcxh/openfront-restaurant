@@ -1,5 +1,3 @@
-import { headers } from "next/headers";
-
 /**
  * Get the base URL for the application dynamically
  * Works both server-side and client-side without requiring environment variables
@@ -14,7 +12,9 @@ export async function getBaseUrl(): Promise<string> {
   // Server-side: try to get from headers
   if (typeof process !== 'undefined') {
     try {
-      // Import headers from next/headers (only works in app directory)
+      // Use dynamic import for next/headers to avoid bundling it in the browser
+      // and to avoid the "not supported in pages/" error if some legacy bundling is happening
+      const { headers } = await import("next/headers");
       const headersList = await headers();
       
       // Try x-forwarded-host first (common in production deployments)

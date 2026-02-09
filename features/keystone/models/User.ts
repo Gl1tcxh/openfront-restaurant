@@ -1,4 +1,4 @@
-import { list } from '@keystone-6/core'
+import { list, graphql } from '@keystone-6/core'
 import { allOperations, denyAll } from '@keystone-6/core/access'
 import {
   checkbox,
@@ -10,10 +10,12 @@ import {
   select,
   json,
   image,
+  virtual,
 } from '@keystone-6/core/fields'
 
 import { isSignedIn, permissions, rules } from '../access'
 import type { Session } from '../access'
+import { trackingFields } from './trackingFields'
 
 export const User = list({
   access: {
@@ -94,6 +96,74 @@ export const User = list({
       many: true,
       ui: {
         itemView: { fieldMode: 'read' },
+      },
+    }),
+
+    phone: text({
+      ui: {
+        description: 'Primary phone number for the user',
+      },
+    }),
+
+    restaurantOrders: relationship({
+      ref: 'RestaurantOrder.customer',
+      many: true,
+      ui: {
+        itemView: { fieldMode: 'read' },
+      },
+    }),
+
+    addresses: relationship({
+      ref: 'Address.user',
+      many: true,
+    }),
+
+    carts: relationship({
+      ref: 'Cart.user',
+      many: true,
+    }),
+
+    firstName: virtual({
+      field: graphql.field({
+        type: graphql.String,
+        resolve(item) {
+          if (!item.name) return '';
+          return item.name.trim().split(/\s+/)[0] || '';
+        },
+      }),
+    }),
+
+    lastName: virtual({
+      field: graphql.field({
+        type: graphql.String,
+        resolve(item) {
+          if (!item.name) return '';
+          const parts = item.name.trim().split(/\s+/);
+          return parts.length > 1 ? parts.slice(1).join(' ') : '';
+        },
+      }),
+    }),
+
+    billingAddress: virtual({
+      field: (lists) =>
+        graphql.field({
+          type: lists.Address.types.output,
+          async resolve(item, args, context) {
+            const address = await context.db.Address.findMany({
+              where: {
+                user: { id: { equals: item.id } },
+                isBilling: { equals: true },
+              },
+              take: 1,
+            });
+
+            if (!address.length) return null;
+
+            return address[0];
+          },
+        }),
+      ui: {
+        query: '{ id name address1 address2 city state postalCode phone isBilling }',
       },
     }),
 
@@ -198,5 +268,6 @@ export const User = list({
         description: 'Food handler, alcohol service, and other certifications (JSON)',
       },
     }),
+    ...trackingFields,
   },
 });

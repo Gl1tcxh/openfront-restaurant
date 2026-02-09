@@ -1,14 +1,26 @@
 import Stripe from 'stripe';
 
-// Ensure the Stripe secret key is configured
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.warn('Warning: STRIPE_SECRET_KEY is not set. Stripe functionality will not work.');
-}
+const getStripeClient = () => {
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) {
+    throw new Error('Stripe secret key not configured. Set STRIPE_SECRET_KEY environment variable.');
+  }
+  return new Stripe(stripeKey, {
+    apiVersion: '2023-10-16',
+    typescript: true,
+  });
+};
 
-// Initialize Stripe with the secret key
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16',
-  typescript: true,
+// Lazy initialization - only create client when actually needed
+let stripeClient: Stripe | null = null;
+
+export const stripe = new Proxy({} as Stripe, {
+  get(_, prop) {
+    if (!stripeClient) {
+      stripeClient = getStripeClient();
+    }
+    return (stripeClient as any)[prop];
+  }
 });
 
 // Webhook secret for verifying webhook signatures

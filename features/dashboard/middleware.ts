@@ -5,9 +5,15 @@ import { GraphQLClient, ClientError } from 'graphql-request';
 
 const basePath = "/dashboard";
 
+// Get GraphQL endpoint from request URL (middleware can't use next/headers)
+function getGraphQLEndpointFromRequest(request: NextRequest): string {
+  const url = new URL(request.url);
+  return `${url.origin}/api/graphql`;
+}
+
 // Create a GraphQL client for middleware with explicit headers
-async function createMiddlewareGraphQLClient(headers: Record<string, string>): Promise<GraphQLClient> {
-  const endpoint = await getGraphQLEndpoint();
+function createMiddlewareGraphQLClient(request: NextRequest, headers: Record<string, string>): GraphQLClient {
+  const endpoint = getGraphQLEndpointFromRequest(request);
   return new GraphQLClient(endpoint, {
     credentials: 'include',
     headers,
@@ -48,7 +54,7 @@ export async function checkInitStatus(request: NextRequest) {
   };
 
   try {
-    const client = await createMiddlewareGraphQLClient(headers);
+    const client = createMiddlewareGraphQLClient(request, headers);
     const data = await client.request(query) as { redirectToInit: boolean };
     return data.redirectToInit;
   } catch (error) {
@@ -78,7 +84,7 @@ export async function getAuthenticatedUser(request: NextRequest) {
   };
 
   try {
-    const client = await createMiddlewareGraphQLClient(headers);
+    const client = createMiddlewareGraphQLClient(request, headers);
     const data = await client.request(query) as { 
       authenticatedItem: any; 
       redirectToInit: boolean 

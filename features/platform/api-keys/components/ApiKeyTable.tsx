@@ -116,7 +116,7 @@ function getScopeAbbreviation(scope: string): string {
   return scope.substring(0, 2).toUpperCase()
 }
 
-export default function ApiKeyTable({ data }: ApiKeyTableProps) {
+export function ApiKeyTable({ data }: ApiKeyTableProps) {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [sorting, setSorting] = useState<SortingState>([
     {

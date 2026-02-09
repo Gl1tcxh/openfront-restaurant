@@ -118,7 +118,7 @@ export default async function processPayment(
     // Create Payment record in database
     const payment = await context.db.Payment.createOne({
       data: {
-        amount: (amount / 100).toFixed(2), // Convert cents to dollars
+        amount: amount, 
         status: paymentStatus,
         paymentMethod,
         stripePaymentIntentId: usesStripe ? providerPaymentId : null,
@@ -126,7 +126,7 @@ export default async function processPayment(
         paymentProvider: provider
           ? { connect: { id: provider.id } }
           : undefined,
-        tipAmount: (tipAmount / 100).toFixed(2),
+        tipAmount: tipAmount,
         order: { connect: { id: orderId } },
         processedBy: { connect: { id: context.session.itemId } },
       },

@@ -1,12 +1,16 @@
-import { list } from "@keystone-6/core";
+import { list, graphql } from "@keystone-6/core";
 import { allOperations } from "@keystone-6/core/access";
 import {
   text,
   relationship,
   select,
   integer,
-  decimal
+  decimal,
+  timestamp,
+  virtual,
+  checkbox
 } from "@keystone-6/core/fields";
+import crypto from "crypto";
 
 import { isSignedIn } from "../access";
 import { trackingFields } from "./trackingFields";
@@ -22,15 +26,103 @@ export const RestaurantOrder = list({
   },
   ui: {
     listView: {
-      initialColumns: ["orderNumber", "orderType", "status", "table", "server", "total"],
+      initialColumns: ["orderNumber", "orderType", "status", "tables", "server", "total"],
     },
   },
-  fields: {
-    orderNumber: text({
-      validation: { isRequired: true },
-      isIndexed: 'unique',
-    }),
+  hooks: {
+    afterOperation: async ({ operation, item, originalItem, context }) => {
+      const sudo = context.sudo();
+      
+      // Table management: mark tables as occupied on dine-in order creation
+      if (operation === 'create' && item && (item as any).orderType === 'dine_in') {
+        const orderWithTables = await sudo.query.RestaurantOrder.findOne({
+          where: { id: (item as any).id },
+          query: 'tables { id }'
+        });
+        if (orderWithTables?.tables?.length) {
+          await Promise.all(orderWithTables.tables.map((table: any) =>
+            sudo.db.Table.updateOne({ where: { id: table.id }, data: { status: 'occupied' } })
+          ));
+        }
+      }
+      
+      // Table management: mark tables as cleaning on order complete/cancel
+      if (operation === 'update' && item && (item as any).orderType === 'dine_in') {
+        if ((item as any).status === 'completed' || (item as any).status === 'cancelled') {
+          const orderWithTables = await sudo.query.RestaurantOrder.findOne({
+            where: { id: (item as any).id },
+            query: 'tables { id }'
+          });
+          if (orderWithTables?.tables?.length) {
+            await Promise.all(orderWithTables.tables.map((table: any) =>
+              sudo.db.Table.updateOne({ where: { id: table.id }, data: { status: 'cleaning' } })
+            ));
+          }
+        }
+      }
+      
+      // Auto-depletion: deplete ingredient stock when order is completed
+      if (operation === 'update' && item?.status === 'completed' && originalItem?.status !== 'completed') {
+        try {
+          // Get order items with menu items
+          const orderItems = await sudo.query.OrderItem.findMany({
+            where: { order: { id: { equals: item.id } } },
+            query: 'id quantity menuItem { id }'
+          });
 
+          for (const orderItem of orderItems) {
+            if (!orderItem.menuItem?.id) continue;
+
+            // Find recipe for this menu item
+            const recipes = await sudo.query.Recipe.findMany({
+              where: { menuItem: { id: { equals: orderItem.menuItem.id } } },
+              query: 'id recipeIngredients yield'
+            });
+
+            if (recipes.length === 0) continue;
+            const recipe = recipes[0];
+            if (!recipe.recipeIngredients) continue;
+
+            const recipeIngredients = recipe.recipeIngredients as any[];
+            const portionsOrdered = orderItem.quantity / (recipe.yield || 1);
+
+            // Deplete each ingredient
+            for (const ri of recipeIngredients) {
+              if (!ri.ingredientId) continue;
+              const depleteAmount = ri.quantity * portionsOrdered;
+
+              const ingredient = await sudo.query.Ingredient.findOne({
+                where: { id: ri.ingredientId },
+                query: 'id currentStock'
+              });
+
+              if (ingredient) {
+                const newStock = Math.max(0, parseFloat(ingredient.currentStock || '0') - depleteAmount);
+                await sudo.db.Ingredient.updateOne({
+                  where: { id: ri.ingredientId },
+                  data: { currentStock: newStock.toFixed(2) }
+                });
+
+                // Create stock movement record
+                await sudo.db.StockMovement.createOne({
+                  data: {
+                    ingredient: { connect: { id: ri.ingredientId } },
+                    type: 'sale',
+                    quantity: (-depleteAmount).toFixed(2),
+                    notes: `Auto-depleted for order ${item.orderNumber}`
+                  }
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Auto-depletion error:', err);
+        }
+      }
+    }
+  },
+  fields: {
+    orderNumber: text({ validation: { isRequired: true }, isIndexed: 'unique' }),
     orderType: select({
       type: "string",
       options: [
@@ -40,7 +132,6 @@ export const RestaurantOrder = list({
       ],
       defaultValue: "dine_in",
     }),
-
     orderSource: select({
       type: "string",
       options: [
@@ -51,7 +142,6 @@ export const RestaurantOrder = list({
       ],
       defaultValue: "pos",
     }),
-
     status: select({
       type: "string",
       options: [
@@ -65,104 +155,73 @@ export const RestaurantOrder = list({
       ],
       defaultValue: "open",
     }),
+    guestCount: integer({ defaultValue: 1, validation: { min: 1 } }),
+    specialInstructions: text({ ui: { displayMode: "textarea" } }),
+    onHold: checkbox({ defaultValue: false }),
+    holdReason: text(),
+    isUrgent: checkbox({ defaultValue: false }),
+    subtotal: integer({ defaultValue: 0 }),
+    tax: integer({ defaultValue: 0 }),
+    tip: integer({ defaultValue: 0 }),
+    discount: integer({ defaultValue: 0 }),
+    total: integer({ defaultValue: 0 }),
+    
+    // Customer Info
+    customerName: text(),
+    customerEmail: text(),
+    customerPhone: text(),
+    
+    // Delivery Info
+    deliveryAddress: text({ ui: { displayMode: "textarea" } }),
+    deliveryCity: text(),
+    deliveryZip: text(),
 
-    guestCount: integer({
-      defaultValue: 1,
-      validation: { min: 1 },
-    }),
-
-    specialInstructions: text({
-      ui: {
-        displayMode: "textarea",
+    secretKey: text({
+      hooks: {
+        resolveInput: ({ operation }) => {
+          if (operation === "create") {
+            return crypto.randomBytes(32).toString("hex");
+          }
+          return undefined;
+        },
       },
     }),
-
-    subtotal: decimal({
-      precision: 10,
-      scale: 2,
-      defaultValue: "0.00",
+    
+    tableSeatedAt: timestamp({ defaultValue: { kind: "now" } }),
+    tableFreedAt: timestamp(),
+    tableDurationMinutes: virtual({
+      field: graphql.field({
+        type: graphql.Int,
+        resolve(item: any) {
+          if (!item.tableSeatedAt) return null;
+          const end = item.tableFreedAt ? new Date(item.tableFreedAt as string) : new Date();
+          const start = new Date(item.tableSeatedAt as string);
+          return Math.floor((end.getTime() - start.getTime()) / 60000);
+        },
+      })
     }),
-
-    tax: decimal({
-      precision: 10,
-      scale: 2,
-      defaultValue: "0.00",
+    courseCompletionPercentage: virtual({
+      field: graphql.field({
+        type: graphql.Int,
+        async resolve(item: any, args, context) {
+          const courses = await context.sudo().query.OrderCourse.findMany({
+            where: { order: { id: { equals: item.id as string } } },
+            query: 'status'
+          });
+          if (courses.length === 0) return 0;
+          return Math.round((courses.filter((c: any) => c.status === 'served').length / courses.length) * 100);
+        }
+      })
     }),
-
-    tip: decimal({
-      precision: 10,
-      scale: 2,
-      defaultValue: "0.00",
-    }),
-
-    discount: decimal({
-      precision: 10,
-      scale: 2,
-      defaultValue: "0.00",
-    }),
-
-    total: decimal({
-      precision: 10,
-      scale: 2,
-      defaultValue: "0.00",
-    }),
-
-    // Relationships
-    table: relationship({
-      ref: "Table",
-      ui: {
-        displayMode: "select",
-      },
-    }),
-
-    server: relationship({
-      ref: "User",
-      ui: {
-        displayMode: "select",
-        labelField: "name",
-      },
-    }),
-
-    createdBy: relationship({
-      ref: "User",
-      ui: {
-        displayMode: "select",
-        labelField: "name",
-        description: "Staff member who created this order",
-      },
-    }),
-
-    orderItems: relationship({
-      ref: "OrderItem.order",
-      many: true,
-      ui: {
-        displayMode: "cards",
-        cardFields: ["menuItem", "quantity", "price"],
-        inlineCreate: { fields: ["menuItem", "quantity", "specialInstructions"] },
-        inlineEdit: { fields: ["menuItem", "quantity", "specialInstructions"] },
-      },
-    }),
-
-    payments: relationship({
-      ref: "Payment.order",
-      many: true,
-      ui: {
-        displayMode: "cards",
-        cardFields: ["amount", "status", "paymentMethod"],
-        inlineCreate: { fields: ["amount", "paymentMethod", "tipAmount"] },
-        inlineEdit: { fields: ["amount", "paymentMethod", "status", "tipAmount"] },
-      },
-    }),
-
-    discounts: relationship({
-      ref: "Discount.orders",
-      many: true,
-    }),
-
-    giftCards: relationship({
-      ref: "GiftCard.order",
-      many: true,
-    }),
+    tables: relationship({ ref: "Table.orders", many: true }),
+    customer: relationship({ ref: "User.restaurantOrders" }),
+    server: relationship({ ref: "User", ui: { labelField: "name" } }),
+    createdBy: relationship({ ref: "User", ui: { labelField: "name" } }),
+    courses: relationship({ ref: "OrderCourse.order", many: true }),
+    orderItems: relationship({ ref: "OrderItem.order", many: true }),
+    payments: relationship({ ref: "Payment.order", many: true }),
+    discounts: relationship({ ref: "Discount.orders", many: true }),
+    giftCards: relationship({ ref: "GiftCard.order", many: true }),
     ...trackingFields,
   },
 });

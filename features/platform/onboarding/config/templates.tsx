@@ -1,8 +1,9 @@
-import { Utensils, UtensilsCrossed } from 'lucide-react';
+import { Utensils, UtensilsCrossed, CircleCheck, Building2, Package } from 'lucide-react';
 
 export interface RestaurantTemplate {
   name: string;
   description: string;
+  icon: React.ReactNode;
   displayNames: {
     storeInfo: string[];
     kitchenStations: string[];
@@ -16,10 +17,11 @@ export interface RestaurantTemplate {
   };
 }
 
-export const RESTAURANT_TEMPLATES: Record<'full' | 'minimal', RestaurantTemplate> = {
+export const RESTAURANT_TEMPLATES: Record<'full' | 'minimal' | 'custom', RestaurantTemplate> = {
   full: {
     name: 'Complete Restaurant Setup',
     description: 'Full restaurant setup with kitchen, seating, menu items, and payment methods.',
+    icon: <Building2 className="h-5 w-5" />,
     displayNames: {
       storeInfo: ['Store Settings'],
       kitchenStations: ['Grill', 'Fryer', 'Salad', 'Bar', 'Dessert', 'Prep'],
@@ -71,6 +73,23 @@ export const RESTAURANT_TEMPLATES: Record<'full' | 'minimal', RestaurantTemplate
   minimal: {
     name: 'Basic Menu',
     description: 'A few sample items to get started.',
+    icon: <Package className="h-5 w-5" />,
+    displayNames: {
+      storeInfo: ['Store Settings'],
+      kitchenStations: ['Grill', 'Fryer', 'Bar'],
+      floors: ['Main Floor'],
+      sections: ['Main Dining'],
+      tables: ['Table 1', 'Table 2'],
+      paymentMethods: ['Cash', 'Credit Card'],
+      categories: ['Burgers', 'Sides', 'Drinks'],
+      menuItems: ['Classic Burger', 'Classic Fries', 'Fountain Drink'],
+      modifiers: ['Single Patty', 'Double Patty', 'Regular Size', 'Large Size'],
+    },
+  },
+  custom: {
+    name: 'Custom Setup',
+    description: 'Customize your setup with your own JSON templates for each section.',
+    icon: <CircleCheck className="h-5 w-5" />,
     displayNames: {
       storeInfo: ['Store Settings'],
       kitchenStations: ['Grill', 'Fryer', 'Bar'],
@@ -89,7 +108,7 @@ export interface SectionDefinition {
   id: number;
   type: string;
   label: string;
-  getItemsFn: (template: 'full' | 'minimal') => string[];
+  getItemsFn: (template: 'full' | 'minimal' | 'custom') => string[];
 }
 
 export const SECTION_DEFINITIONS: SectionDefinition[] = [
@@ -101,51 +120,51 @@ export const SECTION_DEFINITIONS: SectionDefinition[] = [
   },
   {
     id: 2,
-    type: 'kitchenStations',
-    label: 'Kitchen Stations',
-    getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.kitchenStations,
-  },
-  {
-    id: 3,
-    type: 'floors',
-    label: 'Floors',
-    getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.floors,
-  },
-  {
-    id: 4,
-    type: 'sections',
-    label: 'Sections',
-    getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.sections,
-  },
-  {
-    id: 5,
-    type: 'tables',
-    label: 'Tables',
-    getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.tables,
-  },
-  {
-    id: 6,
-    type: 'paymentMethods',
-    label: 'Payment Methods',
-    getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.paymentMethods,
-  },
-  {
-    id: 7,
     type: 'categories',
     label: 'Menu Categories',
     getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.categories,
   },
   {
-    id: 8,
+    id: 3,
     type: 'menuItems',
     label: 'Menu Items',
     getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.menuItems,
   },
   {
-    id: 9,
+    id: 4,
     type: 'modifiers',
     label: 'Item Modifiers',
     getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.modifiers,
+  },
+  {
+    id: 5,
+    type: 'paymentMethods',
+    label: 'Payment Methods',
+    getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.paymentMethods,
+  },
+  {
+    id: 6,
+    type: 'kitchenStations',
+    label: 'Kitchen Stations',
+    getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.kitchenStations,
+  },
+  {
+    id: 7,
+    type: 'floors',
+    label: 'Floors',
+    getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.floors,
+  },
+  {
+    id: 8,
+    type: 'sections',
+    label: 'Sections',
+    getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.sections,
+  },
+  {
+    id: 9,
+    type: 'tables',
+    label: 'Tables',
+    getItemsFn: (template) => RESTAURANT_TEMPLATES[template].displayNames.tables,
   },
 ];
 

@@ -1,6 +1,7 @@
 import { GraphQLClient, gql } from 'graphql-request';
 import { startOnboarding, completeOnboarding } from '../actions/onboarding';
 import { SECTION_DEFINITIONS } from '../config/templates';
+import { getItemsFromJsonData } from '../utils/dataUtils';
 import { TemplateType, OnboardingStep } from './useOnboardingState';
 
 const GRAPHQL_ENDPOINT = '/api/graphql';
@@ -58,6 +59,7 @@ export function useOnboardingApi({
       const createdCategories = await createCategories(client, currentJsonData);
       const createdMenuItems = await createMenuItems(client, currentJsonData, createdCategories);
       await createModifiers(client, currentJsonData, createdMenuItems);
+      await createPaymentMethods(client, currentJsonData);
 
       // Create kitchen and seating infrastructure
       await createKitchenStations(client, currentJsonData);
@@ -179,14 +181,19 @@ export function useOnboardingApi({
     createdCategories: Record<string, string>
   ) => {
     setProgress('Creating menu items...');
+    const slugify = (text: string) => text.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+
     const createdMenuItems: Record<string, string> = {};
 
     for (const item of data.menuItems || []) {
       const itemName = item.name || 'Unknown Item';
       setItemLoading('menuItems', itemName);
 
+      const itemHandle = slugify(item.name);
+
       try {
         const categoryId = createdCategories[item.category];
+        const priceInCents = Math.round(parseFloat(item.price) * 100);
 
         const mutation = gql`
           mutation CreateMenuItem($data: MenuItemCreateInput!) {
@@ -200,7 +207,7 @@ export function useOnboardingApi({
         const result = (await client.request(mutation, {
           data: {
             name: item.name,
-            price: item.price,
+            price: priceInCents,
             calories: item.calories,
             available: item.available ?? true,
             featured: item.featured ?? false,
@@ -209,6 +216,12 @@ export function useOnboardingApi({
             prepTime: item.prepTime || 15,
             mealPeriods: ['all_day'],
             category: categoryId ? { connect: { id: categoryId } } : undefined,
+            menuItemImages: {
+              create: [{
+                imagePath: item.image || `/images/${itemHandle}.jpeg`,
+                altText: item.name,
+              }],
+            },
           },
         })) as { createMenuItem: { id: string; name: string } };
 
@@ -240,6 +253,7 @@ export function useOnboardingApi({
 
       try {
         const menuItemId = createdMenuItems[modifier.menuItemName];
+        const priceAdjustmentInCents = Math.round(parseFloat(modifier.priceAdjustment || '0.00') * 100);
 
         const mutation = gql`
           mutation CreateMenuItemModifier($data: MenuItemModifierCreateInput!) {
@@ -255,7 +269,7 @@ export function useOnboardingApi({
             name: modifier.name,
             modifierGroup: modifier.modifierGroup || 'addons',
             modifierGroupLabel: modifier.modifierGroupLabel,
-            priceAdjustment: modifier.priceAdjustment || '0.00',
+            priceAdjustment: priceAdjustmentInCents,
             defaultSelected: modifier.defaultSelected ?? false,
             required: modifier.required ?? false,
             minSelections: modifier.minSelections ?? 0,
@@ -272,6 +286,80 @@ export function useOnboardingApi({
         }
         setItemError('modifiers', modifierName, errorMessage);
         console.error(`Error creating modifier ${modifier.name}:`, itemError);
+      }
+    }
+  };
+
+  const createPaymentMethods = async (client: GraphQLClient, data: any) => {
+    setProgress('Creating payment methods...');
+
+    const providers = [
+      {
+        name: 'Stripe',
+        code: 'pp_stripe',
+        isInstalled: true,
+        createPaymentFunction: 'stripe',
+        capturePaymentFunction: 'stripe',
+        refundPaymentFunction: 'stripe',
+        getPaymentStatusFunction: 'stripe',
+        generatePaymentLinkFunction: 'stripe',
+        handleWebhookFunction: 'stripe',
+      },
+      {
+        name: 'PayPal',
+        code: 'pp_paypal',
+        isInstalled: true,
+        createPaymentFunction: 'paypal',
+        capturePaymentFunction: 'paypal',
+        refundPaymentFunction: 'paypal',
+        getPaymentStatusFunction: 'paypal',
+        generatePaymentLinkFunction: 'paypal',
+        handleWebhookFunction: 'paypal',
+      },
+      {
+        name: 'Manual / Cash',
+        code: 'pp_manual',
+        isInstalled: true,
+        createPaymentFunction: 'manual',
+        capturePaymentFunction: 'manual',
+        refundPaymentFunction: 'manual',
+        getPaymentStatusFunction: 'manual',
+        generatePaymentLinkFunction: 'manual',
+        handleWebhookFunction: 'manual',
+      }
+    ];
+
+    for (const provider of providers) {
+      setItemLoading('paymentMethods', provider.name);
+
+      try {
+        const mutation = gql`
+          mutation CreatePaymentProvider($data: PaymentProviderCreateInput!) {
+            createPaymentProvider(data: $data) {
+              id
+              name
+            }
+          }
+        `;
+
+        await client.request(mutation, {
+          data: provider
+        });
+
+        setItemCompleted('paymentMethods', provider.name);
+      } catch (itemError: any) {
+        let errorMessage = itemError.message || 'Unknown error';
+        if (itemError.response?.errors) {
+          errorMessage = itemError.response.errors.map((err: any) => err.message).join('\n');
+        }
+        
+        // If it's a unique constraint error (provider already exists), mark as completed anyway
+        if (errorMessage.includes('Unique constraint failed')) {
+          setItemCompleted('paymentMethods', provider.name);
+        } else {
+          setItemError('paymentMethods', provider.name, errorMessage);
+          console.error(`Error creating payment provider ${provider.name}:`, itemError);
+        }
       }
     }
   };
@@ -466,7 +554,9 @@ export function useOnboardingApi({
 
     for (const section of SECTION_DEFINITIONS) {
       const sectionType = section.type;
-      const sectionItems = section.getItemsFn(selectedTemplate as 'full' | 'minimal');
+      const sectionItems = currentJsonData 
+        ? getItemsFromJsonData(currentJsonData, sectionType)
+        : section.getItemsFn(selectedTemplate as 'full' | 'minimal' | 'custom');
       const completedSectionItems = completedItems[sectionType] || [];
 
       const failedItem = sectionItems.find(

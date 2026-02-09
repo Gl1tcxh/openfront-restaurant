@@ -29,14 +29,19 @@ export const getStoreSettings = cache(async function () {
     }
   `;
 
-  const data = await openfrontClient.request(GET_STORE_SETTINGS_QUERY);
-  return data.storeSettings || null;
+  try {
+    const data = await openfrontClient.request(GET_STORE_SETTINGS_QUERY);
+    return data?.storeSettings || null;
+  } catch (error) {
+    console.error('Error fetching store settings:', error);
+    return null;
+  }
 });
 
 export const getMenuCategories = cache(async function () {
   const GET_MENU_CATEGORIES_QUERY = gql`
     query GetMenuCategories {
-      menuCategories(orderBy: { sortOrder: asc }) {
+      menuCategories(orderBy: [{ sortOrder: asc }]) {
         id
         name
         description
@@ -47,71 +52,21 @@ export const getMenuCategories = cache(async function () {
     }
   `;
 
-  const data = await openfrontClient.request(GET_MENU_CATEGORIES_QUERY);
-  return data.menuCategories || [];
+  try {
+    const data = await openfrontClient.request(GET_MENU_CATEGORIES_QUERY);
+    return data?.menuCategories || [];
+  } catch (error) {
+    console.error('Error fetching menu categories:', error);
+    return [];
+  }
 });
 
 export const getMenuItems = cache(async function (categoryId?: string) {
-  // Build different queries based on whether categoryId is provided
-  if (categoryId) {
-    const GET_MENU_ITEMS_BY_CATEGORY_QUERY = gql`
-      query GetMenuItemsByCategory($categoryId: ID!) {
-        menuItems(
-          where: {
-            available: { equals: true }
-            category: { id: { equals: $categoryId } }
-          }
-          orderBy: { name: asc }
-        ) {
-          id
-          name
-          description {
-            document
-          }
-          price
-          available
-          featured
-          popular
-          calories
-          prepTime
-          kitchenStation
-          allergens
-          dietaryFlags
-          mealPeriods
-          image {
-            url
-            width
-            height
-          }
-          category {
-            id
-            name
-          }
-          modifiers {
-            id
-            name
-            modifierGroup
-            modifierGroupLabel
-            priceAdjustment
-            calories
-            defaultSelected
-            required
-            minSelections
-            maxSelections
-          }
-        }
-      }
-    `;
-
-    const data = await openfrontClient.request(GET_MENU_ITEMS_BY_CATEGORY_QUERY, { categoryId });
-    return data.menuItems || [];
-  }
-
-  const GET_ALL_MENU_ITEMS_QUERY = gql`
-    query GetAllMenuItems {
+  const GET_MENU_ITEMS_QUERY = gql`
+    query GetMenuItems($where: MenuItemWhereInput) {
       menuItems(
-        where: { available: { equals: true } }
-        orderBy: { name: asc }
+        where: $where
+        orderBy: [{ name: asc }]
       ) {
         id
         name
@@ -128,10 +83,12 @@ export const getMenuItems = cache(async function (categoryId?: string) {
         allergens
         dietaryFlags
         mealPeriods
-        image {
-          url
-          width
-          height
+        menuItemImages(take: 1) {
+          id
+          image {
+            url
+          }
+          imagePath
         }
         category {
           id
@@ -153,8 +110,18 @@ export const getMenuItems = cache(async function (categoryId?: string) {
     }
   `;
 
-  const data = await openfrontClient.request(GET_ALL_MENU_ITEMS_QUERY);
-  return data.menuItems || [];
+  const where: any = { available: { equals: true } };
+  if (categoryId && categoryId !== "all") {
+    where.category = { id: { equals: categoryId } };
+  }
+
+  try {
+    const data = await openfrontClient.request(GET_MENU_ITEMS_QUERY, { where });
+    return data?.menuItems || [];
+  } catch (error) {
+    console.error('Error fetching menu items:', error);
+    return [];
+  }
 });
 
 export const getFeaturedMenuItems = cache(async function (take = 8) {
@@ -166,7 +133,7 @@ export const getFeaturedMenuItems = cache(async function (take = 8) {
           available: { equals: true }
           featured: { equals: true }
         }
-        orderBy: { name: asc }
+        orderBy: [{ name: asc }]
       ) {
         id
         name
@@ -178,10 +145,12 @@ export const getFeaturedMenuItems = cache(async function (take = 8) {
         prepTime
         allergens
         dietaryFlags
-        image {
-          url
-          width
-          height
+        menuItemImages(take: 1) {
+          id
+          image {
+            url
+          }
+          imagePath
         }
         category {
           id
@@ -191,8 +160,13 @@ export const getFeaturedMenuItems = cache(async function (take = 8) {
     }
   `;
 
-  const data = await openfrontClient.request(GET_FEATURED_ITEMS_QUERY, { take });
-  return data.menuItems || [];
+  try {
+    const data = await openfrontClient.request(GET_FEATURED_ITEMS_QUERY, { take });
+    return data?.menuItems || [];
+  } catch (error) {
+    console.error('Error fetching featured items:', error);
+    return [];
+  }
 });
 
 export const getMenuItem = cache(async function (id: string) {
@@ -214,10 +188,12 @@ export const getMenuItem = cache(async function (id: string) {
         allergens
         dietaryFlags
         mealPeriods
-        image {
-          url
-          width
-          height
+        menuItemImages(take: 1) {
+          id
+          image {
+            url
+          }
+          imagePath
         }
         category {
           id
@@ -239,6 +215,11 @@ export const getMenuItem = cache(async function (id: string) {
     }
   `;
 
-  const data = await openfrontClient.request(GET_MENU_ITEM_QUERY, { id });
-  return data.menuItem;
+  try {
+    const data = await openfrontClient.request(GET_MENU_ITEM_QUERY, { id });
+    return data?.menuItem || null;
+  } catch (error) {
+    console.error('Error fetching menu item:', error);
+    return null;
+  }
 });
