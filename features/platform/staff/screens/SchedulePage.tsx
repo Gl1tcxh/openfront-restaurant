@@ -20,8 +20,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Calendar, Plus, Clock, User, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Calendar as CalendarIcon, Plus, Clock, User, RefreshCw, ChevronLeft, ChevronRight, Briefcase, ArrowRight, UserPlus, Timer } from 'lucide-react'
 import { gql, request } from 'graphql-request'
+import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs"
+import { cn } from '@/lib/utils'
 
 interface Shift {
   id: string
@@ -43,13 +45,13 @@ interface StaffMember {
 }
 
 const ROLES = [
-  { value: 'server', label: 'Server', color: 'bg-blue-500' },
-  { value: 'bartender', label: 'Bartender', color: 'bg-purple-500' },
-  { value: 'host', label: 'Host', color: 'bg-green-500' },
-  { value: 'busser', label: 'Busser', color: 'bg-yellow-500' },
-  { value: 'cook', label: 'Cook', color: 'bg-red-500' },
-  { value: 'dishwasher', label: 'Dishwasher', color: 'bg-gray-500' },
-  { value: 'manager', label: 'Manager', color: 'bg-indigo-500' },
+  { value: 'server', label: 'Server', color: 'bg-blue-500', bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400' },
+  { value: 'bartender', label: 'Bartender', color: 'bg-purple-500', bg: 'bg-purple-500/10', text: 'text-purple-600 dark:text-purple-400' },
+  { value: 'host', label: 'Host', color: 'bg-green-500', bg: 'bg-green-500/10', text: 'text-green-600 dark:text-green-400' },
+  { value: 'busser', label: 'Busser', color: 'bg-yellow-500', bg: 'bg-yellow-500/10', text: 'text-yellow-600 dark:text-yellow-400' },
+  { value: 'cook', label: 'Cook', color: 'bg-red-500', bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400' },
+  { value: 'dishwasher', label: 'Dishwasher', color: 'bg-gray-500', bg: 'bg-gray-500/10', text: 'text-gray-600 dark:text-gray-400' },
+  { value: 'manager', label: 'Manager', color: 'bg-indigo-500', bg: 'bg-indigo-500/10', text: 'text-indigo-600 dark:text-indigo-400' },
 ]
 
 const GET_SHIFTS = gql`
@@ -137,6 +139,7 @@ export function SchedulePage() {
 
   const fetchShifts = useCallback(async () => {
     try {
+      setLoading(true)
       const startDate = weekDates[0].toISOString()
       const endDate = new Date(weekDates[6].getTime() + 86400000).toISOString()
       const data = await request('/api/graphql', GET_SHIFTS, { startDate, endDate })
@@ -236,168 +239,215 @@ export function SchedulePage() {
 
   const getRoleConfig = (role: string) => ROLES.find(r => r.value === role) || ROLES[0]
 
+  const breadcrumbs = [
+    { type: 'link' as const, label: 'Dashboard', href: '/dashboard' },
+    { type: 'page' as const, label: 'Platform' },
+    { type: 'page' as const, label: 'Staff' },
+    { type: 'page' as const, label: 'Schedule' }
+  ]
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <RefreshCw className="h-8 w-8 animate-spin" />
+      <div className="flex items-center justify-center p-12">
+        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full gap-4 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Staff Schedule</h1>
-          <p className="text-muted-foreground">
-            {weekDates[0].toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
+    <div className="flex flex-col h-full bg-background">
+      <PageBreadcrumbs items={breadcrumbs} />
+
+      {/* Header */}
+      <div className="px-6 py-6 border-b bg-gradient-to-br from-indigo-500/5 via-background to-blue-500/5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight mb-1">Staff Roster</h1>
+            <p className="text-muted-foreground font-medium">Manage shifts, roles, and labor distribution</p>
+          </div>
+          <div className="flex items-center gap-3">
+             <div className="flex items-center gap-1 bg-card border-2 rounded-2xl p-1 shadow-sm">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => navigateWeek(-1)}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" className="h-9 px-4 rounded-xl font-black uppercase tracking-widest text-[10px]" onClick={() => setWeekStart(new Date(new Date().setDate(new Date().getDate() - new Date().getDay())))}>
+                  Current Week
+                </Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={() => navigateWeek(1)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+             </div>
+             <Button onClick={() => openAddDialog()} className="h-11 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-none font-black uppercase tracking-widest text-xs">
+                <Plus className="h-4 w-4 mr-2" />
+                Assign Shift
+             </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => navigateWeek(-1)}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" onClick={() => setWeekStart(new Date(new Date().setDate(new Date().getDate() - new Date().getDay())))}>
-            Today
-          </Button>
-          <Button variant="outline" size="icon" onClick={() => navigateWeek(1)}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button onClick={() => openAddDialog()}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Shift
-          </Button>
+
+        {/* Date Range Label */}
+        <div className="flex items-center gap-2 mb-2">
+           <CalendarIcon className="size-4 text-indigo-600 dark:text-indigo-400" />
+           <span className="text-sm font-black uppercase tracking-widest">
+             {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 flex-1">
-        {weekDates.map((date, i) => {
-          const dayShifts = getShiftsForDate(date)
-          const isToday = date.toDateString() === new Date().toDateString()
-          return (
-            <Card key={i} className={`flex flex-col ${isToday ? 'ring-2 ring-primary' : ''}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex flex-col items-center">
-                  <span className="text-xs text-muted-foreground">
+      {/* Grid */}
+      <div className="flex-1 p-6">
+        <div className="grid grid-cols-7 h-full gap-4 min-w-[1000px]">
+          {weekDates.map((date, i) => {
+            const dayShifts = getShiftsForDate(date)
+            const isToday = date.toDateString() === new Date().toDateString()
+            return (
+              <div key={i} className="flex flex-col h-full gap-4">
+                <div className={cn(
+                  "flex flex-col items-center py-4 rounded-3xl border-2 transition-all",
+                  isToday ? "border-indigo-600 bg-indigo-600 text-white shadow-xl shadow-indigo-100 dark:shadow-none" : "bg-card text-foreground"
+                )}>
+                  <span className={cn("text-[10px] font-black uppercase tracking-widest mb-1", isToday ? "text-white/80" : "text-muted-foreground")}>
                     {date.toLocaleDateString('en-US', { weekday: 'short' })}
                   </span>
-                  <span className={`text-lg ${isToday ? 'bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center' : ''}`}>
+                  <span className="text-2xl font-black tracking-tighter">
                     {date.getDate()}
                   </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 p-2">
-                <ScrollArea className="h-[calc(100vh-280px)]">
-                  <div className="space-y-1">
-                    {dayShifts.map((shift) => {
-                      const roleConfig = getRoleConfig(shift.role)
-                      return (
-                        <div
-                          key={shift.id}
-                          className={`p-2 rounded text-xs cursor-pointer hover:opacity-80 ${roleConfig.color} text-white`}
-                          onClick={() => openEditDialog(shift)}
-                        >
-                          <div className="font-bold truncate">{shift.staff?.name || 'Unassigned'}</div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
-                          </div>
-                          <Badge variant="secondary" className="mt-1 text-[8px]">
-                            {roleConfig.label}
-                          </Badge>
-                        </div>
-                      )
-                    })}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-xs h-6 mt-1"
-                      onClick={() => openAddDialog(date)}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          )
-        })}
+                </div>
+
+                <div className={cn(
+                  "flex-1 rounded-[2rem] border-2 bg-muted/20 p-2 overflow-hidden flex flex-col group/col",
+                  isToday ? "border-indigo-100 dark:border-indigo-900/30" : "border-transparent"
+                )}>
+                  <ScrollArea className="flex-1 px-1">
+                    <div className="space-y-3 pt-2">
+                      {dayShifts.map((shift) => {
+                        const roleConfig = getRoleConfig(shift.role)
+                        return (
+                          <Card 
+                            key={shift.id}
+                            className="border-2 rounded-2xl hover:border-indigo-500/50 transition-all cursor-pointer shadow-sm group/shift"
+                            onClick={() => openEditDialog(shift)}
+                          >
+                            <CardContent className="p-3 space-y-2">
+                               <div className="flex items-center gap-2">
+                                  <div className={cn("size-2 rounded-full", roleConfig.color)} />
+                                  <span className="text-xs font-black truncate">{shift.staff?.name || 'Unassigned'}</span>
+                               </div>
+                               
+                               <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                  <Timer className="size-3" />
+                                  <span>{formatTime(shift.startTime)}</span>
+                               </div>
+
+                               <Badge className={cn("rounded-lg px-2 py-0.5 text-[8px] font-black uppercase tracking-widest border-none", roleConfig.bg, roleConfig.text)}>
+                                  {roleConfig.label}
+                               </Badge>
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                      <Button
+                        variant="ghost"
+                        className="w-full rounded-2xl border-2 border-dashed border-muted-foreground/10 hover:border-indigo-500/30 hover:bg-indigo-50/50 text-muted-foreground hover:text-indigo-600 transition-all py-8 flex flex-col gap-2"
+                        onClick={() => openAddDialog(date)}
+                      >
+                        <UserPlus className="size-5" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Add Shift</span>
+                      </Button>
+                    </div>
+                  </ScrollArea>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-[2.5rem] p-8 sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingShift ? 'Edit Shift' : 'Add Shift'}</DialogTitle>
+            <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-3">
+               <Briefcase className="size-6 text-indigo-600" />
+               {editingShift ? 'Modify Shift' : 'Assign New Shift'}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Staff Member</Label>
+          <div className="space-y-6 pt-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Personnel</Label>
               <Select value={form.staffId} onValueChange={(v) => setForm({ ...form, staffId: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select staff" />
+                <SelectTrigger className="h-12 rounded-2xl border-2 font-bold">
+                  <SelectValue placeholder="Select Staff Member" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-2xl">
                   {staff.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    <SelectItem key={s.id} value={s.id} className="rounded-xl font-medium">{s.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Role</Label>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Functional Role</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                <SelectTrigger>
+                <SelectTrigger className="h-12 rounded-2xl border-2 font-bold">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-2xl">
                   {ROLES.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                    <SelectItem key={r.value} value={r.value} className="rounded-xl font-medium">{r.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Date</Label>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Shift Date</Label>
               <Input
                 type="date"
+                className="h-12 rounded-2xl border-2 font-bold"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
               />
             </div>
+
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Start Time</Label>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Clock In</Label>
                 <Input
                   type="time"
+                  className="h-12 rounded-2xl border-2 font-bold"
                   value={form.startTime}
                   onChange={(e) => setForm({ ...form, startTime: e.target.value })}
                 />
               </div>
-              <div>
-                <Label>End Time</Label>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Clock Out</Label>
                 <Input
                   type="time"
+                  className="h-12 rounded-2xl border-2 font-bold"
                   value={form.endTime}
                   onChange={(e) => setForm({ ...form, endTime: e.target.value })}
                 />
               </div>
             </div>
-            <div>
-              <Label>Hourly Rate ($)</Label>
+
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Hourly Compensation ($)</Label>
               <Input
                 type="number"
                 step="0.01"
+                className="h-12 rounded-2xl border-2 font-bold"
                 value={form.hourlyRate}
                 onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })}
               />
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSave} className="flex-1">
-                {editingShift ? 'Update' : 'Create'} Shift
+
+            <div className="flex gap-3 pt-2">
+              <Button onClick={handleSave} className="flex-1 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-sm shadow-xl shadow-indigo-500/20">
+                {editingShift ? 'Save Changes' : 'Confirm Assignment'}
               </Button>
               {editingShift && (
-                <Button variant="destructive" onClick={() => { handleDelete(editingShift.id); setDialogOpen(false); }}>
-                  Delete
+                <Button variant="outline" size="icon" className="h-14 w-14 rounded-2xl border-2 text-rose-500 hover:bg-rose-50 hover:text-rose-600" onClick={() => { handleDelete(editingShift.id); setDialogOpen(false); }}>
+                  <RefreshCw className="size-5" />
                 </Button>
               )}
             </div>

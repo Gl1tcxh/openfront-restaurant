@@ -530,7 +530,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
 
   const handleSuccessClose = () => {
     setSuccessDialogOpen(false)
-    router.push('/dashboard/pos')
+    router.push('/dashboard/platform/pos')
   }
 
   const quickCashAmounts = [20, 50, 100]
@@ -547,7 +547,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
     return (
       <div className="p-8 text-center">
         <p className="text-muted-foreground">Order not found</p>
-        <Button className="mt-4" onClick={() => router.push('/dashboard/pos')}>
+        <Button className="mt-4" onClick={() => router.push('/dashboard/platform/pos')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to POS
         </Button>

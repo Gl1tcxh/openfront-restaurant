@@ -12,7 +12,7 @@ export async function FloorPlanPage() {
 
   const breadcrumbs = [
     { type: 'page' as const, label: 'Dashboard', href: '/dashboard' },
-    { type: 'page' as const, label: 'POS', href: '/dashboard/pos' },
+    { type: 'page' as const, label: 'POS', href: '/dashboard/platform/pos' },
     { type: 'page' as const, label: 'Tables' }
   ]
 

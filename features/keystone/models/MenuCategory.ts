@@ -24,9 +24,8 @@ export const MenuCategory = list({
     }),
 
     icon: text({
-      defaultValue: "🍽️",
       ui: {
-        description: "Emoji icon for this category (e.g. 🍔, 🍗, 🥤)",
+        description: "Icon name for this category (optional)",
       },
     }),
 

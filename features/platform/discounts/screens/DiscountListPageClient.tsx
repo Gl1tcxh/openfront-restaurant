@@ -1,6 +1,6 @@
 /**
  * DiscountListPageClient - Client Component  
- * Based on dashboard ListPageClient but hardcoded for discounts
+ * Redesigned for a modern hospitality aesthetic
  */
 
 'use client'
@@ -12,11 +12,16 @@ import {
   Triangle,
   Square,
   Circle,
-  Search
+  Search,
+  Ticket,
+  Filter,
+  ArrowUpDown,
+  RefreshCw
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
+import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs"
 import { PageContainer } from '../../../dashboard/components/PageContainer'
 import { PlatformFilterBar } from '../../components/PlatformFilterBar'
 import { StatusTabs } from '../components/StatusTabs'
@@ -30,6 +35,8 @@ import { useSort } from '../../../dashboard/hooks/useSort'
 import { useListItemsQuery } from '../../../dashboard/hooks/useListItems.query'
 import { buildOrderByClause } from '../../../dashboard/lib/buildOrderByClause'
 import { buildWhereClause } from '../../../dashboard/lib/buildWhereClause'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
 
 interface DiscountListPageClientProps {
   list: any
@@ -45,30 +52,6 @@ interface DiscountListPageClientProps {
     all: number
     disabled: number
   } | null
-}
-
-function EmptyStateDefault() {
-  return (
-    <EmptyState
-      title="No Discounts Created"
-      description="You can create a new discount to get started."
-      icons={[Triangle, Square, Circle]}
-    />
-  )
-}
-
-function EmptyStateSearch({ onResetFilters }: { onResetFilters: () => void }) {
-  return (
-    <EmptyState
-      title="No Results Found"
-      description="Try adjusting your search filters."
-      icons={[Search]}
-      action={{
-        label: "Reset Filters",
-        onClick: onResetFilters
-      }}
-    />
-  )
 }
 
 export function DiscountListPageClient({
@@ -87,7 +70,7 @@ export function DiscountListPageClient({
   const selectedFields = useSelectedFields(list)
   const sort = useSort(list)
 
-  // Extract current search params (reactive to URL changes)
+  // Extract current search params
   const currentSearchParams = useMemo(() => {
     const params: Record<string, string> = {}
     searchParams?.forEach((value, key) => {
@@ -100,14 +83,13 @@ export function DiscountListPageClient({
   const pageSize = parseInt(currentSearchParams.pageSize || list.pageSize?.toString() || '50', 10)
   const searchString = currentSearchParams.search || ''
 
-  // Build query variables from current search params
+  // Build query variables
   const variables = useMemo(() => {
     const orderBy = buildOrderByClause(list, currentSearchParams)
     const filterWhere = buildWhereClause(list, currentSearchParams)
     const searchParameters = searchString ? { search: searchString } : {}
     const searchWhere = buildWhereClause(list, searchParameters)
 
-    // Combine search and filters
     const whereConditions = []
     if (Object.keys(searchWhere).length > 0) {
       whereConditions.push(searchWhere)
@@ -126,7 +108,6 @@ export function DiscountListPageClient({
     }
   }, [list, currentSearchParams, currentPage, pageSize, searchString])
 
-  // For discounts, use raw GraphQL string to include relationship fields
   const querySelectedFields = `
     id code isDynamic isDisabled stackable startsAt endsAt usageLimit usageCount validDuration createdAt updatedAt
     discountRule {
@@ -137,8 +118,6 @@ export function DiscountListPageClient({
     }
   `
 
-  // Use React Query hook with server-side initial data
-  // Use React Query hook with server-side initial data
   const { data: queryData, error: queryError, isLoading, isFetching } = useListItemsQuery(
     {
       listKey: list.key,
@@ -150,40 +129,12 @@ export function DiscountListPageClient({
     }
   )
 
-  // Use query data, fallback to initial data
   const data = queryData || initialData
   const error = queryError ? queryError.message : initialError
 
-  // Handle page change - simplified since FilterBar handles search/filters
-  const handlePageChange = useCallback((newPage: number) => {
-    const params = new URLSearchParams(window.location.search)
-    
-    if (newPage && newPage > 1) {
-      params.set('page', newPage.toString())
-    } else {
-      params.delete('page')
-    }
-    
-    const newUrl = params.toString() ? `?${params.toString()}` : ''
-    router.push(newUrl)
-  }, [router])
-
-  // Handle reset filters
   const handleResetFilters = useCallback(() => {
     router.push(window.location.pathname)
   }, [router])
-
-  if (!list) {
-    return (
-      <PageContainer title="List not found">
-        <Alert variant="destructive">
-          <AlertDescription>
-            The requested list was not found.
-          </AlertDescription>
-        </Alert>
-      </PageContainer>
-    )
-  }
 
   const breadcrumbs = [
     { type: 'link' as const, label: 'Dashboard', href: basePath },
@@ -191,108 +142,108 @@ export function DiscountListPageClient({
     { type: 'page' as const, label: 'Discounts' }
   ]
 
-  const header = (
-    <div>
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
-        Discounts
-      </h1>
-      <p className="text-muted-foreground">
-        Create and manage discounts
-      </p>
-    </div>
-  )
-
-  // Check if we have any active filters (search or actual filters)
-  const hasFilters = !!searchString
-  const isFiltered = hasFilters
-  const isEmpty = data?.count === 0 && !isFiltered
+  const isEmpty = data?.count === 0 && !searchString
 
   return (
-    <>
-    <PageContainer title="Discounts" header={header} breadcrumbs={breadcrumbs}>
-      {/* Filter Bar - includes search, filters, sorting, and create button */}
-      <div className="px-4 md:px-6">
-        <PlatformFilterBar 
-          list={list}
-          customCreateButton={
-            <Button 
-              onClick={() => setIsCreateDrawerOpen(true)}
-              size="icon"
-              className="lg:px-4 lg:py-2 lg:w-auto rounded-lg"
-            >
-              <Plus className="size-4 lg:mr-2" />
-              <span className="sr-only lg:not-sr-only lg:whitespace-nowrap">
-                Create Discount
-              </span>
-            </Button>
-          }
-        />
+    <div className="flex flex-col h-full bg-background">
+      <PageBreadcrumbs items={breadcrumbs} />
+
+      {/* Header Section */}
+      <div className="px-6 py-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-br from-background via-muted/5 to-background">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight">Discounts & Promos</h1>
+          <p className="text-muted-foreground mt-1">Configure and manage active promotions across your platform</p>
+        </div>
+        <Button 
+          onClick={() => setIsCreateDrawerOpen(true)}
+          className="h-12 px-6 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-widest text-xs hover:scale-105 transition-transform active:scale-95"
+        >
+          <Plus className="size-4 mr-2" />
+          Create Discount
+        </Button>
       </div>
 
-      {/* Status Tabs */}
+      {/* Stats/Tabs Section */}
       {statusCounts && (
-        <div className="border-b">
-          <StatusTabs 
-            statusCounts={statusCounts}
-          />
+        <div className="px-6 py-4 border-b flex flex-wrap items-center justify-between gap-4 bg-muted/20">
+          <StatusTabs statusCounts={statusCounts} />
+          
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-9 rounded-xl border-2 font-bold px-4" onClick={handleResetFilters}>
+              <RefreshCw className="size-3.5 mr-2" />
+              Reset
+            </Button>
+          </div>
         </div>
       )}
 
-      {/* Active Filters */}
-      <div className="px-4 md:px-6 border-b">
+      {/* Filter/Search Bar */}
+      <div className="px-6 py-4 border-b">
+        <PlatformFilterBar 
+          list={list}
+          showDisplayButton={true}
+          selectedFields={selectedFields}
+        />
         <FilterList list={list} />
       </div>
 
-      {/* Discounts list */}
-      {error ? (
-        <div className="px-4 md:px-6">
-          <Alert variant="destructive">
-            <AlertDescription>
-              Failed to load items: {error}
-            </AlertDescription>
-          </Alert>
-        </div>
-      ) : isEmpty ? (
-        <div className="px-4 md:px-6">
-          <EmptyStateDefault />
-        </div>
-      ) : data?.count === 0 ? (
-        <div className="px-4 md:px-6">
-          <EmptyStateSearch onResetFilters={handleResetFilters} />
-        </div>
-      ) : (
-        <>
-          {/* Data grid - full width */}
-          <div className="grid grid-cols-1 divide-y">
-            {data?.items?.map((discount: any) => (
-              <DiscountDetailsComponent key={discount.id} discount={discount} list={list} />
-            ))}
-          </div>
-          
-          {/* Pagination */}
-          {data && data.count > pageSize && (
-            <div className="px-4 md:px-6 py-4">
-              <Pagination
-                currentPage={currentPage}
-                total={data.count}
-                pageSize={pageSize}
-                list={{ singular: 'discount', plural: 'discounts' }}
-              />
+      {/* Main Content */}
+      <ScrollArea className="flex-1">
+        <div className="pb-12">
+          {error ? (
+            <div className="p-6">
+              <Alert variant="destructive" className="rounded-2xl border-2">
+                <AlertDescription>Failed to load discounts: {error}</AlertDescription>
+              </Alert>
             </div>
+          ) : isEmpty ? (
+            <div className="p-12 flex flex-col items-center justify-center text-center">
+              <div className="w-24 h-24 rounded-[2rem] bg-muted flex items-center justify-center mb-6">
+                <Ticket className="size-12 text-muted-foreground opacity-20" />
+              </div>
+              <h2 className="text-2xl font-black mb-2">No active promotions</h2>
+              <p className="text-muted-foreground max-w-sm mb-8">Start growing your sales by creating your first discount or coupon code.</p>
+              <Button onClick={() => setIsCreateDrawerOpen(true)} size="lg" className="rounded-2xl px-8 font-black uppercase tracking-widest text-xs">
+                Launch First Campaign
+              </Button>
+            </div>
+          ) : data?.count === 0 ? (
+            <div className="p-12 text-center flex flex-col items-center">
+              <Search className="size-12 text-muted-foreground opacity-20 mb-4" />
+              <h3 className="text-lg font-bold">No results matching your filter</h3>
+              <Button variant="link" onClick={handleResetFilters}>Clear all filters</Button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1">
+                {data?.items?.map((discount: any) => (
+                  <DiscountDetailsComponent key={discount.id} discount={discount} list={list} />
+                ))}
+              </div>
+              
+              {data && data.count > pageSize && (
+                <div className="px-6 py-8">
+                  <Pagination
+                    currentPage={currentPage}
+                    total={data.count}
+                    pageSize={pageSize}
+                    list={{ singular: 'discount', plural: 'discounts' }}
+                  />
+                </div>
+              )}
+            </>
           )}
-        </>
-      )}
-    </PageContainer>
-    
-    {/* Create Item Drawer */}
-    <CreateItemDrawerClientWrapper
-      listKey="discounts"
-      open={isCreateDrawerOpen}
-      onClose={() => setIsCreateDrawerOpen(false)}
-      onCreate={() => {
-        window.location.reload();
-      }}
-    />
-  </>
+        </div>
+      </ScrollArea>
+      
+      <CreateItemDrawerClientWrapper
+        listKey="discounts"
+        open={isCreateDrawerOpen}
+        onClose={() => setIsCreateDrawerOpen(false)}
+        onCreate={() => {
+          window.location.reload();
+        }}
+      />
+    </div>
   )
 }

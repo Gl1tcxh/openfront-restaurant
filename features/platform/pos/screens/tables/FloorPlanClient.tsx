@@ -19,9 +19,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Users, Clock, RefreshCw, MoveHorizontal, Merge } from 'lucide-react'
+import { Users, Clock, RefreshCw, MoveHorizontal, Merge, Save, RotateCcw } from 'lucide-react'
 import { gql, request } from 'graphql-request'
 import { useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
 
 interface Table {
   id: string
@@ -64,31 +65,6 @@ const GET_FLOORS = gql`
       name
       level
       isActive
-    }
-  }
-`
-
-const GET_TABLES = gql`
-  query GetTables($floorId: ID) {
-    tables(
-      where: { floor: { id: { equals: $floorId } } }
-      orderBy: { tableNumber: asc }
-    ) {
-      id
-      tableNumber
-      capacity
-      status
-      shape
-      positionX
-      positionY
-      floor {
-        id
-        name
-      }
-      section {
-        id
-        name
-      }
     }
   }
 `
@@ -144,6 +120,16 @@ const UPDATE_TABLE_STATUS = gql`
   }
 `
 
+const UPDATE_TABLE_POSITION = gql`
+  mutation UpdateTablePosition($id: ID!, $x: Int!, $y: Int!) {
+    updateTable(where: { id: $id }, data: { positionX: $x, positionY: $y }) {
+      id
+      positionX
+      positionY
+    }
+  }
+`
+
 const TRANSFER_TABLE = gql`
   mutation TransferTable($orderId: String!, $fromTableId: String!, $toTableId: String!) {
     transferTable(orderId: $orderId, fromTableId: $fromTableId, toTableId: $toTableId) {
@@ -162,16 +148,40 @@ const COMBINE_TABLES = gql`
   }
 `
 
-const STATUS_COLORS: Record<string, { fill: string; stroke: string; text: string; label: string }> = {
-  available: { fill: '#22c55e', stroke: '#16a34a', text: '#ffffff', label: 'Available' },
-  occupied: { fill: '#ef4444', stroke: '#dc2626', text: '#ffffff', label: 'Occupied' },
-  reserved: { fill: '#f59e0b', stroke: '#d97706', text: '#ffffff', label: 'Reserved' },
-  cleaning: { fill: '#6b7280', stroke: '#4b5563', text: '#ffffff', label: 'Cleaning' },
+const statusConfig = {
+  available: {
+    label: 'Available',
+    dotClass: 'bg-emerald-500 dark:bg-emerald-400 outline-3 -outline-offset-1 outline-emerald-100 dark:outline-emerald-900/50',
+    fill: 'hsl(142, 76%, 36%)',
+    stroke: 'hsl(142, 76%, 46%)',
+    glow: 'hsl(142, 76%, 66%)',
+  },
+  occupied: {
+    label: 'Occupied',
+    dotClass: 'bg-rose-500 dark:bg-rose-400 outline-3 -outline-offset-1 outline-rose-100 dark:outline-rose-900/50',
+    fill: 'hsl(0, 84%, 60%)',
+    stroke: 'hsl(0, 84%, 70%)',
+    glow: 'hsl(0, 84%, 80%)',
+  },
+  reserved: {
+    label: 'Reserved',
+    dotClass: 'bg-amber-500 dark:bg-amber-400 outline-3 -outline-offset-1 outline-amber-100 dark:outline-amber-900/50',
+    fill: 'hsl(38, 92%, 50%)',
+    stroke: 'hsl(38, 92%, 60%)',
+    glow: 'hsl(38, 92%, 70%)',
+  },
+  cleaning: {
+    label: 'Cleaning',
+    dotClass: 'bg-zinc-500 dark:bg-zinc-400 outline-3 -outline-offset-1 outline-zinc-100 dark:outline-zinc-900/50',
+    fill: 'hsl(215, 16%, 47%)',
+    stroke: 'hsl(215, 16%, 57%)',
+    glow: 'hsl(215, 16%, 67%)',
+  },
 }
 
-const FLOOR_PLAN_WIDTH = 800
-const FLOOR_PLAN_HEIGHT = 600
-const TABLE_SIZE = 60
+const FLOOR_PLAN_WIDTH = 1000
+const FLOOR_PLAN_HEIGHT = 700
+const TABLE_SIZE = 70
 
 export function FloorPlanClient() {
   const router = useRouter()
@@ -186,20 +196,18 @@ export function FloorPlanClient() {
   const [combineDialogOpen, setCombineDialogOpen] = useState(false)
   const [targetTableId, setTargetTableId] = useState<string>('')
   const [tablesToCombine, setTablesToCombine] = useState<string[]>([])
+  const [editMode, setEditMode] = useState(false)
+  const [draggedTable, setDraggedTable] = useState<string | null>(null)
+  const [hasChanges, setHasChanges] = useState(false)
 
   const fetchTables = useCallback(async () => {
     try {
-      let data
-      if (selectedFloor === 'all') {
-        data = await request('/api/graphql', GET_ALL_TABLES)
-      } else {
-        data = await request('/api/graphql', GET_TABLES, { floorId: selectedFloor })
-      }
+      const data = await request('/api/graphql', GET_ALL_TABLES)
       setTables((data as any).tables || [])
     } catch (err) {
       console.error('Error fetching tables:', err)
     }
-  }, [selectedFloor])
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -221,13 +229,9 @@ export function FloorPlanClient() {
     fetchData()
   }, [])
 
-  useEffect(() => {
-    if (!loading) {
-      fetchTables()
-    }
-  }, [selectedFloor, loading, fetchTables])
-
-  const handleTableClick = async (table: Table) => {
+  const handleTableClick = async (table: Table, event: React.MouseEvent) => {
+    if (editMode) return
+    event.stopPropagation()
     setSelectedTable(table)
     setDialogOpen(true)
     
@@ -258,6 +262,60 @@ export function FloorPlanClient() {
     } catch (err) {
       console.error('Error updating table status:', err)
     }
+  }
+
+  const handleDragStart = (tableId: string, event: React.DragEvent) => {
+    if (!editMode) return
+    setDraggedTable(tableId)
+    event.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (event: React.DragEvent) => {
+    if (!editMode) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = (event: React.DragEvent) => {
+    if (!editMode || !draggedTable) return
+    event.preventDefault()
+
+    const svg = event.currentTarget as SVGSVGElement
+    const rect = svg.getBoundingClientRect()
+    const x = Math.max(50, Math.min(FLOOR_PLAN_WIDTH - 150, event.clientX - rect.left))
+    const y = Math.max(50, Math.min(FLOOR_PLAN_HEIGHT - 100, event.clientY - rect.top))
+
+    setTables(prev => prev.map(t => 
+      t.id === draggedTable ? { ...t, positionX: x, positionY: y } : t
+    ))
+    setDraggedTable(null)
+    setHasChanges(true)
+  }
+
+  const savePositions = async () => {
+    try {
+      await Promise.all(
+        tables.map(table =>
+          request('/api/graphql', UPDATE_TABLE_POSITION, {
+            id: table.id,
+            x: Math.round(table.positionX),
+            y: Math.round(table.positionY),
+          })
+        )
+      )
+      setHasChanges(false)
+      setEditMode(false)
+      alert('Table positions saved!')
+    } catch (err) {
+      console.error('Error saving positions:', err)
+      alert('Failed to save positions')
+    }
+  }
+
+  const cancelEdit = () => {
+    setEditMode(false)
+    setHasChanges(false)
+    fetchTables()
   }
 
   const handleTransfer = async () => {
@@ -307,71 +365,172 @@ export function FloorPlanClient() {
 
   const handleStartOrder = () => {
     if (selectedTable) {
-      router.push(`/dashboard/pos?tableId=${selectedTable.id}`)
+      router.push(`/dashboard/platform/pos?tableId=${selectedTable.id}`)
     }
   }
 
   const handleViewOrder = () => {
     if (tableOrder) {
-      router.push(`/dashboard/pos/${tableOrder.id}/payment`)
+      router.push(`/dashboard/platform/pos/${tableOrder.id}/payment`)
     }
   }
 
-  const renderTableShape = (table: Table, x: number, y: number) => {
-    const colors = STATUS_COLORS[table.status] || STATUS_COLORS.available
+  const renderTable = (table: Table) => {
+    const colors = statusConfig[table.status] || statusConfig.available
+    const x = table.positionX
+    const y = table.positionY
+    const isRound = table.shape === 'round'
+    const isSquare = table.shape === 'square'
     const size = TABLE_SIZE
     const halfSize = size / 2
 
-    switch (table.shape) {
-      case 'round':
-        return (
-          <circle
-            cx={x + halfSize}
-            cy={y + halfSize}
-            r={halfSize - 2}
-            fill={colors.fill}
-            stroke={colors.stroke}
-            strokeWidth={2}
-          />
-        )
-      case 'square':
-        return (
-          <rect
-            x={x + 2}
-            y={y + 2}
-            width={size - 4}
-            height={size - 4}
-            rx={4}
-            fill={colors.fill}
-            stroke={colors.stroke}
-            strokeWidth={2}
-          />
-        )
-      case 'rectangle':
-      default:
-        return (
-          <rect
-            x={x + 2}
-            y={y + 2}
-            width={size * 1.5 - 4}
-            height={size - 4}
-            rx={4}
-            fill={colors.fill}
-            stroke={colors.stroke}
-            strokeWidth={2}
-          />
-        )
+    const handleClick = (e: React.MouseEvent<SVGGElement>) => {
+      handleTableClick(table, e as any)
     }
-  }
 
-  const getTableWidth = (shape: string) => {
-    return shape === 'rectangle' ? TABLE_SIZE * 1.5 : TABLE_SIZE
+    const handleDragStartWrapper = (e: React.DragEvent<SVGGElement>) => {
+      handleDragStart(table.id, e as any)
+    }
+
+    return (
+      <g
+        key={table.id}
+        className={cn(
+          'transition-all duration-200',
+          editMode ? 'cursor-move' : 'cursor-pointer',
+          draggedTable === table.id && 'opacity-50'
+        )}
+        {...(editMode ? { draggable: 'true' as any } : {})}
+        onDragStart={handleDragStartWrapper as any}
+        onClick={handleClick as any}
+      >
+        <defs>
+          <filter id={`glow-${table.id}`}>
+            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <linearGradient id={`grad-${table.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={colors.fill} stopOpacity="0.9" />
+            <stop offset="100%" stopColor={colors.stroke} stopOpacity="1" />
+          </linearGradient>
+        </defs>
+
+        {isRound ? (
+          <>
+            <circle
+              cx={x}
+              cy={y}
+              r={halfSize - 4}
+              fill={`url(#grad-${table.id})`}
+              stroke={colors.glow}
+              strokeWidth="3"
+              filter={`url(#glow-${table.id})`}
+            />
+            <circle
+              cx={x}
+              cy={y}
+              r={halfSize - 8}
+              fill="none"
+              stroke="white"
+              strokeWidth="1"
+              opacity="0.3"
+            />
+          </>
+        ) : isSquare ? (
+          <>
+            <rect
+              x={x - halfSize + 4}
+              y={y - halfSize + 4}
+              width={size - 8}
+              height={size - 8}
+              rx={8}
+              fill={`url(#grad-${table.id})`}
+              stroke={colors.glow}
+              strokeWidth="3"
+              filter={`url(#glow-${table.id})`}
+            />
+            <rect
+              x={x - halfSize + 8}
+              y={y - halfSize + 8}
+              width={size - 16}
+              height={size - 16}
+              rx={6}
+              fill="none"
+              stroke="white"
+              strokeWidth="1"
+              opacity="0.3"
+            />
+          </>
+        ) : (
+          <>
+            <rect
+              x={x - halfSize}
+              y={y - halfSize / 2}
+              width={size * 1.4}
+              height={halfSize}
+              rx={8}
+              fill={`url(#grad-${table.id})`}
+              stroke={colors.glow}
+              strokeWidth="3"
+              filter={`url(#glow-${table.id})`}
+            />
+            <rect
+              x={x - halfSize + 4}
+              y={y - halfSize / 2 + 4}
+              width={size * 1.4 - 8}
+              height={halfSize - 8}
+              rx={6}
+              fill="none"
+              stroke="white"
+              strokeWidth="1"
+              opacity="0.3"
+            />
+          </>
+        )}
+
+        <text
+          x={x}
+          y={y - 6}
+          textAnchor="middle"
+          fill="white"
+          fontSize="16"
+          fontWeight="700"
+          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
+        >
+          T{table.tableNumber}
+        </text>
+
+        <g transform={`translate(${x - 18}, ${y + 4})`}>
+          <circle cx="9" cy="6" r="9" fill="rgba(255,255,255,0.2)" />
+          <svg width="18" height="12" viewBox="0 0 18 12">
+            <path
+              d="M9 0C6.79 0 5 1.79 5 4C5 6.21 6.79 8 9 8C11.21 8 13 6.21 13 4C13 1.79 11.21 0 9 0ZM9 10C6 10 0 11.34 0 14V16H18V14C18 11.34 12 10 9 10Z"
+              transform="scale(0.5)"
+              fill="white"
+            />
+          </svg>
+        </g>
+        <text
+          x={x + 12}
+          y={y + 14}
+          textAnchor="start"
+          fill="white"
+          fontSize="11"
+          fontWeight="600"
+        >
+          {table.capacity}
+        </text>
+      </g>
+    )
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <RefreshCw className="animate-spin" />
       </div>
     )
   }
@@ -382,123 +541,81 @@ export function FloorPlanClient() {
   }, {} as Record<string, number>)
 
   return (
-    <div className="flex flex-col h-full gap-4">
-      {/* Controls */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full gap-6 px-4 md:px-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Select value={selectedFloor} onValueChange={setSelectedFloor}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select floor" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Floors</SelectItem>
-              {floors.map((floor) => (
-                <SelectItem key={floor.id} value={floor.id}>
-                  {floor.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           <Button variant="outline" size="sm" onClick={fetchTables}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
+
+          {!editMode ? (
+            <Button variant="outline" size="sm" onClick={() => setEditMode(true)}>
+              Rearrange Tables
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={savePositions} disabled={!hasChanges}>
+                <Save className="h-4 w-4 mr-2" />
+                Save Layout
+              </Button>
+              <Button size="sm" variant="outline" onClick={cancelEdit}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+              {editMode && (
+                <span className="text-xs text-muted-foreground">Drag tables to reposition</span>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Status Legend */}
-        <div className="flex items-center gap-4">
-          {Object.entries(STATUS_COLORS).map(([status, colors]) => (
-            <div key={status} className="flex items-center gap-2">
-              <div
-                className="w-4 h-4 rounded"
-                style={{ backgroundColor: colors.fill }}
-              />
-              <span className="text-sm">
-                {colors.label} ({statusCounts[status] || 0})
-              </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {Object.entries(statusConfig).map(([status, config]) => (
+            <div
+              key={status}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-accent"
+            >
+              <span className={cn('inline-block size-1.5 rounded-full outline', config.dotClass)} />
+              {config.label} ({statusCounts[status] || 0})
             </div>
           ))}
         </div>
       </div>
 
-      {/* Floor Plan */}
-      <Card className="flex-1">
+      <Card className="flex-1 rounded-xl">
         <CardHeader className="pb-2">
-          <CardTitle>Floor Plan</CardTitle>
+          <CardTitle>Floor Plan {editMode && <span className="text-sm font-normal text-muted-foreground ml-2">(Edit Mode)</span>}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="h-[calc(100vh-320px)]">
-            <div className="p-4 flex justify-center">
+            <div className="p-6 flex justify-center">
               <svg
                 width={FLOOR_PLAN_WIDTH}
                 height={FLOOR_PLAN_HEIGHT}
-                className="border rounded-lg bg-muted/30"
+                className="border rounded-2xl bg-gradient-to-br from-zinc-50 to-zinc-100 dark:from-zinc-900 dark:to-zinc-950 shadow-inner"
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
               >
                 <defs>
                   <pattern
                     id="grid"
-                    width="50"
-                    height="50"
+                    width="40"
+                    height="40"
                     patternUnits="userSpaceOnUse"
                   >
-                    <path
-                      d="M 50 0 L 0 0 0 50"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="0.5"
-                      opacity="0.1"
-                    />
+                    <circle cx="0" cy="0" r="1" fill="currentColor" opacity="0.1" />
                   </pattern>
                 </defs>
                 <rect width="100%" height="100%" fill="url(#grid)" />
-
-                {tables.map((table) => {
-                  const x = table.positionX * 80 + 50
-                  const y = table.positionY * 80 + 50
-                  const colors = STATUS_COLORS[table.status] || STATUS_COLORS.available
-                  const tableWidth = getTableWidth(table.shape)
-
-                  return (
-                    <g
-                      key={table.id}
-                      className="cursor-pointer transition-transform hover:scale-105"
-                      onClick={() => handleTableClick(table)}
-                    >
-                      {renderTableShape(table, x, y)}
-                      
-                      <text
-                        x={x + tableWidth / 2}
-                        y={y + TABLE_SIZE / 2 - 6}
-                        textAnchor="middle"
-                        fill={colors.text}
-                        fontSize="14"
-                        fontWeight="bold"
-                      >
-                        {table.tableNumber}
-                      </text>
-                      
-                      <text
-                        x={x + tableWidth / 2}
-                        y={y + TABLE_SIZE / 2 + 10}
-                        textAnchor="middle"
-                        fill={colors.text}
-                        fontSize="10"
-                        opacity="0.9"
-                      >
-                        <tspan>{table.capacity}</tspan>
-                        <tspan dx="2">👤</tspan>
-                      </text>
-                    </g>
-                  )
-                })}
+                
+                {tables.map(renderTable)}
               </svg>
             </div>
           </ScrollArea>
         </CardContent>
       </Card>
 
-      {/* Table Details Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -507,11 +624,11 @@ export function FloorPlanClient() {
               {selectedTable && (
                 <Badge
                   style={{
-                    backgroundColor: STATUS_COLORS[selectedTable.status]?.fill,
-                    color: STATUS_COLORS[selectedTable.status]?.text,
+                    backgroundColor: statusConfig[selectedTable.status]?.fill,
+                    color: 'white',
                   }}
                 >
-                  {STATUS_COLORS[selectedTable.status]?.label}
+                  {statusConfig[selectedTable.status]?.label}
                 </Badge>
               )}
             </DialogTitle>
@@ -565,14 +682,14 @@ export function FloorPlanClient() {
               <div className="space-y-2">
                 <div className="text-sm font-medium">Change Status</div>
                 <div className="grid grid-cols-2 gap-2">
-                  {Object.entries(STATUS_COLORS).map(([status, colors]) => (
+                  {Object.entries(statusConfig).map(([status, colors]) => (
                     <Button
                       key={status}
                       variant={selectedTable.status === status ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => handleStatusChange(status)}
                       disabled={selectedTable.status === status}
-                      style={selectedTable.status === status ? { backgroundColor: colors.fill, color: colors.text } : {}}
+                      style={selectedTable.status === status ? { backgroundColor: colors.fill, color: 'white' } : {}}
                     >
                       {colors.label}
                     </Button>
@@ -590,7 +707,6 @@ export function FloorPlanClient() {
         </DialogContent>
       </Dialog>
 
-      {/* Transfer Dialog */}
       <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -619,7 +735,6 @@ export function FloorPlanClient() {
         </DialogContent>
       </Dialog>
 
-      {/* Combine Dialog */}
       <Dialog open={combineDialogOpen} onOpenChange={setCombineDialogOpen}>
         <DialogContent>
           <DialogHeader>

@@ -114,7 +114,7 @@ model Table {
 model MenuCategory {
   id          String     @id @default(cuid())
   name        String     @default("")
-  icon        String     @default("🍽️")
+  icon        String     @default("")
   description String     @default("")
   mealPeriods Json       @default("[\"all_day\"]")
   sortOrder   Int?       @default(0)
@@ -258,6 +258,12 @@ model OrderItem {
   courseNumber        Int?               @default(1)
   seatNumber          Int?
   sentToKitchen       DateTime?
+  kitchenStatus       String?            @default("new")
+  firedAt             DateTime?
+  kitchenStartedAt    DateTime?
+  kitchenReadyAt      DateTime?
+  fulfilledAt         DateTime?
+  recalledAt          DateTime?
   order               RestaurantOrder?   @relation("OrderItem_order", fields: [orderId], references: [id])
   orderId             String?            @map("order")
   course              OrderCourse?       @relation("OrderItem_course", fields: [courseId], references: [id])
@@ -265,6 +271,7 @@ model OrderItem {
   menuItem            MenuItem?          @relation("OrderItem_menuItem", fields: [menuItemId], references: [id])
   menuItemId          String?            @map("menuItem")
   appliedModifiers    MenuItemModifier[] @relation("OrderItem_appliedModifiers")
+  kitchenTickets      KitchenTicket[]    @relation("KitchenTicket_orderItems")
 
   @@index([orderId])
   @@index([courseId])
@@ -523,14 +530,18 @@ model KitchenTicket {
   id           String           @id @default(cuid())
   status       String           @default("new")
   priority     Int?             @default(0)
+  ticketType   String?          @default("prep")
   items        Json?
   firedAt      DateTime?        @default(now())
+  startedAt    DateTime?
   completedAt  DateTime?
   servedAt     DateTime?
+  recalledAt   DateTime?
   order        RestaurantOrder? @relation("KitchenTicket_order", fields: [orderId], references: [id])
   orderId      String?          @map("order")
   station      KitchenStation?  @relation("KitchenTicket_station", fields: [stationId], references: [id])
   stationId    String?          @map("station")
+  orderItems   OrderItem[]      @relation("KitchenTicket_orderItems")
   preparedBy   User?            @relation("KitchenTicket_preparedBy", fields: [preparedById], references: [id])
   preparedById String?          @map("preparedBy")
 

@@ -14,6 +14,7 @@ import removeCartItem from "./removeCartItem";
 import getCustomerOrder from "./getCustomerOrder";
 import { transferTable, combineTables } from "./tableManagement";
 import { fireCourse, recallCourse } from "./courseManagement";
+import { syncKitchenTickets, updateKitchenTicketStatus, fulfillKitchenTicketItem } from "./kdsTickets";
 import handlePaymentProviderWebhook from "./handlePaymentProviderWebhook";
 
 const graphql = String.raw;
@@ -141,6 +142,19 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
           courseId: String!
         ): CourseManagementResult
 
+        syncKitchenTickets: SyncKitchenTicketsResult
+
+        updateKitchenTicketStatus(
+          ticketId: String!
+          status: String!
+        ): KitchenTicketMutationResult
+
+        fulfillKitchenTicketItem(
+          ticketId: String!
+          itemId: String!
+          fulfilled: Boolean!
+        ): KitchenTicketMutationResult
+
         handlePaymentProviderWebhook(
           providerCode: String!
           event: JSON!
@@ -205,6 +219,18 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         error: String
       }
 
+      type SyncKitchenTicketsResult {
+        success: Boolean!
+        created: Int!
+        updated: Int!
+        error: String
+      }
+
+      type KitchenTicketMutationResult {
+        success: Boolean!
+        error: String
+      }
+
       type HandleWebhookResult {
         success: Boolean!
         error: String
@@ -235,6 +261,9 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         combineTables,
         fireCourse,
         recallCourse,
+        syncKitchenTickets,
+        updateKitchenTicketStatus,
+        fulfillKitchenTicketItem,
         handlePaymentProviderWebhook,
       },
     },

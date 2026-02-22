@@ -6,7 +6,8 @@ import {
   integer,
   timestamp,
   decimal,
-  virtual
+  virtual,
+  select
 } from "@keystone-6/core/fields";
 
 import { isSignedIn } from "../access";
@@ -81,6 +82,52 @@ export const OrderItem = list({
       },
     }),
 
+    kitchenStatus: select({
+      type: "string",
+      options: [
+        { label: "New", value: "new" },
+        { label: "In Progress", value: "in_progress" },
+        { label: "Ready", value: "ready" },
+        { label: "Fulfilled", value: "fulfilled" },
+        { label: "Recalled", value: "recalled" },
+        { label: "Voided", value: "voided" },
+      ],
+      defaultValue: "new",
+      ui: {
+        description: "Kitchen lifecycle state for this item",
+      },
+    }),
+
+    firedAt: timestamp({
+      ui: {
+        description: "When this item was fired to prep station",
+      },
+    }),
+
+    kitchenStartedAt: timestamp({
+      ui: {
+        description: "When prep started",
+      },
+    }),
+
+    kitchenReadyAt: timestamp({
+      ui: {
+        description: "When item was marked ready",
+      },
+    }),
+
+    fulfilledAt: timestamp({
+      ui: {
+        description: "When item was fulfilled/served",
+      },
+    }),
+
+    recalledAt: timestamp({
+      ui: {
+        description: "When item was recalled from ready state",
+      },
+    }),
+
     // Relationships
     order: relationship({
       ref: "RestaurantOrder.orderItems",
@@ -109,6 +156,15 @@ export const OrderItem = list({
       many: true,
       ui: {
         displayMode: "select",
+      },
+    }),
+
+    kitchenTickets: relationship({
+      ref: "KitchenTicket.orderItems",
+      many: true,
+      ui: {
+        displayMode: "select",
+        description: "Kitchen tickets this item has appeared on",
       },
     }),
   },

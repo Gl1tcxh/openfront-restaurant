@@ -1,6 +1,6 @@
 /**
  * GiftCardListPageClient - Client Component  
- * Based on dashboard ListPageClient but hardcoded for giftcards
+ * Redesigned with a premium card-focused aesthetic
  */
 
 'use client'
@@ -12,11 +12,15 @@ import {
   Triangle,
   Square,
   Circle,
-  Search
+  Search,
+  CreditCard,
+  RefreshCw,
+  Wallet
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
+import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs"
 import { PageContainer } from '../../../dashboard/components/PageContainer'
 import { PlatformFilterBar } from '../../components/PlatformFilterBar'
 import { StatusTabs } from '../components/StatusTabs'
@@ -30,6 +34,7 @@ import { useSort } from '../../../dashboard/hooks/useSort'
 import { useListItemsQuery } from '../../../dashboard/hooks/useListItems.query'
 import { buildOrderByClause } from '../../../dashboard/lib/buildOrderByClause'
 import { buildWhereClause } from '../../../dashboard/lib/buildWhereClause'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface GiftCardListPageClientProps {
   list: any
@@ -45,30 +50,6 @@ interface GiftCardListPageClientProps {
     all: number
     disabled: number
   } | null
-}
-
-function EmptyStateDefault() {
-  return (
-    <EmptyState
-      title="No Gift Cards Created"
-      description="You can create a new gift card to get started."
-      icons={[Triangle, Square, Circle]}
-    />
-  )
-}
-
-function EmptyStateSearch({ onResetFilters }: { onResetFilters: () => void }) {
-  return (
-    <EmptyState
-      title="No Results Found"
-      description="Try adjusting your search filters."
-      icons={[Search]}
-      action={{
-        label: "Reset Filters",
-        onClick: onResetFilters
-      }}
-    />
-  )
 }
 
 export function GiftCardListPageClient({
@@ -87,7 +68,7 @@ export function GiftCardListPageClient({
   const selectedFields = useSelectedFields(list)
   const sort = useSort(list)
 
-  // Extract current search params (reactive to URL changes)
+  // Extract current search params
   const currentSearchParams = useMemo(() => {
     const params: Record<string, string> = {}
     searchParams?.forEach((value, key) => {
@@ -100,14 +81,13 @@ export function GiftCardListPageClient({
   const pageSize = parseInt(currentSearchParams.pageSize || list.pageSize?.toString() || '50', 10)
   const searchString = currentSearchParams.search || ''
 
-  // Build query variables from current search params
+  // Build query variables
   const variables = useMemo(() => {
     const orderBy = buildOrderByClause(list, currentSearchParams)
     const filterWhere = buildWhereClause(list, currentSearchParams)
     const searchParameters = searchString ? { search: searchString } : {}
     const searchWhere = buildWhereClause(list, searchParameters)
 
-    // Combine search and filters
     const whereConditions = []
     if (Object.keys(searchWhere).length > 0) {
       whereConditions.push(searchWhere)
@@ -126,7 +106,6 @@ export function GiftCardListPageClient({
     }
   }, [list, currentSearchParams, currentPage, pageSize, searchString])
 
-  // For gift-cards, use raw GraphQL string to include relationship fields
   const querySelectedFields = `
     id code value balance isDisabled endsAt metadata createdAt updatedAt
     order {
@@ -138,8 +117,6 @@ export function GiftCardListPageClient({
     }
   `
 
-  // Use React Query hook with server-side initial data
-  // Use React Query hook with server-side initial data
   const { data: queryData, error: queryError, isLoading, isFetching } = useListItemsQuery(
     {
       listKey: list.key,
@@ -151,40 +128,14 @@ export function GiftCardListPageClient({
     }
   )
 
-  // Use query data, fallback to initial data
   const data = queryData || initialData
   const error = queryError ? queryError.message : initialError
 
-  // Handle page change - simplified since FilterBar handles search/filters
-  const handlePageChange = useCallback((newPage: number) => {
-    const params = new URLSearchParams(window.location.search)
-    
-    if (newPage && newPage > 1) {
-      params.set('page', newPage.toString())
-    } else {
-      params.delete('page')
-    }
-    
-    const newUrl = params.toString() ? `?${params.toString()}` : ''
-    router.push(newUrl)
-  }, [router])
-
-  // Handle reset filters
   const handleResetFilters = useCallback(() => {
     router.push(window.location.pathname)
   }, [router])
 
-  if (!list) {
-    return (
-      <PageContainer title="List not found">
-        <Alert variant="destructive">
-          <AlertDescription>
-            The requested list was not found.
-          </AlertDescription>
-        </Alert>
-      </PageContainer>
-    )
-  }
+  const isEmpty = data?.count === 0 && !searchString
 
   const breadcrumbs = [
     { type: 'link' as const, label: 'Dashboard', href: basePath },
@@ -192,108 +143,109 @@ export function GiftCardListPageClient({
     { type: 'page' as const, label: 'GiftCards' }
   ]
 
-  const header = (
-    <div>
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
-        GiftCards
-      </h1>
-      <p className="text-muted-foreground">
-        Create and manage giftcards
-      </p>
-    </div>
-  )
-
-  // Check if we have any active filters (search or actual filters)
-  const hasFilters = !!searchString
-  const isFiltered = hasFilters
-  const isEmpty = data?.count === 0 && !isFiltered
-
   return (
-    <>
-    <PageContainer title="GiftCards" header={header} breadcrumbs={breadcrumbs}>
-      {/* Filter Bar - includes search, filters, sorting, and create button */}
-      <div className="px-4 md:px-6">
-        <PlatformFilterBar 
-          list={list}
-          customCreateButton={
-            <Button 
-              onClick={() => setIsCreateDrawerOpen(true)}
-              size="icon"
-              className="lg:px-4 lg:py-2 lg:w-auto rounded-lg"
-            >
-              <Plus className="size-4 lg:mr-2" />
-              <span className="sr-only lg:not-sr-only lg:whitespace-nowrap">
-                Create Gift Card
-              </span>
-            </Button>
-          }
-        />
+    <div className="flex flex-col h-full bg-background">
+      <PageBreadcrumbs items={breadcrumbs} />
+
+      {/* Header Section */}
+      <div className="px-6 py-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-br from-background via-emerald-500/5 to-background">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight">Gift Cards</h1>
+          <p className="text-muted-foreground mt-1">Issue and track stored value cards for your customers</p>
+        </div>
+        <Button 
+          onClick={() => setIsCreateDrawerOpen(true)}
+          className="h-12 px-6 rounded-2xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-black uppercase tracking-widest text-xs hover:scale-105 transition-all active:scale-95 shadow-xl shadow-zinc-200 dark:shadow-none"
+        >
+          <Plus className="size-4 mr-2" />
+          Issue New Card
+        </Button>
       </div>
 
-      {/* Status Tabs */}
+      {/* Stats/Tabs Section */}
       {statusCounts && (
-        <div className="border-b">
-          <StatusTabs 
-            statusCounts={statusCounts}
-          />
+        <div className="px-6 py-4 border-b flex flex-wrap items-center justify-between gap-4 bg-muted/20">
+          <StatusTabs statusCounts={statusCounts} />
+          
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-9 rounded-xl border-2 font-bold px-4" onClick={handleResetFilters}>
+              <RefreshCw className="size-3.5 mr-2" />
+              Sync
+            </Button>
+          </div>
         </div>
       )}
 
-      {/* Active Filters */}
-      <div className="px-4 md:px-6 border-b">
+      {/* Filter Bar */}
+      <div className="px-6 py-4 border-b">
+        <PlatformFilterBar 
+          list={list}
+          showDisplayButton={true}
+          selectedFields={selectedFields}
+        />
         <FilterList list={list} />
       </div>
 
-      {/* GiftCards list */}
-      {error ? (
-        <div className="px-4 md:px-6">
-          <Alert variant="destructive">
-            <AlertDescription>
-              Failed to load items: {error}
-            </AlertDescription>
-          </Alert>
-        </div>
-      ) : isEmpty ? (
-        <div className="px-4 md:px-6">
-          <EmptyStateDefault />
-        </div>
-      ) : data?.count === 0 ? (
-        <div className="px-4 md:px-6">
-          <EmptyStateSearch onResetFilters={handleResetFilters} />
-        </div>
-      ) : (
-        <>
-          {/* Data grid - full width */}
-          <div className="grid grid-cols-1 divide-y">
-            {data?.items?.map((giftcard: any) => (
-              <GiftCardDetailsComponent key={giftcard.id} giftcard={giftcard} list={list} />
-            ))}
-          </div>
-          
-          {/* Pagination */}
-          {data && data.count > pageSize && (
-            <div className="px-4 md:px-6 py-4">
-              <Pagination
-                currentPage={currentPage}
-                total={data.count}
-                pageSize={pageSize}
-                list={{ singular: 'giftcard', plural: 'giftcards' }}
-              />
+      {/* Main Content */}
+      <ScrollArea className="flex-1">
+        <div className="pb-12">
+          {error ? (
+            <div className="p-6">
+              <Alert variant="destructive" className="rounded-2xl border-2">
+                <AlertDescription>Failed to load gift cards: {error}</AlertDescription>
+              </Alert>
             </div>
+          ) : isEmpty ? (
+            <div className="p-24 flex flex-col items-center justify-center text-center">
+              <div className="w-32 h-20 rounded-2xl bg-muted border-2 border-dashed border-muted-foreground/30 flex items-center justify-center mb-6 relative">
+                <CreditCard className="size-10 text-muted-foreground opacity-20" />
+                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+                   <Plus className="size-4" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-black mb-2 tracking-tight">Zero Cards Issued</h2>
+              <p className="text-muted-foreground max-w-sm mb-8">Gift cards are a great way to increase customer loyalty and upfront cash flow.</p>
+              <Button onClick={() => setIsCreateDrawerOpen(true)} size="lg" className="rounded-2xl px-8 font-black uppercase tracking-widest text-xs">
+                Issue First Gift Card
+              </Button>
+            </div>
+          ) : data?.count === 0 ? (
+            <div className="p-12 text-center flex flex-col items-center">
+              <Search className="size-12 text-muted-foreground opacity-20 mb-4" />
+              <h3 className="text-lg font-bold uppercase tracking-widest">No matching cards found</h3>
+              <Button variant="link" onClick={handleResetFilters}>Clear search criteria</Button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1">
+                {data?.items?.map((giftcard: any) => (
+                  <GiftCardDetailsComponent key={giftcard.id} giftcard={giftcard} list={list} />
+                ))}
+              </div>
+              
+              {data && data.count > pageSize && (
+                <div className="px-6 py-8">
+                  <Pagination
+                    currentPage={currentPage}
+                    total={data.count}
+                    pageSize={pageSize}
+                    list={{ singular: 'giftcard', plural: 'giftcards' }}
+                  />
+                </div>
+              )}
+            </>
           )}
-        </>
-      )}
-    </PageContainer>
-    
-    {/* Create Item Drawer */}
-    <CreateItemDrawerClientWrapper
-      listKey="gift-cards"
-      open={isCreateDrawerOpen}
-      onClose={() => setIsCreateDrawerOpen(false)}
-      onCreate={() => {
-        window.location.reload();
-      }}
-    />
-  </>
+        </div>
+      </ScrollArea>
+      
+      <CreateItemDrawerClientWrapper
+        listKey="gift-cards"
+        open={isCreateDrawerOpen}
+        onClose={() => setIsCreateDrawerOpen(false)}
+        onCreate={() => {
+          window.location.reload();
+        }}
+      />
+    </div>
   )
 }

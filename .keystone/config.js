@@ -1017,9 +1017,8 @@ var MenuCategory = (0, import_core6.list)({
       validation: { isRequired: true }
     }),
     icon: (0, import_fields7.text)({
-      defaultValue: "\u{1F37D}\uFE0F",
       ui: {
-        description: "Emoji icon for this category (e.g. \u{1F354}, \u{1F357}, \u{1F964})"
+        description: "Icon name for this category (optional)"
       }
     }),
     description: (0, import_fields7.text)({
@@ -1631,6 +1630,46 @@ var OrderItem = (0, import_core12.list)({
         description: "When this item was sent to kitchen"
       }
     }),
+    kitchenStatus: (0, import_fields13.select)({
+      type: "string",
+      options: [
+        { label: "New", value: "new" },
+        { label: "In Progress", value: "in_progress" },
+        { label: "Ready", value: "ready" },
+        { label: "Fulfilled", value: "fulfilled" },
+        { label: "Recalled", value: "recalled" },
+        { label: "Voided", value: "voided" }
+      ],
+      defaultValue: "new",
+      ui: {
+        description: "Kitchen lifecycle state for this item"
+      }
+    }),
+    firedAt: (0, import_fields13.timestamp)({
+      ui: {
+        description: "When this item was fired to prep station"
+      }
+    }),
+    kitchenStartedAt: (0, import_fields13.timestamp)({
+      ui: {
+        description: "When prep started"
+      }
+    }),
+    kitchenReadyAt: (0, import_fields13.timestamp)({
+      ui: {
+        description: "When item was marked ready"
+      }
+    }),
+    fulfilledAt: (0, import_fields13.timestamp)({
+      ui: {
+        description: "When item was fulfilled/served"
+      }
+    }),
+    recalledAt: (0, import_fields13.timestamp)({
+      ui: {
+        description: "When item was recalled from ready state"
+      }
+    }),
     // Relationships
     order: (0, import_fields13.relationship)({
       ref: "RestaurantOrder.orderItems",
@@ -1656,6 +1695,14 @@ var OrderItem = (0, import_core12.list)({
       many: true,
       ui: {
         displayMode: "select"
+      }
+    }),
+    kitchenTickets: (0, import_fields13.relationship)({
+      ref: "KitchenTicket.orderItems",
+      many: true,
+      ui: {
+        displayMode: "select",
+        description: "Kitchen tickets this item has appeared on"
       }
     })
   }
@@ -2653,6 +2700,17 @@ var KitchenTicket = (0, import_core28.list)({
         description: "Priority level (higher numbers = higher priority)"
       }
     }),
+    ticketType: (0, import_fields29.select)({
+      type: "string",
+      options: [
+        { label: "Prep", value: "prep" },
+        { label: "Expediter", value: "expediter" }
+      ],
+      defaultValue: "prep",
+      ui: {
+        description: "Whether this ticket is shown in prep or expediter context"
+      }
+    }),
     items: (0, import_fields29.json)({
       ui: {
         description: "Order items for this ticket (JSON array)"
@@ -2664,6 +2722,11 @@ var KitchenTicket = (0, import_core28.list)({
         description: "When the ticket was sent to the kitchen"
       }
     }),
+    startedAt: (0, import_fields29.timestamp)({
+      ui: {
+        description: "When kitchen staff started working on this ticket"
+      }
+    }),
     completedAt: (0, import_fields29.timestamp)({
       ui: {
         description: "When all items were completed"
@@ -2672,6 +2735,11 @@ var KitchenTicket = (0, import_core28.list)({
     servedAt: (0, import_fields29.timestamp)({
       ui: {
         description: "When the items were served to the customer"
+      }
+    }),
+    recalledAt: (0, import_fields29.timestamp)({
+      ui: {
+        description: "When the ticket was recalled back into preparation"
       }
     }),
     // Relationships
@@ -2687,6 +2755,14 @@ var KitchenTicket = (0, import_core28.list)({
       ui: {
         displayMode: "select",
         description: "Kitchen station assigned to this ticket"
+      }
+    }),
+    orderItems: (0, import_fields29.relationship)({
+      ref: "OrderItem.kitchenTickets",
+      many: true,
+      ui: {
+        displayMode: "select",
+        description: "Normalized order items included in this ticket"
       }
     }),
     preparedBy: (0, import_fields29.relationship)({
@@ -4028,6 +4104,24 @@ async function getPaymentStatus2(root, args, context) {
 }
 
 // features/keystone/mutations/splitCheck.ts
+function cents(value) {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? Math.round(n) : 0;
+}
+function calculateTotalsFromItems(items) {
+  const subtotal = items.reduce((sum, item) => {
+    return sum + cents(item.price) * (item.quantity || 0);
+  }, 0);
+  const tax = Math.round(subtotal * 0.08);
+  const total = subtotal + tax;
+  return { subtotal, tax, total };
+}
+function buildSplitOrderNumber(suffix) {
+  const now = /* @__PURE__ */ new Date();
+  const datePart = now.toISOString().slice(2, 10).replace(/-/g, "");
+  const timePart = now.getTime().toString().slice(-4);
+  return `${datePart}-${timePart}-${suffix}`;
+}
 async function splitCheckByItem(root, args, context) {
   if (!context.session?.itemId) {
     return {
@@ -4045,8 +4139,9 @@ async function splitCheckByItem(root, args, context) {
     };
   }
   try {
-    const originalOrder = await context.db.RestaurantOrder.findOne({
-      where: { id: orderId }
+    const originalOrder = await context.query.RestaurantOrder.findOne({
+      where: { id: orderId },
+      query: "id orderNumber orderType orderSource status specialInstructions server { id } tables { id }"
     });
     if (!originalOrder) {
       return {
@@ -4055,11 +4150,12 @@ async function splitCheckByItem(root, args, context) {
         error: "Order not found"
       };
     }
-    const itemsToMove = await context.db.OrderItem.findMany({
+    const itemsToMove = await context.query.OrderItem.findMany({
       where: {
         id: { in: itemIds },
         order: { id: { equals: orderId } }
-      }
+      },
+      query: "id quantity price"
     });
     if (itemsToMove.length === 0) {
       return {
@@ -4068,27 +4164,20 @@ async function splitCheckByItem(root, args, context) {
         error: "No valid items found to split"
       };
     }
-    let newSubtotal = 0;
-    for (const item of itemsToMove) {
-      newSubtotal += parseFloat(String(item.price)) * item.quantity;
-    }
-    const newTax = newSubtotal * 0.08;
-    const newTotal = newSubtotal + newTax;
-    const now = /* @__PURE__ */ new Date();
-    const datePart = now.toISOString().slice(2, 10).replace(/-/g, "");
-    const timePart = now.getTime().toString().slice(-4);
-    const newOrderNumber = `${datePart}-${timePart}-S`;
+    const newTotals = calculateTotalsFromItems(itemsToMove);
     const newOrder = await context.db.RestaurantOrder.createOne({
       data: {
-        orderNumber: newOrderNumber,
-        orderType: originalOrder.orderType,
-        status: originalOrder.status,
+        orderNumber: buildSplitOrderNumber("S"),
+        orderType: originalOrder.orderType || "dine_in",
+        orderSource: originalOrder.orderSource || "pos",
+        status: originalOrder.status || "open",
         guestCount: 1,
-        subtotal: newSubtotal.toFixed(2),
-        tax: newTax.toFixed(2),
-        total: newTotal.toFixed(2),
-        table: originalOrder.tableId ? { connect: { id: originalOrder.tableId } } : void 0,
-        server: originalOrder.serverId ? { connect: { id: originalOrder.serverId } } : void 0
+        subtotal: newTotals.subtotal,
+        tax: newTotals.tax,
+        total: newTotals.total,
+        specialInstructions: originalOrder.specialInstructions ? `${originalOrder.specialInstructions} | Split from ${originalOrder.orderNumber}` : `Split from ${originalOrder.orderNumber}`,
+        tables: (originalOrder.tables || []).length ? { connect: (originalOrder.tables || []).map((t) => ({ id: t.id })) } : void 0,
+        server: originalOrder.server?.id ? { connect: { id: originalOrder.server.id } } : void 0
       }
     });
     for (const item of itemsToMove) {
@@ -4099,23 +4188,19 @@ async function splitCheckByItem(root, args, context) {
         }
       });
     }
-    const remainingItems = await context.db.OrderItem.findMany({
+    const remainingItems = await context.query.OrderItem.findMany({
       where: {
         order: { id: { equals: orderId } }
-      }
+      },
+      query: "id quantity price"
     });
-    let remainingSubtotal = 0;
-    for (const item of remainingItems) {
-      remainingSubtotal += parseFloat(String(item.price)) * item.quantity;
-    }
-    const remainingTax = remainingSubtotal * 0.08;
-    const remainingTotal = remainingSubtotal + remainingTax;
+    const remainingTotals = calculateTotalsFromItems(remainingItems);
     await context.db.RestaurantOrder.updateOne({
       where: { id: orderId },
       data: {
-        subtotal: remainingSubtotal.toFixed(2),
-        tax: remainingTax.toFixed(2),
-        total: remainingTotal.toFixed(2)
+        subtotal: remainingTotals.subtotal,
+        tax: remainingTotals.tax,
+        total: remainingTotals.total
       }
     });
     return {
@@ -4150,8 +4235,9 @@ async function splitCheckByGuest(root, args, context) {
     };
   }
   try {
-    const originalOrder = await context.db.RestaurantOrder.findOne({
-      where: { id: orderId }
+    const originalOrder = await context.query.RestaurantOrder.findOne({
+      where: { id: orderId },
+      query: "id orderNumber orderType orderSource status specialInstructions total subtotal tax server { id } tables { id }"
     });
     if (!originalOrder) {
       return {
@@ -4160,39 +4246,50 @@ async function splitCheckByGuest(root, args, context) {
         error: "Order not found"
       };
     }
-    const totalAmount = parseFloat(String(originalOrder.total));
-    const splitAmount = totalAmount / guestCount;
-    const splitTax = splitAmount * 0.08 / 1.08;
-    const splitSubtotal = splitAmount - splitTax;
+    const totalAmount = cents(originalOrder.total);
+    const totalSubtotal = cents(originalOrder.subtotal);
+    const totalTax = cents(originalOrder.tax);
+    const splitTotalBase = Math.floor(totalAmount / guestCount);
+    const splitSubtotalBase = Math.floor(totalSubtotal / guestCount);
+    const splitTaxBase = Math.floor(totalTax / guestCount);
+    let totalRemainder = totalAmount - splitTotalBase * guestCount;
+    let subtotalRemainder = totalSubtotal - splitSubtotalBase * guestCount;
+    let taxRemainder = totalTax - splitTaxBase * guestCount;
     const newOrderIds = [];
     for (let i = 1; i < guestCount; i++) {
-      const now = /* @__PURE__ */ new Date();
-      const datePart = now.toISOString().slice(2, 10).replace(/-/g, "");
-      const timePart = (now.getTime() + i).toString().slice(-4);
-      const newOrderNumber = `${datePart}-${timePart}-G${i + 1}`;
+      const thisTotal = splitTotalBase + (totalRemainder > 0 ? 1 : 0);
+      const thisSubtotal = splitSubtotalBase + (subtotalRemainder > 0 ? 1 : 0);
+      const thisTax = splitTaxBase + (taxRemainder > 0 ? 1 : 0);
+      if (totalRemainder > 0) totalRemainder -= 1;
+      if (subtotalRemainder > 0) subtotalRemainder -= 1;
+      if (taxRemainder > 0) taxRemainder -= 1;
       const newOrder = await context.db.RestaurantOrder.createOne({
         data: {
-          orderNumber: newOrderNumber,
-          orderType: originalOrder.orderType,
-          status: originalOrder.status,
+          orderNumber: buildSplitOrderNumber(`G${i + 1}`),
+          orderType: originalOrder.orderType || "dine_in",
+          orderSource: originalOrder.orderSource || "pos",
+          status: originalOrder.status || "open",
           guestCount: 1,
-          subtotal: splitSubtotal.toFixed(2),
-          tax: splitTax.toFixed(2),
-          total: splitAmount.toFixed(2),
+          subtotal: thisSubtotal,
+          tax: thisTax,
+          total: thisTotal,
           specialInstructions: `Split from order ${originalOrder.orderNumber} (Guest ${i + 1} of ${guestCount})`,
-          table: originalOrder.tableId ? { connect: { id: originalOrder.tableId } } : void 0,
-          server: originalOrder.serverId ? { connect: { id: originalOrder.serverId } } : void 0
+          tables: (originalOrder.tables || []).length ? { connect: (originalOrder.tables || []).map((t) => ({ id: t.id })) } : void 0,
+          server: originalOrder.server?.id ? { connect: { id: originalOrder.server.id } } : void 0
         }
       });
       newOrderIds.push(newOrder.id);
     }
+    const originalTotal = splitTotalBase + (totalRemainder > 0 ? 1 : 0);
+    const originalSubtotal = splitSubtotalBase + (subtotalRemainder > 0 ? 1 : 0);
+    const originalTax = splitTaxBase + (taxRemainder > 0 ? 1 : 0);
     await context.db.RestaurantOrder.updateOne({
       where: { id: orderId },
       data: {
         guestCount: 1,
-        subtotal: splitSubtotal.toFixed(2),
-        tax: splitTax.toFixed(2),
-        total: splitAmount.toFixed(2),
+        subtotal: originalSubtotal,
+        tax: originalTax,
+        total: originalTotal,
         specialInstructions: originalOrder.specialInstructions ? `${originalOrder.specialInstructions} | Split check (Guest 1 of ${guestCount})` : `Split check (Guest 1 of ${guestCount})`
       }
     });
@@ -5000,6 +5097,282 @@ async function recallCourse(root, args, context) {
   }
 }
 
+// features/keystone/mutations/kdsTickets.ts
+function normalizeStationName(name) {
+  return name.trim().toLowerCase();
+}
+function displayStationName(value) {
+  return value.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+}
+function isExpediterStation(stationName) {
+  const n = (stationName || "").toLowerCase();
+  return n.includes("expo") || n.includes("expediter");
+}
+async function getOrCreateStation(stationKey, context, cachedStations) {
+  const normalized = normalizeStationName(stationKey);
+  const existing = cachedStations.find((s) => normalizeStationName(s.name) === normalized);
+  if (existing) return existing;
+  const created = await context.sudo().db.KitchenStation.createOne({
+    data: {
+      name: displayStationName(stationKey),
+      isActive: true,
+      displayOrder: cachedStations.length
+    }
+  });
+  const createdStation = {
+    id: created.id,
+    name: displayStationName(stationKey),
+    displayOrder: cachedStations.length
+  };
+  cachedStations.push(createdStation);
+  return createdStation;
+}
+function mapOrderItemsByStation(order) {
+  const grouped = {};
+  const seen = /* @__PURE__ */ new Set();
+  const pushItem = (item) => {
+    if (!item?.id || seen.has(item.id)) return;
+    seen.add(item.id);
+    const station = item.menuItem?.kitchenStation || "expo";
+    if (!grouped[station]) grouped[station] = [];
+    grouped[station].push({
+      id: item.id,
+      name: item.menuItem?.name || "Item",
+      quantity: item.quantity || 1,
+      notes: item.specialInstructions || null,
+      station,
+      status: "new",
+      fulfilledAt: null
+    });
+  };
+  for (const course of order.courses || []) {
+    for (const item of course.orderItems || []) {
+      pushItem(item);
+    }
+  }
+  for (const item of order.orderItems || []) {
+    pushItem(item);
+  }
+  return grouped;
+}
+async function reconcileRestaurantOrderStatus(orderId, context) {
+  const tickets = await context.sudo().query.KitchenTicket.findMany({
+    where: { order: { id: { equals: orderId } } },
+    query: "id status"
+  });
+  if (!tickets.length) return;
+  const hasNewOrInProgress = tickets.some((t) => ["new", "in_progress"].includes(t.status));
+  const hasReady = tickets.some((t) => t.status === "ready");
+  const hasServed = tickets.some((t) => t.status === "served");
+  const allServed = tickets.every((t) => t.status === "served");
+  let nextStatus = null;
+  if (hasNewOrInProgress) nextStatus = "in_progress";
+  else if (hasReady) nextStatus = "ready";
+  else if (allServed || hasServed) nextStatus = "served";
+  if (nextStatus) {
+    await context.sudo().db.RestaurantOrder.updateOne({
+      where: { id: orderId },
+      data: { status: nextStatus }
+    });
+  }
+}
+async function syncKitchenTickets(root, args, context) {
+  if (!context.session?.itemId) {
+    return { success: false, error: "Must be signed in", created: 0, updated: 0 };
+  }
+  try {
+    const sudo = context.sudo();
+    const stations = await sudo.query.KitchenStation.findMany({
+      query: "id name displayOrder",
+      where: { isActive: { equals: true } },
+      orderBy: { displayOrder: "asc" }
+    });
+    const orders = await sudo.query.RestaurantOrder.findMany({
+      where: {
+        status: { in: ["open", "sent_to_kitchen", "in_progress", "ready"] }
+      },
+      orderBy: { createdAt: "asc" },
+      query: `
+        id
+        status
+        isUrgent
+        onHold
+        createdAt
+        courses {
+          id
+          orderItems {
+            id
+            quantity
+            specialInstructions
+            menuItem { id name kitchenStation }
+          }
+        }
+        orderItems {
+          id
+          quantity
+          specialInstructions
+          menuItem { id name kitchenStation }
+        }
+      `
+    });
+    let created = 0;
+    let updated = 0;
+    for (const order of orders) {
+      const stationItemMap = mapOrderItemsByStation(order);
+      for (const [stationKey, items] of Object.entries(stationItemMap)) {
+        const station = await getOrCreateStation(stationKey, context, stations);
+        const existingTickets = await sudo.query.KitchenTicket.findMany({
+          where: {
+            order: { id: { equals: order.id } },
+            station: { id: { equals: station.id } },
+            status: { in: ["new", "in_progress", "ready"] }
+          },
+          query: "id items status",
+          take: 1
+        });
+        const priority = order.isUrgent ? 100 : order.onHold ? -10 : 0;
+        if (existingTickets.length > 0) {
+          const existing = existingTickets[0];
+          const existingItems = existing.items || [];
+          const existingMap = new Map(existingItems.map((i) => [i.id, i]));
+          const mergedItems = items.map((item) => {
+            const prev = existingMap.get(item.id);
+            if (!prev) return item;
+            return {
+              ...item,
+              status: prev.status || "new",
+              fulfilledAt: prev.fulfilledAt || null
+            };
+          });
+          await sudo.db.KitchenTicket.updateOne({
+            where: { id: existing.id },
+            data: {
+              items: mergedItems,
+              priority,
+              status: existing.status === "ready" && order.status !== "ready" ? "in_progress" : void 0
+            }
+          });
+          updated += 1;
+        } else {
+          await sudo.db.KitchenTicket.createOne({
+            data: {
+              order: { connect: { id: order.id } },
+              station: { connect: { id: station.id } },
+              items,
+              priority,
+              status: order.status === "ready" ? "ready" : "new",
+              firedAt: order.createdAt
+            }
+          });
+          updated += 1;
+          created += 1;
+        }
+      }
+      if (Object.keys(stationItemMap).length > 0 && order.status === "open") {
+        await sudo.db.RestaurantOrder.updateOne({
+          where: { id: order.id },
+          data: { status: "sent_to_kitchen" }
+        });
+      }
+      await reconcileRestaurantOrderStatus(order.id, context);
+    }
+    return { success: true, error: null, created, updated };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Unknown error",
+      created: 0,
+      updated: 0
+    };
+  }
+}
+async function updateKitchenTicketStatus(root, args, context) {
+  if (!context.session?.itemId) {
+    return { success: false, error: "Must be signed in" };
+  }
+  try {
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const sudo = context.sudo();
+    const ticket = await sudo.query.KitchenTicket.findOne({
+      where: { id: args.ticketId },
+      query: "id order { id } station { name }"
+    });
+    if (!ticket) {
+      return { success: false, error: "Ticket not found" };
+    }
+    if (args.status === "served" && isExpediterStation(ticket.station?.name) && ticket.order?.id) {
+      const siblingTickets = await sudo.query.KitchenTicket.findMany({
+        where: {
+          order: { id: { equals: ticket.order.id } },
+          status: { in: ["new", "in_progress"] }
+        },
+        query: "id status station { name }"
+      });
+      const blockingPrep = siblingTickets.filter((t) => t.id !== ticket.id && !isExpediterStation(t.station?.name));
+      if (blockingPrep.length > 0) {
+        const stations = blockingPrep.map((t) => t.station?.name).filter(Boolean).join(", ");
+        return {
+          success: false,
+          error: stations ? `Prep stations still working: ${stations}` : "Prep tickets must be completed before expediter can bump served"
+        };
+      }
+    }
+    await sudo.db.KitchenTicket.updateOne({
+      where: { id: args.ticketId },
+      data: {
+        status: args.status,
+        completedAt: args.status === "ready" ? now : args.status === "in_progress" ? null : void 0,
+        servedAt: args.status === "served" ? now : void 0
+      }
+    });
+    if (ticket.order?.id) {
+      await reconcileRestaurantOrderStatus(ticket.order.id, context);
+    }
+    return { success: true, error: null };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+async function fulfillKitchenTicketItem(root, args, context) {
+  if (!context.session?.itemId) {
+    return { success: false, error: "Must be signed in" };
+  }
+  try {
+    const sudo = context.sudo();
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const ticket = await sudo.query.KitchenTicket.findOne({
+      where: { id: args.ticketId },
+      query: "id items order { id }"
+    });
+    if (!ticket) {
+      return { success: false, error: "Ticket not found" };
+    }
+    const items = (ticket.items || []).map((item) => {
+      if (item.id !== args.itemId) return item;
+      return {
+        ...item,
+        status: args.fulfilled ? "fulfilled" : "in_progress",
+        fulfilledAt: args.fulfilled ? now : null
+      };
+    });
+    const allFulfilled = items.length > 0 && items.every((i) => i.status === "fulfilled");
+    await sudo.db.KitchenTicket.updateOne({
+      where: { id: args.ticketId },
+      data: {
+        items,
+        status: allFulfilled ? "ready" : "in_progress",
+        completedAt: allFulfilled ? now : null
+      }
+    });
+    if (ticket.order?.id) {
+      await reconcileRestaurantOrderStatus(ticket.order.id, context);
+    }
+    return { success: true, error: null };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
 // features/keystone/mutations/handlePaymentProviderWebhook.ts
 async function handlePaymentProviderWebhook(root, { providerCode, event, headers }, context) {
   const sudoContext = context.sudo();
@@ -5217,6 +5590,19 @@ function extendGraphqlSchema(baseSchema) {
           courseId: String!
         ): CourseManagementResult
 
+        syncKitchenTickets: SyncKitchenTicketsResult
+
+        updateKitchenTicketStatus(
+          ticketId: String!
+          status: String!
+        ): KitchenTicketMutationResult
+
+        fulfillKitchenTicketItem(
+          ticketId: String!
+          itemId: String!
+          fulfilled: Boolean!
+        ): KitchenTicketMutationResult
+
         handlePaymentProviderWebhook(
           providerCode: String!
           event: JSON!
@@ -5281,6 +5667,18 @@ function extendGraphqlSchema(baseSchema) {
         error: String
       }
 
+      type SyncKitchenTicketsResult {
+        success: Boolean!
+        created: Int!
+        updated: Int!
+        error: String
+      }
+
+      type KitchenTicketMutationResult {
+        success: Boolean!
+        error: String
+      }
+
       type HandleWebhookResult {
         success: Boolean!
         error: String
@@ -5311,6 +5709,9 @@ function extendGraphqlSchema(baseSchema) {
         combineTables,
         fireCourse,
         recallCourse,
+        syncKitchenTickets,
+        updateKitchenTicketStatus,
+        fulfillKitchenTicketItem,
         handlePaymentProviderWebhook
       }
     }

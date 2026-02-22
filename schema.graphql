@@ -1491,11 +1491,19 @@ type OrderItem {
   courseNumber: Int
   seatNumber: Int
   sentToKitchen: DateTime
+  kitchenStatus: String
+  firedAt: DateTime
+  kitchenStartedAt: DateTime
+  kitchenReadyAt: DateTime
+  fulfilledAt: DateTime
+  recalledAt: DateTime
   order: RestaurantOrder
   course: OrderCourse
   menuItem: MenuItem
   appliedModifiers(where: MenuItemModifierWhereInput! = {}, orderBy: [MenuItemModifierOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MenuItemModifierWhereUniqueInput): [MenuItemModifier!]
   appliedModifiersCount(where: MenuItemModifierWhereInput! = {}): Int
+  kitchenTickets(where: KitchenTicketWhereInput! = {}, orderBy: [KitchenTicketOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: KitchenTicketWhereUniqueInput): [KitchenTicket!]
+  kitchenTicketsCount(where: KitchenTicketWhereInput! = {}): Int
 }
 
 input OrderItemWhereUniqueInput {
@@ -1513,10 +1521,23 @@ input OrderItemWhereInput {
   courseNumber: IntNullableFilter
   seatNumber: IntNullableFilter
   sentToKitchen: DateTimeNullableFilter
+  kitchenStatus: StringNullableFilter
+  firedAt: DateTimeNullableFilter
+  kitchenStartedAt: DateTimeNullableFilter
+  kitchenReadyAt: DateTimeNullableFilter
+  fulfilledAt: DateTimeNullableFilter
+  recalledAt: DateTimeNullableFilter
   order: RestaurantOrderWhereInput
   course: OrderCourseWhereInput
   menuItem: MenuItemWhereInput
   appliedModifiers: MenuItemModifierManyRelationFilter
+  kitchenTickets: KitchenTicketManyRelationFilter
+}
+
+input KitchenTicketManyRelationFilter {
+  every: KitchenTicketWhereInput
+  some: KitchenTicketWhereInput
+  none: KitchenTicketWhereInput
 }
 
 input OrderItemOrderByInput {
@@ -1527,6 +1548,12 @@ input OrderItemOrderByInput {
   courseNumber: OrderDirection
   seatNumber: OrderDirection
   sentToKitchen: OrderDirection
+  kitchenStatus: OrderDirection
+  firedAt: OrderDirection
+  kitchenStartedAt: OrderDirection
+  kitchenReadyAt: OrderDirection
+  fulfilledAt: OrderDirection
+  recalledAt: OrderDirection
 }
 
 input OrderItemUpdateInput {
@@ -1536,10 +1563,17 @@ input OrderItemUpdateInput {
   courseNumber: Int
   seatNumber: Int
   sentToKitchen: DateTime
+  kitchenStatus: String
+  firedAt: DateTime
+  kitchenStartedAt: DateTime
+  kitchenReadyAt: DateTime
+  fulfilledAt: DateTime
+  recalledAt: DateTime
   order: RestaurantOrderRelateToOneForUpdateInput
   course: OrderCourseRelateToOneForUpdateInput
   menuItem: MenuItemRelateToOneForUpdateInput
   appliedModifiers: MenuItemModifierRelateToManyForUpdateInput
+  kitchenTickets: KitchenTicketRelateToManyForUpdateInput
 }
 
 input RestaurantOrderRelateToOneForUpdateInput {
@@ -1554,6 +1588,13 @@ input OrderCourseRelateToOneForUpdateInput {
   disconnect: Boolean
 }
 
+input KitchenTicketRelateToManyForUpdateInput {
+  disconnect: [KitchenTicketWhereUniqueInput!]
+  set: [KitchenTicketWhereUniqueInput!]
+  create: [KitchenTicketCreateInput!]
+  connect: [KitchenTicketWhereUniqueInput!]
+}
+
 input OrderItemUpdateArgs {
   where: OrderItemWhereUniqueInput!
   data: OrderItemUpdateInput!
@@ -1566,10 +1607,17 @@ input OrderItemCreateInput {
   courseNumber: Int
   seatNumber: Int
   sentToKitchen: DateTime
+  kitchenStatus: String
+  firedAt: DateTime
+  kitchenStartedAt: DateTime
+  kitchenReadyAt: DateTime
+  fulfilledAt: DateTime
+  recalledAt: DateTime
   order: RestaurantOrderRelateToOneForCreateInput
   course: OrderCourseRelateToOneForCreateInput
   menuItem: MenuItemRelateToOneForCreateInput
   appliedModifiers: MenuItemModifierRelateToManyForCreateInput
+  kitchenTickets: KitchenTicketRelateToManyForCreateInput
 }
 
 input RestaurantOrderRelateToOneForCreateInput {
@@ -1580,6 +1628,11 @@ input RestaurantOrderRelateToOneForCreateInput {
 input OrderCourseRelateToOneForCreateInput {
   create: OrderCourseCreateInput
   connect: OrderCourseWhereUniqueInput
+}
+
+input KitchenTicketRelateToManyForCreateInput {
+  create: [KitchenTicketCreateInput!]
+  connect: [KitchenTicketWhereUniqueInput!]
 }
 
 type OrderCourse {
@@ -2753,12 +2806,6 @@ input KitchenStationWhereInput {
   prepStations: PrepStationManyRelationFilter
 }
 
-input KitchenTicketManyRelationFilter {
-  every: KitchenTicketWhereInput
-  some: KitchenTicketWhereInput
-  none: KitchenTicketWhereInput
-}
-
 input PrepStationManyRelationFilter {
   every: PrepStationWhereInput
   some: PrepStationWhereInput
@@ -2781,13 +2828,6 @@ input KitchenStationUpdateInput {
   prepStations: PrepStationRelateToManyForUpdateInput
 }
 
-input KitchenTicketRelateToManyForUpdateInput {
-  disconnect: [KitchenTicketWhereUniqueInput!]
-  set: [KitchenTicketWhereUniqueInput!]
-  create: [KitchenTicketCreateInput!]
-  connect: [KitchenTicketWhereUniqueInput!]
-}
-
 input PrepStationRelateToManyForUpdateInput {
   disconnect: [PrepStationWhereUniqueInput!]
   set: [PrepStationWhereUniqueInput!]
@@ -2807,11 +2847,6 @@ input KitchenStationCreateInput {
   assignedStaff: UserRelateToManyForCreateInput
   tickets: KitchenTicketRelateToManyForCreateInput
   prepStations: PrepStationRelateToManyForCreateInput
-}
-
-input KitchenTicketRelateToManyForCreateInput {
-  create: [KitchenTicketCreateInput!]
-  connect: [KitchenTicketWhereUniqueInput!]
 }
 
 input PrepStationRelateToManyForCreateInput {
@@ -2877,12 +2912,17 @@ type KitchenTicket {
   id: ID!
   status: String
   priority: Int
+  ticketType: String
   items: JSON
   firedAt: DateTime
+  startedAt: DateTime
   completedAt: DateTime
   servedAt: DateTime
+  recalledAt: DateTime
   order: RestaurantOrder
   station: KitchenStation
+  orderItems(where: OrderItemWhereInput! = {}, orderBy: [OrderItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OrderItemWhereUniqueInput): [OrderItem!]
+  orderItemsCount(where: OrderItemWhereInput! = {}): Int
   preparedBy: User
 }
 
@@ -2897,11 +2937,15 @@ input KitchenTicketWhereInput {
   id: IDFilter
   status: StringFilter
   priority: IntNullableFilter
+  ticketType: StringNullableFilter
   firedAt: DateTimeNullableFilter
+  startedAt: DateTimeNullableFilter
   completedAt: DateTimeNullableFilter
   servedAt: DateTimeNullableFilter
+  recalledAt: DateTimeNullableFilter
   order: RestaurantOrderWhereInput
   station: KitchenStationWhereInput
+  orderItems: OrderItemManyRelationFilter
   preparedBy: UserWhereInput
 }
 
@@ -2909,20 +2953,27 @@ input KitchenTicketOrderByInput {
   id: OrderDirection
   status: OrderDirection
   priority: OrderDirection
+  ticketType: OrderDirection
   firedAt: OrderDirection
+  startedAt: OrderDirection
   completedAt: OrderDirection
   servedAt: OrderDirection
+  recalledAt: OrderDirection
 }
 
 input KitchenTicketUpdateInput {
   status: String
   priority: Int
+  ticketType: String
   items: JSON
   firedAt: DateTime
+  startedAt: DateTime
   completedAt: DateTime
   servedAt: DateTime
+  recalledAt: DateTime
   order: RestaurantOrderRelateToOneForUpdateInput
   station: KitchenStationRelateToOneForUpdateInput
+  orderItems: OrderItemRelateToManyForUpdateInput
   preparedBy: UserRelateToOneForUpdateInput
 }
 
@@ -2934,12 +2985,16 @@ input KitchenTicketUpdateArgs {
 input KitchenTicketCreateInput {
   status: String
   priority: Int
+  ticketType: String
   items: JSON
   firedAt: DateTime
+  startedAt: DateTime
   completedAt: DateTime
   servedAt: DateTime
+  recalledAt: DateTime
   order: RestaurantOrderRelateToOneForCreateInput
   station: KitchenStationRelateToOneForCreateInput
+  orderItems: OrderItemRelateToManyForCreateInput
   preparedBy: UserRelateToOneForCreateInput
 }
 
@@ -4162,6 +4217,9 @@ type Mutation {
   combineTables(orderId: String!, tableIds: [String!]!): TableManagementResult
   fireCourse(courseId: String!): CourseManagementResult
   recallCourse(courseId: String!): CourseManagementResult
+  syncKitchenTickets: SyncKitchenTicketsResult
+  updateKitchenTicketStatus(ticketId: String!, status: String!): KitchenTicketMutationResult
+  fulfillKitchenTicketItem(ticketId: String!, itemId: String!, fulfilled: Boolean!): KitchenTicketMutationResult
   handlePaymentProviderWebhook(providerCode: String!, event: JSON!, headers: JSON!): HandleWebhookResult
 }
 
@@ -4539,6 +4597,18 @@ type TableManagementResult {
 }
 
 type CourseManagementResult {
+  success: Boolean!
+  error: String
+}
+
+type SyncKitchenTicketsResult {
+  success: Boolean!
+  created: Int!
+  updated: Int!
+  error: String
+}
+
+type KitchenTicketMutationResult {
   success: Boolean!
   error: String
 }

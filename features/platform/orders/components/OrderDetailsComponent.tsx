@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
+import Link from "next/link";
 import {
   Accordion,
   AccordionItem,
@@ -8,6 +9,7 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,55 +21,58 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { MoreVertical, ArrowRight, Utensils, User, MapPin, ChevronDown } from "lucide-react";
-import Link from "next/link";
+import { MoreVertical, User, Utensils } from "lucide-react";
 import { formatCurrency } from "@/features/storefront/lib/currency";
 import { StatusDot, statusConfig } from "./StatusDot";
 import { updateOrderStatus } from "../actions";
 import { toast } from "sonner";
 
-export const OrderDetailsComponent = ({
-  order,
-}: {
-  order: any;
-}) => {
+export function OrderDetailsComponent({ order }: { order: any }) {
   const [isPending, startTransition] = useTransition();
   const [currentStatus, setCurrentStatus] = useState(order.status);
+
+  const activeStatus =
+    statusConfig[currentStatus as keyof typeof statusConfig] || statusConfig.open;
+
+  const statusOptions = Object.entries(statusConfig).map(([value, config]) => ({
+    value,
+    ...config,
+  }));
 
   const handleStatusChange = (newStatus: string) => {
     startTransition(async () => {
       const result = await updateOrderStatus(order.id, newStatus);
       if (result.success) {
         setCurrentStatus(newStatus);
-        toast.success(`Order updated to ${newStatus.replace('_', ' ')}`);
+        toast.success(`Order updated to ${newStatus.replace("_", " ")}`);
       } else {
         toast.error("Failed to update order status");
       }
     });
   };
 
-  const activeStatus = statusConfig[currentStatus as keyof typeof statusConfig] || statusConfig.open;
-  const statusOptions = Object.entries(statusConfig).map(([value, config]) => ({
-    value,
-    ...config,
-  }));
+  const itemsPreview = (order.orderItems || [])
+    .slice(0, 2)
+    .map((i: any) => i.menuItem?.name)
+    .filter(Boolean)
+    .join(", ");
+  const extraCount = Math.max(0, (order.orderItems?.length || 0) - 2);
 
   return (
     <Accordion type="single" collapsible className="w-full">
       <AccordionItem value={order.id} className="border-0">
-        <div className="px-4 md:px-6 py-4 flex justify-between w-full border-b relative min-h-[100px] hover:bg-muted/40 transition-colors group">
-          <div className="flex flex-col items-start text-left gap-2 sm:gap-1.5">
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+        <div className="px-4 md:px-6 py-4 flex items-start justify-between gap-4 hover:bg-muted/30 transition-colors">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
               <Link
                 href={`/dashboard/platform/orders/${order.id}`}
-                className="font-bold text-lg hover:text-blue-600 transition-colors"
+                className="font-semibold text-lg tracking-tight hover:text-blue-600 transition-colors"
               >
                 #{order.orderNumber}
               </Link>
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-tight">
+
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                 {new Date(order.createdAt).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -75,139 +80,141 @@ export const OrderDetailsComponent = ({
                   minute: "2-digit",
                 })}
               </span>
-              <Badge 
-                color="zinc" 
-                className="text-[.7rem] py-0 px-3 tracking-wide font-bold rounded-md border h-6 uppercase"
+
+              <Badge
+                variant="secondary"
+                className="text-[10px] py-0.5 px-2.5 tracking-wide font-semibold rounded-full uppercase"
               >
-                {order.orderType?.replace('_', ' ')}
+                {order.orderSource || "online"}
+              </Badge>
+
+              <Badge
+                variant="outline"
+                className="text-[10px] py-0.5 px-2.5 tracking-wide font-semibold rounded-full uppercase"
+              >
+                {order.orderType?.replace("_", " ")}
               </Badge>
             </div>
 
-            <div className="flex items-center gap-4 mt-1 text-sm">
+            <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+              <div className="flex items-center gap-1.5 text-foreground font-medium">
+                <User size={14} className="text-muted-foreground" />
+                <span className="truncate max-w-[240px]">
+                  {order.customerName || order.customerEmail || "Guest"}
+                </span>
+              </div>
+
+              {order.tables?.length > 0 && (
                 <div className="flex items-center gap-1.5 text-foreground font-medium">
-                    <User size={14} className="text-muted-foreground" />
-                    <span>{order.customerName || order.customerEmail || "Guest"}</span>
+                  <Utensils size={14} className="text-muted-foreground" />
+                  <span>
+                    Table {order.tables.map((t: any) => t.tableNumber).join(", ")}
+                  </span>
                 </div>
-                {order.tables?.length > 0 && (
-                    <div className="flex items-center gap-1.5 text-foreground font-medium">
-                        <Utensils size={14} className="text-muted-foreground" />
-                        <span>Table {order.tables.map((t: any) => t.tableNumber).join(", ")}</span>
-                    </div>
-                )}
+              )}
+
+              {(order.orderItems?.length || 0) > 0 && (
+                <div className="text-muted-foreground truncate max-w-[360px]">
+                  {itemsPreview}
+                  {extraCount > 0 ? ` +${extraCount} more` : ""}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex flex-col items-end justify-between">
-            <div className="flex items-center gap-4">
-              <span className="font-extrabold text-xl text-foreground">{formatCurrency(order.total)}</span>
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-xl text-foreground">
+                {formatCurrency(order.total)}
+              </span>
 
-              <div className="flex items-center">
-                <Select 
-                  value={currentStatus} 
-                  onValueChange={handleStatusChange}
-                  disabled={isPending}
-                >
-                  <SelectTrigger className="flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-muted border shadow-xs text-muted-foreground h-auto w-auto focus:ring-0">
-                    <StatusDot status={currentStatus as keyof typeof statusConfig} size="sm" />
-                    <span className="uppercase tracking-wide">{activeStatus.label}</span>
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    {statusOptions.map((opt) => (
-                      <SelectItem 
-                        key={opt.value} 
-                        value={opt.value}
-                        className="py-2 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <StatusDot status={opt.value as keyof typeof statusConfig} size="sm" />
-                          <span className="text-xs font-semibold text-foreground">{opt.label}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="secondary" 
-                          size="icon" 
-                          className="border [&_svg]:size-3 h-6 w-6"
-                        >
-                            <MoreVertical className="stroke-muted-foreground" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                            <Link href={`/dashboard/platform/orders/${order.id}`}>View Details</Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                            <Link href={`/dashboard/platform/orders/${order.id}/fulfill`}>Kitchen Prep</Link>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="border [&_svg]:size-3 h-6 w-6"
-                  asChild
-                >
-                  <AccordionTrigger className="py-0" />
-                </Button>
-              </div>
+              <Select
+                value={currentStatus}
+                onValueChange={handleStatusChange}
+                disabled={isPending}
+              >
+                <SelectTrigger className="flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-muted border shadow-xs text-muted-foreground h-auto w-auto focus:ring-0 [&>svg]:h-3 [&>svg]:w-3">
+                  <StatusDot status={currentStatus as keyof typeof statusConfig} size="sm" />
+                  <span className="uppercase tracking-wide">{activeStatus.label}</span>
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {statusOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="py-2">
+                      <div className="flex items-center gap-2.5">
+                        <StatusDot status={opt.value as keyof typeof statusConfig} size="sm" />
+                        <span className="text-xs font-semibold text-foreground">{opt.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="icon" className="border h-7 w-7">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href={`/dashboard/platform/orders/${order.id}`}>View Details</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/dashboard/platform/orders/${order.id}/fulfill`}>Service Management</Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <AccordionTrigger className="border h-7 w-7 rounded-md bg-secondary hover:bg-secondary/80 p-0 flex items-center justify-center [&>svg]:h-3 [&>svg]:w-3" />
             </div>
           </div>
         </div>
-        
-        <AccordionContent className="bg-muted/20 pb-0 border-b">
-          <div className="p-4 md:px-8">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                    <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-4">Items</h4>
-                    <div className="space-y-3">
-                        {order.orderItems?.map((item: any) => (
-                            <div key={item.id} className="flex justify-between text-sm">
-                                <div className="flex gap-3">
-                                    <span className="font-bold text-primary">{item.quantity}x</span>
-                                    <span>{item.menuItem?.name}</span>
-                                </div>
-                                <span className="text-muted-foreground">{formatCurrency(item.price * item.quantity)}</span>
-                            </div>
-                        ))}
+
+        <AccordionContent className="bg-muted/20 border-t">
+          <div className="p-4 md:px-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <h4 className="text-[10px] uppercase tracking-[0.2em] font-semibold text-muted-foreground mb-4">
+                Items
+              </h4>
+              <div className="space-y-3">
+                {order.orderItems?.map((item: any) => (
+                  <div key={item.id} className="flex justify-between text-sm">
+                    <div className="flex gap-3">
+                      <span className="font-semibold text-muted-foreground">{item.quantity}x</span>
+                      <span className="font-medium">{item.menuItem?.name}</span>
                     </div>
+                    <span className="text-muted-foreground">
+                      {formatCurrency(item.price * item.quantity)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="md:border-l md:pl-8">
+              <h4 className="text-[10px] uppercase tracking-[0.2em] font-semibold text-muted-foreground mb-4">
+                Service Info
+              </h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Source</span>
+                  <span className="capitalize font-medium">{order.orderSource || 'online'}</span>
                 </div>
-                <div className="border-l pl-8">
-                    <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-4">Service Info</h4>
-                    <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Source</span>
-                            <span className="capitalize">{order.orderSource || 'online'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Server</span>
-                            <span>{order.server?.name || order.createdBy?.name || "Unassigned"}</span>
-                        </div>
-                        {order.orderType === 'delivery' && (
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Address</span>
-                                <span className="text-right truncate max-w-[200px]">{order.deliveryAddress}</span>
-                            </div>
-                        )}
-                    </div>
-                    <div className="mt-6 flex justify-end">
-                        <Button size="sm" variant="outline" asChild>
-                            <Link href={`/dashboard/platform/orders/${order.id}`}>
-                                Full Order Dashboard <ArrowRight size={14} className="ml-2" />
-                            </Link>
-                        </Button>
-                    </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Server</span>
+                  <span className="font-medium">{order.server?.name || order.createdBy?.name || "Unassigned"}</span>
                 </div>
-             </div>
+                {order.orderType === 'delivery' && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Address</span>
+                    <span className="text-right truncate max-w-[220px] font-medium">{order.deliveryAddress}</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </AccordionContent>
       </AccordionItem>
     </Accordion>
   );
-};
+}

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -20,17 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Plus, Trash2, DollarSign, Package, Truck, RefreshCw, FileText } from 'lucide-react'
+import { Plus, Trash2, Package, Truck, RefreshCw, FileText, Send, CheckCircle2, XCircle } from 'lucide-react'
 import { gql, request } from 'graphql-request'
+import { cn } from '@/lib/utils'
 
 interface PurchaseOrder {
   id: string
@@ -66,13 +59,13 @@ interface Ingredient {
   costPerUnit: string | null
 }
 
-const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
-  draft: { color: 'bg-gray-500', label: 'Draft' },
-  sent: { color: 'bg-blue-500', label: 'Sent' },
-  confirmed: { color: 'bg-indigo-500', label: 'Confirmed' },
-  shipped: { color: 'bg-purple-500', label: 'Shipped' },
-  received: { color: 'bg-green-500', label: 'Received' },
-  cancelled: { color: 'bg-red-500', label: 'Cancelled' },
+const STATUS_CONFIG: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: any; label: string; color: string }> = {
+  draft: { variant: 'secondary', icon: FileText, label: 'Draft', color: 'text-zinc-600 dark:text-zinc-400' },
+  sent: { variant: 'default', icon: Send, label: 'Sent', color: 'text-blue-600 dark:text-blue-400' },
+  confirmed: { variant: 'default', icon: CheckCircle2, label: 'Confirmed', color: 'text-indigo-600 dark:text-indigo-400' },
+  shipped: { variant: 'default', icon: Truck, label: 'Shipped', color: 'text-purple-600 dark:text-purple-400' },
+  received: { variant: 'default', icon: Package, label: 'Received', color: 'text-emerald-600 dark:text-emerald-400' },
+  cancelled: { variant: 'destructive', icon: XCircle, label: 'Cancelled', color: 'text-rose-600 dark:text-rose-400' },
 }
 
 const GET_PO_DATA = gql`
@@ -131,6 +124,7 @@ export function PurchaseOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPO, setEditingPO] = useState<PurchaseOrder | null>(null)
+  const [activeFilter, setActiveFilter] = useState<string>('all')
 
   const [form, setForm] = useState({
     vendorId: '',
@@ -264,222 +258,311 @@ export function PurchaseOrdersPage() {
 
   const formTotal = form.lineItems.reduce((s, li) => s + li.totalCost, 0)
   const pendingValue = orders.filter(o => !['received', 'cancelled'].includes(o.status)).reduce((s, o) => s + (o.totalCost || 0), 0)
+  
+  const filteredOrders = activeFilter === 'all' 
+    ? orders 
+    : orders.filter(o => o.status === activeFilter)
+
+  const statusCounts = orders.reduce((acc, o) => {
+    acc[o.status] = (acc[o.status] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
 
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <RefreshCw className="h-8 w-8 animate-spin" />
+        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full gap-4 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Purchase Orders</h1>
-          <p className="text-muted-foreground">Manage vendor orders and receiving</p>
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="px-6 py-6 border-b bg-gradient-to-br from-background to-muted/20">
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight mb-1">Purchase Orders</h1>
+            <p className="text-muted-foreground">Vendor order management and receiving workflow</p>
+          </div>
+          <Button onClick={() => openDialog()} size="lg" className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Purchase Order
+          </Button>
         </div>
-        <Button onClick={() => openDialog()}>
-          <Plus className="h-4 w-4 mr-2" />
-          New PO
+
+        {/* Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="border-2 hover:border-blue-500/50 transition-colors">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-blue-500/10 dark:bg-blue-500/20">
+                <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">Total Orders</p>
+                <p className="text-3xl font-bold mt-1">{orders.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-2 hover:border-amber-500/50 transition-colors">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-amber-500/10 dark:bg-amber-500/20">
+                <Truck className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">Pending Value</p>
+                <p className="text-3xl font-bold mt-1">${pendingValue.toFixed(2)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-2 hover:border-emerald-500/50 transition-colors">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20">
+                <Package className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">This Month</p>
+                <p className="text-3xl font-bold mt-1">
+                  {orders.filter(o => o.status === 'received' && new Date(o.receivedDate || '').getMonth() === new Date().getMonth()).length}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="px-6 py-3 border-b bg-muted/30 flex items-center gap-2 overflow-x-auto">
+        <Button
+          variant={activeFilter === 'all' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveFilter('all')}
+          className="shrink-0"
+        >
+          All Orders ({orders.length})
         </Button>
+        {Object.entries(STATUS_CONFIG).map(([status, config]) => {
+          const count = statusCounts[status] || 0
+          if (count === 0 && status !== 'draft') return null
+          const Icon = config.icon
+          return (
+            <Button
+              key={status}
+              variant={activeFilter === status ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setActiveFilter(status)}
+              className="shrink-0 gap-1.5"
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {config.label} ({count})
+            </Button>
+          )
+        })}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 rounded-full">
-              <FileText className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total POs</p>
-              <p className="text-2xl font-bold">{orders.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-yellow-500/10 rounded-full">
-              <Truck className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Pending Value</p>
-              <p className="text-2xl font-bold">${pendingValue.toFixed(2)}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-green-500/10 rounded-full">
-              <Package className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Received This Month</p>
-              <p className="text-2xl font-bold">
-                {orders.filter(o => o.status === 'received' && new Date(o.receivedDate || '').getMonth() === new Date().getMonth()).length}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="flex-1">
-        <ScrollArea className="h-[calc(100vh-350px)]">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>PO #</TableHead>
-                <TableHead>Vendor</TableHead>
-                <TableHead>Order Date</TableHead>
-                <TableHead>Expected</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    No purchase orders yet
-                  </TableCell>
-                </TableRow>
-              ) : (
-                orders.map((po) => {
-                  const statusConfig = STATUS_CONFIG[po.status] || STATUS_CONFIG.draft
-                  return (
-                    <TableRow key={po.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openDialog(po)}>
-                      <TableCell className="font-mono font-bold">{po.poNumber}</TableCell>
-                      <TableCell>{po.vendor?.name || '-'}</TableCell>
-                      <TableCell>{new Date(po.orderDate).toLocaleDateString()}</TableCell>
-                      <TableCell>{po.expectedDelivery ? new Date(po.expectedDelivery).toLocaleDateString() : '-'}</TableCell>
-                      <TableCell>
-                        <Badge className={statusConfig.color}>{statusConfig.label}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-bold">${(po.totalCost || 0).toFixed(2)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+      {/* Orders List */}
+      <ScrollArea className="flex-1">
+        <div className="p-6 space-y-3">
+          {filteredOrders.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="p-4 rounded-full bg-muted mb-4">
+                  <FileText className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold text-lg mb-1">No purchase orders</h3>
+                <p className="text-muted-foreground mb-4">
+                  {activeFilter === 'all' ? 'Get started by creating your first PO' : `No orders with status "${STATUS_CONFIG[activeFilter]?.label}"`}
+                </p>
+                {activeFilter === 'all' && (
+                  <Button onClick={() => openDialog()}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Purchase Order
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            filteredOrders.map((po) => {
+              const statusConfig = STATUS_CONFIG[po.status] || STATUS_CONFIG.draft
+              const StatusIcon = statusConfig.icon
+              return (
+                <Card
+                  key={po.id}
+                  className="hover:border-primary/50 transition-all cursor-pointer group"
+                  onClick={() => openDialog(po)}
+                >
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="font-mono font-bold text-lg">{po.poNumber}</span>
+                          <Badge variant={statusConfig.variant} className="gap-1">
+                            <StatusIcon className="h-3 w-3" />
+                            {statusConfig.label}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Vendor:</span>
+                            <p className="font-medium">{po.vendor?.name || '—'}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Order Date:</span>
+                            <p className="font-medium">{new Date(po.orderDate).toLocaleDateString()}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Expected:</span>
+                            <p className="font-medium">{po.expectedDelivery ? new Date(po.expectedDelivery).toLocaleDateString() : '—'}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Items:</span>
+                            <p className="font-medium">{po.lineItems?.length || 0}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-2xl font-bold">${(po.totalCost || 0).toFixed(2)}</p>
+                        <div className="flex gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
                           {po.status === 'draft' && (
-                            <Button size="sm" variant="outline" onClick={() => updateStatus(po.id, 'sent')}>Send</Button>
+                            <>
+                              <Button size="sm" variant="default" onClick={() => updateStatus(po.id, 'sent')}>
+                                Send
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleDelete(po.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
                           )}
                           {po.status === 'shipped' && (
-                            <Button size="sm" onClick={() => updateStatus(po.id, 'received')}>Receive</Button>
-                          )}
-                          {po.status === 'draft' && (
-                            <Button size="sm" variant="ghost" onClick={() => handleDelete(po.id)}>
-                              <Trash2 className="h-4 w-4" />
+                            <Button size="sm" onClick={() => updateStatus(po.id, 'received')}>
+                              Mark Received
                             </Button>
                           )}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </Card>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })
+          )}
+        </div>
+      </ScrollArea>
 
+      {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>{editingPO ? `Edit PO ${editingPO.poNumber}` : 'New Purchase Order'}</DialogTitle>
+            <DialogTitle className="text-2xl">
+              {editingPO ? `Edit ${editingPO.poNumber}` : 'New Purchase Order'}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Vendor</Label>
-                <Select value={form.vendorId} onValueChange={(v) => setForm({ ...form, vendorId: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select vendor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vendors.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-6 pb-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Vendor *</Label>
+                  <Select value={form.vendorId} onValueChange={(v) => setForm({ ...form, vendorId: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select vendor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vendors.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Expected Delivery</Label>
+                  <Input
+                    type="date"
+                    value={form.expectedDelivery}
+                    onChange={(e) => setForm({ ...form, expectedDelivery: e.target.value })}
+                  />
+                </div>
               </div>
+
               <div>
-                <Label>Expected Delivery</Label>
-                <Input
-                  type="date"
-                  value={form.expectedDelivery}
-                  onChange={(e) => setForm({ ...form, expectedDelivery: e.target.value })}
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-base">Line Items</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Add Item
+                  </Button>
+                </div>
+                {form.lineItems.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                      No items added yet
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-2">
+                    {form.lineItems.map((li, idx) => (
+                      <Card key={idx} className="border-2">
+                        <CardContent className="p-3">
+                          <div className="flex items-center gap-2">
+                            <Select value={li.ingredientId} onValueChange={(v) => updateLineItem(idx, 'ingredientId', v)}>
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Ingredient" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ingredients.map((ing) => (
+                                  <SelectItem key={ing.id} value={ing.id}>{ing.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              type="number"
+                              className="w-24"
+                              value={li.quantity}
+                              onChange={(e) => updateLineItem(idx, 'quantity', parseFloat(e.target.value) || 0)}
+                              placeholder="Qty"
+                            />
+                            <span className="text-sm font-medium w-16 text-center">{li.unit || '—'}</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="w-28"
+                              value={li.unitCost}
+                              onChange={(e) => updateLineItem(idx, 'unitCost', parseFloat(e.target.value) || 0)}
+                              placeholder="$/unit"
+                            />
+                            <span className="text-base font-bold w-24 text-right">${li.totalCost.toFixed(2)}</span>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => removeLineItem(idx)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <Card className="bg-muted border-2">
+                <CardContent className="p-4 flex justify-between items-center">
+                  <span className="text-lg font-bold">Order Total</span>
+                  <span className="text-3xl font-bold">${formTotal.toFixed(2)}</span>
+                </CardContent>
+              </Card>
+
+              <div>
+                <Label>Notes</Label>
+                <Textarea
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="Additional notes, special instructions..."
+                  rows={3}
                 />
               </div>
-            </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label>Line Items</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  Add Item
-                </Button>
-              </div>
-              {form.lineItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4 border rounded">No items added</p>
-              ) : (
-                <div className="space-y-2">
-                  {form.lineItems.map((li, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Select value={li.ingredientId} onValueChange={(v) => updateLineItem(idx, 'ingredientId', v)}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select ingredient" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ingredients.map((ing) => (
-                            <SelectItem key={ing.id} value={ing.id}>{ing.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="number"
-                        className="w-20"
-                        value={li.quantity}
-                        onChange={(e) => updateLineItem(idx, 'quantity', parseFloat(e.target.value) || 0)}
-                        placeholder="Qty"
-                      />
-                      <span className="text-sm w-12">{li.unit}</span>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        className="w-24"
-                        value={li.unitCost}
-                        onChange={(e) => updateLineItem(idx, 'unitCost', parseFloat(e.target.value) || 0)}
-                        placeholder="$/unit"
-                      />
-                      <span className="text-sm font-bold w-20 text-right">${li.totalCost.toFixed(2)}</span>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removeLineItem(idx)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <Button onClick={handleSave} className="w-full" size="lg">
+                {editingPO ? 'Update' : 'Create'} Purchase Order
+              </Button>
             </div>
-
-            <div className="p-4 bg-muted rounded flex justify-between items-center">
-              <span className="font-bold">Total</span>
-              <span className="text-2xl font-bold">${formTotal.toFixed(2)}</span>
-            </div>
-
-            <div>
-              <Label>Notes</Label>
-              <Textarea
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Additional notes..."
-              />
-            </div>
-
-            <Button onClick={handleSave} className="w-full">
-              {editingPO ? 'Update' : 'Create'} Purchase Order
-            </Button>
-          </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>

@@ -45,6 +45,18 @@ export const KitchenTicket = list({
       },
     }),
 
+    ticketType: select({
+      type: "string",
+      options: [
+        { label: "Prep", value: "prep" },
+        { label: "Expediter", value: "expediter" },
+      ],
+      defaultValue: "prep",
+      ui: {
+        description: "Whether this ticket is shown in prep or expediter context",
+      },
+    }),
+
     items: json({
       ui: {
         description: "Order items for this ticket (JSON array)",
@@ -58,6 +70,12 @@ export const KitchenTicket = list({
       },
     }),
 
+    startedAt: timestamp({
+      ui: {
+        description: "When kitchen staff started working on this ticket",
+      },
+    }),
+
     completedAt: timestamp({
       ui: {
         description: "When all items were completed",
@@ -67,6 +85,12 @@ export const KitchenTicket = list({
     servedAt: timestamp({
       ui: {
         description: "When the items were served to the customer",
+      },
+    }),
+
+    recalledAt: timestamp({
+      ui: {
+        description: "When the ticket was recalled back into preparation",
       },
     }),
 
@@ -84,6 +108,15 @@ export const KitchenTicket = list({
       ui: {
         displayMode: "select",
         description: "Kitchen station assigned to this ticket",
+      },
+    }),
+
+    orderItems: relationship({
+      ref: "OrderItem.kitchenTickets",
+      many: true,
+      ui: {
+        displayMode: "select",
+        description: "Normalized order items included in this ticket",
       },
     }),
 

@@ -1,49 +1,51 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Clock,
-  User,
-  Phone,
-  ShoppingBag,
-  MapPin,
-  Utensils,
-  ChevronRight,
-  Printer,
   Calendar,
+  Clock3,
   CreditCard,
-  History,
-  Info,
+  MapPin,
+  Phone,
+  Printer,
+  User,
+  UtensilsCrossed,
   ChefHat,
-  MoreVertical,
+  CheckCircle2,
+  ExternalLink,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { formatCurrency } from "@/features/storefront/lib/currency";
 import { updateOrderStatus } from "../actions";
 import { toast } from "sonner";
 import { StatusDot, statusConfig } from "../components/StatusDot";
 
-
 interface OrderPageClientProps {
   order: any;
+}
+
+const NEXT_STATUS: Record<string, string | null> = {
+  open: "sent_to_kitchen",
+  sent_to_kitchen: "in_progress",
+  in_progress: "ready",
+  ready: "served",
+  served: "completed",
+  completed: null,
+  cancelled: null,
+};
+
+function prettyStatus(value: string) {
+  return value.replace(/_/g, " ");
 }
 
 export function OrderPageClient({ order }: OrderPageClientProps) {
@@ -55,7 +57,7 @@ export function OrderPageClient({ order }: OrderPageClientProps) {
       const result = await updateOrderStatus(order.id, newStatus);
       if (result.success) {
         setCurrentStatus(newStatus);
-        toast.success(`Order updated to ${newStatus.replace('_', ' ')}`);
+        toast.success(`Order updated to ${prettyStatus(newStatus)}`);
       } else {
         toast.error("Failed to update order status");
       }
@@ -67,323 +69,234 @@ export function OrderPageClient({ order }: OrderPageClientProps) {
     ...config,
   }));
 
-  const activeStatus = statusConfig[currentStatus as keyof typeof statusConfig] || statusConfig.open;
+  const activeStatus =
+    statusConfig[currentStatus as keyof typeof statusConfig] || statusConfig.open;
+
+  const sourceTone =
+    order.orderSource === "online"
+      ? "bg-blue-500/10 text-blue-700 dark:text-blue-300"
+      : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+
+  const suggestedNextStatus = NEXT_STATUS[currentStatus] || null;
+
+  const nextActionLabel = useMemo(() => {
+    if (!suggestedNextStatus) return null;
+    if (suggestedNextStatus === "sent_to_kitchen") return "Send to kitchen";
+    if (suggestedNextStatus === "in_progress") return "Mark preparing";
+    if (suggestedNextStatus === "ready") return "Mark ready";
+    if (suggestedNextStatus === "served") {
+      if (order.orderType === "takeout") return "Mark handed off";
+      if (order.orderType === "delivery") return "Mark dispatched";
+      return "Mark served";
+    }
+    if (suggestedNextStatus === "completed") return "Close order";
+    return `Set ${prettyStatus(suggestedNextStatus)}`;
+  }, [suggestedNextStatus, order.orderType]);
+
+  const operationsHint = useMemo(() => {
+    if (currentStatus === "open") return "Order is received. Next step is sending it to kitchen production.";
+    if (currentStatus === "sent_to_kitchen" || currentStatus === "in_progress") return "Kitchen is working this ticket. Track progress in KDS and mark ready when done.";
+    if (currentStatus === "ready") {
+      if (order.orderType === "takeout") return "Order is ready for pickup handoff.";
+      if (order.orderType === "delivery") return "Order is ready to dispatch to courier/driver.";
+      return "Order is ready to run to the table.";
+    }
+    if (currentStatus === "served") return "Food has been handed off. Final step is closing/completing the order.";
+    if (currentStatus === "completed") return "Order is fully closed.";
+    if (currentStatus === "cancelled") return "Order was cancelled.";
+    return "Manage order progress from this page.";
+  }, [currentStatus, order.orderType]);
 
   return (
-    <div className="bg-muted/30 min-h-full pb-20">
-      <div className="max-w-6xl p-4 md:p-8 mx-auto">
-        {/* Header Section */}
-        <div className="mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <Link
-              href="/dashboard/platform/orders"
-              className="inline-flex items-center text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors mb-2"
-            >
-              <ArrowLeft className="h-3 w-3 mr-1.5" />
-              Back to Orders
-            </Link>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-4xl font-extrabold tracking-tight text-foreground">
-                Order <span className="text-muted-foreground/50">#</span>{order.orderNumber}
-              </h1>
-              <Badge 
-                color="zinc" 
-                className="text-[.7rem] py-0 px-3 tracking-wide font-bold rounded-md border h-6 uppercase"
-              >
-                {order.orderType?.replace('_', ' ')}
-              </Badge>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 opacity-70" />
-                {new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-              <span className="flex items-center gap-1.5 capitalize">
-                <ShoppingBag className="h-4 w-4 opacity-70" />
-                {order.orderSource || 'online'}
-              </span>
-            </div>
-          </div>
+    <div className="min-h-full bg-gradient-to-b from-zinc-50 via-background to-background dark:from-zinc-950 pb-12">
+      <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+        <div className="flex flex-col gap-4">
+          <Link
+            href="/dashboard/platform/orders"
+            className="inline-flex items-center text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+            Back to order board
+          </Link>
 
-          <div className="flex flex-wrap items-center gap-4 self-start lg:self-center">
-            <span className="text-3xl font-black text-foreground">
-              {formatCurrency(order.total)}
-            </span>
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto] gap-4 items-end">
+            <div>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Order #{order.orderNumber}</h1>
+                <Badge className={`uppercase text-[10px] tracking-wider ${sourceTone}`}>
+                  {order.orderSource || "online"}
+                </Badge>
+                <Badge variant="secondary" className="uppercase text-[10px] tracking-wider">
+                  {order.orderType?.replace("_", " ") || "order"}
+                </Badge>
+              </div>
 
-            <div className="flex items-center gap-3">
-              <Select 
-                value={currentStatus} 
-                onValueChange={handleStatusChange}
-                disabled={isPending}
-              >
-                <SelectTrigger className="flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-muted border shadow-xs text-muted-foreground h-auto w-auto focus:ring-0">
-                  <StatusDot status={currentStatus as keyof typeof statusConfig} size="sm" />
-                  <span className="uppercase tracking-wide">{activeStatus.label}</span>
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <div className="px-2.5 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    Change Status
+              <div className="text-sm text-muted-foreground flex flex-wrap gap-4">
+                <span className="inline-flex items-center gap-1"><Calendar className="h-4 w-4" />{new Date(order.createdAt).toLocaleDateString()}</span>
+                <span className="inline-flex items-center gap-1"><Clock3 className="h-4 w-4" />{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <div className="text-right mr-1">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
+                <div className="text-3xl font-semibold leading-none">{formatCurrency(order.total)}</div>
+              </div>
+
+              <Select value={currentStatus} onValueChange={handleStatusChange} disabled={isPending}>
+                <SelectTrigger className="h-9 min-w-[165px] rounded-full px-3 text-sm font-medium [&>svg]:h-3 [&>svg]:w-3">
+                  <div className="flex items-center gap-2">
+                    <StatusDot status={currentStatus as keyof typeof statusConfig} size="sm" />
+                    <span className="uppercase tracking-wide text-[11px]">{activeStatus.label}</span>
                   </div>
+                </SelectTrigger>
+                <SelectContent>
                   {statusOptions.map((opt) => (
-                    <SelectItem 
-                      key={opt.value} 
-                      value={opt.value}
-                      className="py-2.5 cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <div className="flex items-center gap-2">
                         <StatusDot status={opt.value as keyof typeof statusConfig} size="sm" />
-                        <span className="font-semibold text-foreground">{opt.label}</span>
+                        <span>{opt.label}</span>
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
 
-              <Button 
-                variant="secondary" 
-                size="icon" 
-                className="border [&_svg]:size-3 h-6 w-6"
-              >
-                <Printer className="stroke-muted-foreground" />
+              <Button variant="outline" size="icon" className="rounded-full h-9 w-9">
+                <Printer className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Items Card */}
-            <Card className="border shadow-xs overflow-hidden rounded-2xl bg-background">
-              <CardHeader className="border-b py-5 px-6">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-bold flex items-center gap-2.5 text-foreground">
-                    <div className="bg-muted p-2 rounded-lg">
-                      <Utensils className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    Order Items
-                  </CardTitle>
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-                    {order.orderItems?.length || 0} Items Total
-                  </span>
-                </div>
+        <Card className="rounded-2xl border bg-muted/20">
+          <CardContent className="p-4 md:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">What to do next</div>
+              <div className="text-sm font-medium">{operationsHint}</div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild>
+                <Link href="/dashboard/platform/kds" className="inline-flex items-center gap-1">
+                  <ChefHat className="h-4 w-4" /> Open KDS
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              </Button>
+              {suggestedNextStatus && nextActionLabel && (
+                <Button
+                  onClick={() => handleStatusChange(suggestedNextStatus)}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {nextActionLabel}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2 space-y-6">
+            <Card className="rounded-2xl border">
+              <CardHeader>
+                <CardTitle className="text-base">Items in this order</CardTitle>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y">
-                  {order.orderItems?.map((item: any) => (
-                    <div key={item.id} className="p-6 flex justify-between items-center hover:bg-muted/20 transition-colors group">
-                      <div className="flex gap-5 items-center">
-                        <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-foreground text-background font-bold shadow-md shrink-0">
-                          {item.quantity}
-                        </div>
-                        <div>
-                          <p className="font-bold text-foreground text-lg transition-colors leading-tight">
-                            {item.menuItem?.name}
-                          </p>
-                          {item.specialInstructions ? (
-                            <p className="text-sm text-orange-600 dark:text-orange-400 font-medium mt-1 flex items-center gap-1.5">
-                              <Info className="h-3 w-3" />
-                              "{item.specialInstructions}"
-                            </p>
-                          ) : (
-                            <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wider font-semibold">Standard preparation</p>
-                          )}
-                        </div>
+              <CardContent className="space-y-3">
+                {order.orderItems?.map((item: any) => (
+                  <div key={item.id} className="rounded-xl border p-3.5 flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold">
+                        {item.quantity}x {item.menuItem?.name}
                       </div>
-                      <div className="text-right">
-                        <p className="font-extrabold text-foreground text-lg">{formatCurrency(item.price * item.quantity)}</p>
-                        <p className="text-xs text-muted-foreground font-medium">{formatCurrency(item.price)} each</p>
-                      </div>
+                      {item.specialInstructions ? (
+                        <div className="text-xs text-orange-600 mt-1">Note: {item.specialInstructions}</div>
+                      ) : (
+                        <div className="text-xs text-muted-foreground mt-1">No special instructions</div>
+                      )}
                     </div>
-                  ))}
-                </div>
+                    <div className="text-right">
+                      <div className="font-semibold">{formatCurrency(item.price * item.quantity)}</div>
+                      <div className="text-xs text-muted-foreground">{formatCurrency(item.price)} each</div>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
 
-            {/* Special Instructions / Notes */}
             {order.specialInstructions && (
-              <Card className="bg-orange-50/50 dark:bg-orange-950/20 border-orange-200/50 dark:border-orange-800/30 shadow-xs rounded-2xl overflow-hidden">
-                <div className="flex items-stretch">
-                  <div className="w-1.5 bg-orange-400" />
-                  <div className="p-6 flex gap-4 items-start w-full">
-                    <div className="bg-orange-100 dark:bg-orange-900/50 p-2 rounded-lg text-orange-700 dark:text-orange-400 shrink-0">
-                      <ChefHat className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-orange-900 dark:text-orange-300 uppercase tracking-widest mb-1">Kitchen Instructions</h4>
-                      <p className="text-orange-800 dark:text-orange-400 font-medium leading-relaxed">{order.specialInstructions}</p>
-                    </div>
-                  </div>
-                </div>
+              <Card className="rounded-2xl border border-orange-200 dark:border-orange-900 bg-orange-50/70 dark:bg-orange-950/20">
+                <CardHeader>
+                  <CardTitle className="text-base">Kitchen instructions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm">{order.specialInstructions}</p>
+                </CardContent>
               </Card>
             )}
 
-            {/* Payment & Summary */}
-            <Card className="border shadow-xs rounded-2xl overflow-hidden bg-zinc-900 dark:bg-zinc-950 text-white">
-              <CardHeader className="border-b border-zinc-800/50 py-5 px-6">
-                <CardTitle className="text-base font-bold flex items-center gap-2.5">
-                  <div className="bg-zinc-800 p-2 rounded-lg">
-                    <CreditCard className="h-4 w-4 text-zinc-400" />
-                  </div>
-                  Payment Summary
-                </CardTitle>
+            <Card className="rounded-2xl border">
+              <CardHeader>
+                <CardTitle className="text-base inline-flex items-center gap-2"><CreditCard className="h-4 w-4" />Payment summary</CardTitle>
               </CardHeader>
-              <CardContent className="p-8">
-                <div className="space-y-4">
-                  <div className="flex justify-between text-zinc-400 font-medium">
-                    <span>Subtotal</span>
-                    <span className="text-zinc-200">{formatCurrency(order.subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-zinc-400 font-medium">
-                    <span>Tax</span>
-                    <span className="text-zinc-200">{formatCurrency(order.tax)}</span>
-                  </div>
-                  {order.tip > 0 && (
-                    <div className="flex justify-between text-zinc-400 font-medium">
-                      <span>Tip</span>
-                      <span className="text-emerald-400">{formatCurrency(order.tip)}</span>
-                    </div>
-                  )}
-                  {order.discount > 0 && (
-                    <div className="flex justify-between text-zinc-400 font-medium">
-                      <span>Discount</span>
-                      <span className="text-rose-400">-{formatCurrency(order.discount)}</span>
-                    </div>
-                  )}
-                  <div className="pt-4 border-t border-zinc-800 mt-4">
-                    <div className="flex justify-between items-end">
-                      <span className="text-zinc-400 font-bold uppercase tracking-widest text-xs">Grand Total</span>
-                      <span className="text-4xl font-black text-white">{formatCurrency(order.total)}</span>
-                    </div>
-                  </div>
-                </div>
+              <CardContent className="space-y-2.5 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(order.subtotal)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span>{formatCurrency(order.tax)}</span></div>
+                {order.tip > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Tip</span><span>{formatCurrency(order.tip)}</span></div>}
+                {order.discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span>-{formatCurrency(order.discount)}</span></div>}
+                <div className="pt-2 border-t flex justify-between font-semibold text-base"><span>Total</span><span>{formatCurrency(order.total)}</span></div>
 
                 {order.payments?.length > 0 && (
-                  <div className="mt-8 pt-8 border-t border-zinc-800">
-                    <p className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
-                      <History className="h-3 w-3" /> Payment History
-                    </p>
-                    <div className="space-y-3">
-                      {order.payments.map((payment: any) => (
-                        <div key={payment.id} className="flex items-center justify-between text-sm bg-zinc-800/50 p-3 rounded-xl border border-zinc-800">
-                          <div className="flex items-center gap-3">
-                            <Badge className={`uppercase text-[10px] ${payment.status === 'captured' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-zinc-700'}`}>
-                              {payment.status}
-                            </Badge>
-                            <span className="capitalize font-bold text-zinc-300">{payment.paymentMethod}</span>
-                          </div>
-                          <span className="font-extrabold text-white">{formatCurrency(payment.amount)}</span>
+                  <div className="pt-3 mt-3 border-t space-y-2">
+                    {order.payments.map((payment: any) => (
+                      <div key={payment.id} className="rounded-lg border px-3 py-2 flex items-center justify-between">
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                          {payment.paymentMethod} • {payment.status}
                         </div>
-                      ))}
-                    </div>
+                        <div className="font-semibold">{formatCurrency(payment.amount)}</div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-8">
-            {/* Customer Details */}
-            <Card className="border shadow-xs rounded-2xl overflow-hidden bg-background">
-              <CardHeader className="border-b py-5 px-6">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-bold flex items-center gap-2.5 text-foreground">
-                    <div className="bg-muted p-2 rounded-lg">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    Customer
-                  </CardTitle>
-                </div>
+          <div className="space-y-6">
+            <Card className="rounded-2xl border">
+              <CardHeader>
+                <CardTitle className="text-base inline-flex items-center gap-2"><User className="h-4 w-4" />Customer</CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-5">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
-                      {(order.customerName || "G")[0]}
-                    </div>
-                    <div>
-                      <p className="font-bold text-foreground">{order.customerName || "Guest Customer"}</p>
-                      <p className="text-sm text-muted-foreground truncate max-w-[180px]">{order.customerEmail || "No email"}</p>
-                    </div>
-                  </div>
-                  
-                  {order.customerPhone && (
-                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl border">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-semibold text-foreground">{order.customerPhone}</span>
-                    </div>
-                  )}
-
-                  <Link 
-                    href={`/dashboard/platform/users/${order.customer?.id}`} 
-                    className="flex items-center justify-between w-full p-3 text-sm font-bold text-primary hover:bg-primary/5 rounded-xl transition-colors group"
-                  >
-                    View profile
-                    <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
-                  </Link>
+              <CardContent className="space-y-3 text-sm">
+                <div>
+                  <div className="font-semibold">{order.customerName || "Guest customer"}</div>
+                  <div className="text-muted-foreground">{order.customerEmail || "No email"}</div>
                 </div>
+                {order.customerPhone && (
+                  <div className="inline-flex items-center gap-2"><Phone className="h-3.5 w-3.5" />{order.customerPhone}</div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Service Info */}
-            <Card className="border shadow-xs rounded-2xl overflow-hidden bg-background">
-              <CardHeader className="border-b py-5 px-6">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-bold flex items-center gap-2.5 text-foreground">
-                    <div className="bg-muted p-2 rounded-lg">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    Service
-                  </CardTitle>
-                </div>
+            <Card className="rounded-2xl border">
+              <CardHeader>
+                <CardTitle className="text-base inline-flex items-center gap-2"><UtensilsCrossed className="h-4 w-4" />Service context</CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">Server</span>
-                    <span className="text-sm font-bold text-foreground">{order.server?.name || order.createdBy?.name || "Unassigned"}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">Table(s)</span>
-                    <div className="flex gap-1.5">
-                      {order.tables?.length > 0 ? (
-                        order.tables.map((t: any) => (
-                          <Badge key={t.id} variant="secondary" className="bg-muted text-foreground hover:bg-muted/80 border-none">
-                            T{t.tableNumber}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-sm font-bold text-foreground">N/A</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">Guests</span>
-                    <span className="text-sm font-bold text-foreground">{order.guestCount} People</span>
-                  </div>
-                </div>
+              <CardContent className="space-y-2.5 text-sm">
+                <div className="flex justify-between"><span className="text-muted-foreground">Server</span><span>{order.server?.name || order.createdBy?.name || "Unassigned"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Guests</span><span>{order.guestCount || 1}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Tables</span><span>{order.tables?.length ? order.tables.map((t: any) => `T${t.tableNumber}`).join(", ") : "N/A"}</span></div>
               </CardContent>
             </Card>
 
-            {/* Delivery */}
-            {order.orderType === 'delivery' && (
-              <Card className="border shadow-xs rounded-2xl overflow-hidden bg-background">
-                <CardHeader className="border-b py-5 px-6">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-bold flex items-center gap-2.5 text-foreground">
-                      <div className="bg-muted p-2 rounded-lg">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      Delivery
-                    </CardTitle>
-                  </div>
+            {order.orderType === "delivery" && (
+              <Card className="rounded-2xl border">
+                <CardHeader>
+                  <CardTitle className="text-base inline-flex items-center gap-2"><MapPin className="h-4 w-4" />Delivery address</CardTitle>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <div className="p-4 bg-muted/50 rounded-xl border space-y-2">
-                    <p className="text-sm font-bold text-foreground leading-tight">{order.deliveryAddress}</p>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{order.deliveryCity}, {order.deliveryZip}</p>
-                  </div>
+                <CardContent className="text-sm">
+                  <p>{order.deliveryAddress}</p>
+                  <p className="text-muted-foreground mt-1">{order.deliveryCity} {order.deliveryZip}</p>
                 </CardContent>
               </Card>
             )}

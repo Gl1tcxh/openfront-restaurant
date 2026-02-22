@@ -10,6 +10,8 @@ import {
   UtensilsCrossed,
   ChefHat,
   ClipboardList,
+  HandPlatter,
+  ConciergeBell,
   FileText,
   Boxes,
   DollarSign,
@@ -57,6 +59,22 @@ export const platformNavItems: PlatformNavItem[] = [
     color: 'orange',
     description: 'Kitchen Display System for order fulfillment.',
     icon: ChefHat,
+    group: 'standalone'
+  },
+  {
+    title: 'POS',
+    href: '/platform/pos',
+    color: 'teal',
+    description: 'Take in-person orders, seat tables, and process payment.',
+    icon: HandPlatter,
+    group: 'standalone'
+  },
+  {
+    title: 'Service Floor',
+    href: '/platform/service-floor',
+    color: 'cyan',
+    description: 'Waiter table-service UI with quick order and payment actions.',
+    icon: ConciergeBell,
     group: 'standalone'
   },
   {

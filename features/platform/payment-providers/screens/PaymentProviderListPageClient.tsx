@@ -1,6 +1,6 @@
 /**
- * PaymentProviderListPageClient - Client Component  
- * Based on dashboard ListPageClient but hardcoded for paymentproviders
+ * PaymentProviderListPageClient - Client Component
+ * Redesigned as an integration hub / app store
  */
 
 'use client'
@@ -12,24 +12,35 @@ import {
   Triangle,
   Square,
   Circle,
-  Search
+  Search,
+  CreditCard,
+  RefreshCw,
+  LayoutGrid,
+  ShieldCheck,
+  Zap,
+  Globe,
+  ArrowRight,
+  ExternalLink,
+  CheckCircle2,
+  Lock
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
-import { PageContainer } from '../../../dashboard/components/PageContainer'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { PlatformFilterBar } from '../../components/PlatformFilterBar'
 import { StatusTabs } from '../components/StatusTabs'
-import { PaymentProviderDetailsComponent } from '../components/PaymentProviderDetailsComponent'
 import { Pagination } from '../../../dashboard/components/Pagination'
 import { FilterList } from '../../../dashboard/components/FilterList'
-import { CreatePaymentProviderDrawer } from '../components/drawers/CreatePaymentProviderDrawer'
+import { CreateItemDrawerClientWrapper } from '@/features/platform/components/CreateItemDrawerClientWrapper'
 import { useDashboard } from '../../../dashboard/context/DashboardProvider'
 import { useSelectedFields } from '../../../dashboard/hooks/useSelectedFields'
-import { useSort } from '../../../dashboard/hooks/useSort'
 import { useListItemsQuery } from '../../../dashboard/hooks/useListItems.query'
 import { buildOrderByClause } from '../../../dashboard/lib/buildOrderByClause'
 import { buildWhereClause } from '../../../dashboard/lib/buildWhereClause'
+import { cn } from '@/lib/utils'
 
 interface PaymentProviderListPageClientProps {
   list: any
@@ -41,34 +52,10 @@ interface PaymentProviderListPageClientProps {
     search: string
   }
   statusCounts: {
-    all: number;
-    installed: number;
-    notInstalled: number;
-  }
-}
-
-function EmptyStateDefault() {
-  return (
-    <EmptyState
-      title="No Payment Providers Created"
-      description="You can create a new payment provider to get started."
-      icons={[Triangle, Square, Circle]}
-    />
-  )
-}
-
-function EmptyStateSearch({ onResetFilters }: { onResetFilters: () => void }) {
-  return (
-    <EmptyState
-      title="No Results Found"
-      description="Try adjusting your search filters."
-      icons={[Search]}
-      action={{
-        label: "Reset Filters",
-        onClick: onResetFilters
-      }}
-    />
-  )
+    all: number
+    installed: number
+    notInstalled: number
+  } | null
 }
 
 export function PaymentProviderListPageClient({
@@ -83,11 +70,10 @@ export function PaymentProviderListPageClient({
   const { basePath } = useDashboard()
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false)
 
-  // Hooks for sorting and field selection
+  // Hooks for field selection
   const selectedFields = useSelectedFields(list)
-  const sort = useSort(list)
 
-  // Extract current search params (reactive to URL changes)
+  // Extract current search params
   const currentSearchParams = useMemo(() => {
     const params: Record<string, string> = {}
     searchParams?.forEach((value, key) => {
@@ -100,14 +86,13 @@ export function PaymentProviderListPageClient({
   const pageSize = parseInt(currentSearchParams.pageSize || list.pageSize?.toString() || '50', 10)
   const searchString = currentSearchParams.search || ''
 
-  // Build query variables from current search params
+  // Build query variables
   const variables = useMemo(() => {
     const orderBy = buildOrderByClause(list, currentSearchParams)
     const filterWhere = buildWhereClause(list, currentSearchParams)
     const searchParameters = searchString ? { search: searchString } : {}
     const searchWhere = buildWhereClause(list, searchParameters)
 
-    // Combine search and filters
     const whereConditions = []
     if (Object.keys(searchWhere).length > 0) {
       whereConditions.push(searchWhere)
@@ -126,13 +111,10 @@ export function PaymentProviderListPageClient({
     }
   }, [list, currentSearchParams, currentPage, pageSize, searchString])
 
-  // For payment-providers, use raw GraphQL string to include relationship fields
   const querySelectedFields = `
-    id name code isInstalled metadata createdAt updatedAt
+    id name providerType isInstalled credentials config status createdAt
   `
 
-  // Use React Query hook with server-side initial data
-  // Use React Query hook with server-side initial data
   const { data: queryData, error: queryError, isLoading, isFetching } = useListItemsQuery(
     {
       listKey: list.key,
@@ -144,144 +126,166 @@ export function PaymentProviderListPageClient({
     }
   )
 
-  // Use query data, fallback to initial data
   const data = queryData || initialData
   const error = queryError ? queryError.message : initialError
 
-  // Handle page change - simplified since FilterBar handles search/filters
-  const handlePageChange = useCallback((newPage: number) => {
-    const params = new URLSearchParams(window.location.search)
-    
-    if (newPage && newPage > 1) {
-      params.set('page', newPage.toString())
-    } else {
-      params.delete('page')
-    }
-    
-    const newUrl = params.toString() ? `?${params.toString()}` : ''
-    router.push(newUrl)
-  }, [router])
-
-  // Handle reset filters
   const handleResetFilters = useCallback(() => {
     router.push(window.location.pathname)
   }, [router])
 
-  if (!list) {
-    return (
-      <PageContainer title="List not found">
-        <Alert variant="destructive">
-          <AlertDescription>
-            The requested list was not found.
-          </AlertDescription>
-        </Alert>
-      </PageContainer>
-    )
+  const isEmpty = data?.count === 0 && !searchString
+
+  const providerIcons: Record<string, any> = {
+    stripe: Zap,
+    paypal: Globe,
+    square: LayoutGrid,
+    adyen: ShieldCheck,
+    manual: CreditCard
   }
 
-  const breadcrumbs = [
-    { type: 'link' as const, label: 'Dashboard', href: basePath },
-    { type: 'page' as const, label: 'Platform' },
-    { type: 'page' as const, label: 'PaymentProviders' }
-  ]
-
-  const header = (
-    <div>
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
-        PaymentProviders
-      </h1>
-      <p className="text-muted-foreground">
-        Create and manage paymentproviders
-      </p>
-    </div>
-  )
-
-  // Check if we have any active filters (search or actual filters)
-  const hasFilters = !!searchString
-  const isFiltered = hasFilters
-  const isEmpty = data?.count === 0 && !isFiltered
-
   return (
-    <>
-    <PageContainer title="PaymentProviders" header={header} breadcrumbs={breadcrumbs}>
-      {/* Filter Bar - includes search, filters, sorting, and create button */}
-      <div className="px-4 md:px-6">
-        <PlatformFilterBar 
-          list={list}
-          customCreateButton={
-            <Button 
-              onClick={() => setIsCreateDrawerOpen(true)}
-              size="icon"
-              className="lg:px-4 lg:py-2 lg:w-auto rounded-lg"
-            >
-              <Plus className="size-4 lg:mr-2" />
-              <span className="sr-only lg:not-sr-only lg:whitespace-nowrap">
-                Create Payment Provider
-              </span>
-            </Button>
-          }
-        />
-      </div>
-
-      {/* Status Tabs */}
-      <div className="border-b">
-        <StatusTabs statusCounts={statusCounts} />
-      </div>
-
-      {/* Active Filters */}
-      <div className="px-4 md:px-6 border-b">
-        <FilterList list={list} />
-      </div>
-
-      {/* PaymentProviders list */}
-      {error ? (
-        <div className="px-4 md:px-6">
-          <Alert variant="destructive">
-            <AlertDescription>
-              Failed to load items: {error}
-            </AlertDescription>
-          </Alert>
-        </div>
-      ) : isEmpty ? (
-        <div className="px-4 md:px-6">
-          <EmptyStateDefault />
-        </div>
-      ) : data?.count === 0 ? (
-        <div className="px-4 md:px-6">
-          <EmptyStateSearch onResetFilters={handleResetFilters} />
-        </div>
-      ) : (
-        <>
-          {/* Data grid - full width */}
-          <div className="grid grid-cols-1 divide-y">
-            {data?.items?.map((paymentprovider: any) => (
-              <PaymentProviderDetailsComponent key={paymentprovider.id} paymentprovider={paymentprovider} list={list} />
-            ))}
+    <div className="flex flex-col h-full bg-background">
+      {/* Header */}
+      <div className="px-6 py-10 border-b bg-gradient-to-br from-background via-blue-500/5 to-background">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight mb-2">Payment Integration Hub</h1>
+            <p className="text-muted-foreground max-w-2xl font-medium">
+              Seamlessly connect your restaurant with global payment processors. Secure transactions, automated payouts, and diverse checkout options.
+            </p>
           </div>
-          
-          {/* Pagination */}
-          {data && data.count > pageSize && (
-            <div className="px-4 md:px-6 py-4">
-              <Pagination
-                currentPage={currentPage}
-                total={data.count}
-                pageSize={pageSize}
-                list={{ singular: 'paymentprovider', plural: 'paymentproviders' }}
-              />
-            </div>
+          <Button 
+            onClick={() => setIsCreateDrawerOpen(true)}
+            className="h-12 px-6 rounded-2xl bg-primary font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20 hover:scale-105 transition-all"
+          >
+            <Plus className="size-4 mr-2" />
+            Connect Provider
+          </Button>
+        </div>
+
+        {/* Feature Highlights */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           <div className="flex items-center gap-4 p-4 rounded-3xl bg-card border-2 border-dashed">
+              <div className="p-3 rounded-2xl bg-blue-500/10">
+                 <ShieldCheck className="size-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                 <div className="text-xs font-black uppercase tracking-widest">PCI Compliant</div>
+                 <div className="text-[10px] text-muted-foreground">Highest security standards</div>
+              </div>
+           </div>
+           <div className="flex items-center gap-4 p-4 rounded-3xl bg-card border-2 border-dashed">
+              <div className="p-3 rounded-2xl bg-emerald-500/10">
+                 <Zap className="size-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                 <div className="text-xs font-black uppercase tracking-widest">Instant Payouts</div>
+                 <div className="text-[10px] text-muted-foreground">Access funds within minutes</div>
+              </div>
+           </div>
+           <div className="flex items-center gap-4 p-4 rounded-3xl bg-card border-2 border-dashed">
+              <div className="p-3 rounded-2xl bg-amber-500/10">
+                 <Lock className="size-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                 <div className="text-xs font-black uppercase tracking-widest">Safe & Secure</div>
+                 <div className="text-[10px] text-muted-foreground">End-to-end encryption</div>
+              </div>
+           </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <ScrollArea className="flex-1">
+        <div className="p-6 pb-20">
+          <div className="mb-8">
+             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <h2 className="text-xl font-black uppercase tracking-tight">Active & Available Integrations</h2>
+                {statusCounts && <StatusTabs statusCounts={statusCounts as any} />}
+             </div>
+             <PlatformFilterBar list={list} showDisplayButton={false} />
+          </div>
+
+          {error ? (
+             <Alert variant="destructive" className="rounded-2xl border-2">
+               <AlertDescription>Connectivity error: {error}</AlertDescription>
+             </Alert>
+          ) : isEmpty ? (
+             <div className="py-24 text-center flex flex-col items-center">
+                <div className="size-24 rounded-[2rem] bg-muted flex items-center justify-center mb-6">
+                   <LayoutGrid className="size-10 text-muted-foreground opacity-20" />
+                </div>
+                <h2 className="text-2xl font-black mb-2 tracking-tight">No integrations installed</h2>
+                <p className="text-muted-foreground max-w-sm mb-8">Choose from our list of supported payment providers to start accepting orders online and in-person.</p>
+                <Button onClick={() => setIsCreateDrawerOpen(true)} size="lg" className="rounded-2xl px-8 font-black uppercase tracking-widest text-xs">
+                   View Provider Marketplace
+                </Button>
+             </div>
+          ) : (
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {data?.items?.map((provider) => {
+                  const Icon = providerIcons[provider.providerType?.toLowerCase()] || CreditCard
+                  const isInstalled = provider.isInstalled
+                  
+                  return (
+                    <Card key={provider.id} className={cn(
+                      "border-2 rounded-[2.5rem] overflow-hidden group transition-all duration-300 hover:shadow-2xl hover:-translate-y-1",
+                      isInstalled ? "border-emerald-500/20 bg-emerald-50/5 dark:bg-emerald-950/5" : "hover:border-primary/30"
+                    )}>
+                      <CardContent className="p-8 flex flex-col h-full">
+                        <div className="flex items-start justify-between mb-8">
+                           <div className={cn(
+                             "size-16 rounded-[1.5rem] flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 duration-500",
+                             isInstalled ? "bg-emerald-600 text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400"
+                           )}>
+                              <Icon className="size-8" />
+                           </div>
+                           <Badge className={cn(
+                             "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest border-none",
+                             isInstalled ? "bg-emerald-500/20 text-emerald-600" : "bg-zinc-500/10 text-zinc-500"
+                           )}>
+                             {isInstalled ? 'Connected' : 'Available'}
+                           </Badge>
+                        </div>
+
+                        <h3 className="text-2xl font-black mb-2 group-hover:text-primary transition-colors">
+                           {provider.name}
+                        </h3>
+                        
+                        <div className="flex flex-wrap gap-2 mb-6">
+                           <Badge variant="outline" className="text-[9px] font-bold uppercase rounded-lg border-2">API v3.0</Badge>
+                           <Badge variant="outline" className="text-[9px] font-bold uppercase rounded-lg border-2">OAUTH 2.0</Badge>
+                        </div>
+
+                        <p className="text-sm text-muted-foreground leading-relaxed mb-8 flex-1">
+                           Standard integration for {provider.name}. Supports global credit cards, digital wallets, and local payment methods.
+                        </p>
+
+                        <div className="pt-6 border-t flex items-center justify-between">
+                           <Button variant="ghost" className="rounded-xl font-bold text-xs uppercase tracking-widest px-0 hover:bg-transparent hover:text-primary group/btn">
+                              Manage <ArrowRight className="size-3.5 ml-1 transition-transform group-hover/btn:translate-x-1" />
+                           </Button>
+                           <div className="flex items-center gap-1 text-[10px] font-black text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                              DOCS <ExternalLink className="size-2.5" />
+                           </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+             </div>
           )}
-        </>
-      )}
-    </PageContainer>
-    
-    {/* Create Payment Provider Drawer */}
-    <CreatePaymentProviderDrawer
-      open={isCreateDrawerOpen}
-      onClose={() => setIsCreateDrawerOpen(false)}
-      onCreate={() => {
-        router.refresh();
-      }}
-    />
-  </>
+        </div>
+      </ScrollArea>
+
+      <CreateItemDrawerClientWrapper
+        listKey="payment-providers"
+        open={isCreateDrawerOpen}
+        onClose={() => setIsCreateDrawerOpen(false)}
+        onCreate={() => {
+          window.location.reload();
+        }}
+      />
+    </div>
   )
 }

@@ -4,7 +4,9 @@ import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs
 import { OperationalMetrics } from "../components/OperationalMetrics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { RefreshCw, Receipt, ChefHat, ListOrdered, BarChart3 } from "lucide-react";
+import Link from "next/link";
 
 export async function OperationalDashboard() {
   try {
@@ -50,7 +52,7 @@ export async function OperationalDashboard() {
             <div>
               <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
                 Operational Dashboard
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">
                   Live
                 </Badge>
               </h1>
@@ -65,36 +67,37 @@ export async function OperationalDashboard() {
           </div>
 
           <div className="px-4 md:px-6 py-6 space-y-6">
+            {/* Key Metrics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              <Card className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 dark:from-emerald-500/10 dark:to-emerald-500/5 border-emerald-200 dark:border-emerald-800">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-green-700">{formatCurrency(todayRevenue)}</div>
-                    <div className="text-sm text-green-600">Today's Revenue</div>
+                    <div className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(todayRevenue)}</div>
+                    <div className="text-sm text-emerald-600 dark:text-emerald-500">Today's Revenue</div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <Card className="bg-gradient-to-br from-blue-500/5 to-blue-500/10 dark:from-blue-500/10 dark:to-blue-500/5 border-blue-200 dark:border-blue-800">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-700">{formatNumber(completedToday.length)}</div>
-                    <div className="text-sm text-blue-600">Orders Today</div>
+                    <div className="text-3xl font-bold text-blue-700 dark:text-blue-400">{formatNumber(completedToday.length)}</div>
+                    <div className="text-sm text-blue-600 dark:text-blue-500">Orders Today</div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+              <Card className="bg-gradient-to-br from-amber-500/5 to-amber-500/10 dark:from-amber-500/10 dark:to-amber-500/5 border-amber-200 dark:border-amber-800">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-amber-700">{currentOrders}</div>
-                    <div className="text-sm text-amber-600">Active Orders</div>
+                    <div className="text-3xl font-bold text-amber-700 dark:text-amber-400">{currentOrders}</div>
+                    <div className="text-sm text-amber-600 dark:text-amber-500">Active Orders</div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+              <Card className="bg-gradient-to-br from-purple-500/5 to-purple-500/10 dark:from-purple-500/10 dark:to-purple-500/5 border-purple-200 dark:border-purple-800">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-purple-700">{occupiedTables}/{totalTables}</div>
-                    <div className="text-sm text-purple-600">Tables Occupied</div>
+                    <div className="text-3xl font-bold text-purple-700 dark:text-purple-400">{occupiedTables}/{totalTables}</div>
+                    <div className="text-sm text-purple-600 dark:text-purple-500">Tables Occupied</div>
                   </div>
                 </CardContent>
               </Card>
@@ -147,22 +150,30 @@ export async function OperationalDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3">
-                    <a href="/dashboard/pos" className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg text-center transition-colors">
-                      <span className="text-2xl">📝</span>
-                      <div className="font-medium text-blue-900 mt-2">New Order</div>
-                    </a>
-                    <a href="/dashboard/kds" className="p-4 bg-orange-50 hover:bg-orange-100 rounded-lg text-center transition-colors">
-                      <span className="text-2xl">👨‍🍳</span>
-                      <div className="font-medium text-orange-900 mt-2">Kitchen Display</div>
-                    </a>
-                    <a href="/dashboard/RestaurantOrder" className="p-4 bg-green-50 hover:bg-green-100 rounded-lg text-center transition-colors">
-                      <span className="text-2xl">📋</span>
-                      <div className="font-medium text-green-900 mt-2">All Orders</div>
-                    </a>
-                    <a href="/dashboard/reports/sales" className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg text-center transition-colors">
-                      <span className="text-2xl">📊</span>
-                      <div className="font-medium text-purple-900 mt-2">Reports</div>
-                    </a>
+                    <Link href="/dashboard/platform/pos">
+                      <Button variant="outline" className="w-full h-auto flex flex-col items-center gap-2 py-4">
+                        <Receipt className="h-5 w-5" />
+                        <span className="text-sm font-medium">New Order</span>
+                      </Button>
+                    </Link>
+                    <Link href="/dashboard/platform/kds">
+                      <Button variant="outline" className="w-full h-auto flex flex-col items-center gap-2 py-4">
+                        <ChefHat className="h-5 w-5" />
+                        <span className="text-sm font-medium">Kitchen Display</span>
+                      </Button>
+                    </Link>
+                    <Link href="/dashboard/platform/orders">
+                      <Button variant="outline" className="w-full h-auto flex flex-col items-center gap-2 py-4">
+                        <ListOrdered className="h-5 w-5" />
+                        <span className="text-sm font-medium">All Orders</span>
+                      </Button>
+                    </Link>
+                    <Link href="/dashboard/platform/reports/sales">
+                      <Button variant="outline" className="w-full h-auto flex flex-col items-center gap-2 py-4">
+                        <BarChart3 className="h-5 w-5" />
+                        <span className="text-sm font-medium">Reports</span>
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -175,7 +186,7 @@ export async function OperationalDashboard() {
     console.error("Error loading operational dashboard:", error);
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold tracking-tight text-red-600">Dashboard Error</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-destructive">Dashboard Error</h1>
         <p className="mt-2 text-muted-foreground">Failed to load operational data. Please try again later.</p>
       </div>
     );

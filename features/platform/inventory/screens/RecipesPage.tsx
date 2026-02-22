@@ -21,17 +21,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Plus, Trash2, DollarSign, Clock, ChefHat, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, DollarSign, Clock, ChefHat, AlertTriangle, RefreshCw, BookOpen, Utensils, Scale, Timer, Layers, ArrowUpRight, Percent } from 'lucide-react'
 import { gql, request } from 'graphql-request'
+import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs"
+import { cn } from '@/lib/utils'
 
 interface Recipe {
   id: string
@@ -113,9 +107,9 @@ const DELETE_RECIPE = gql`
 
 function getFoodCostColor(percentage: number | null): string {
   if (!percentage) return 'text-muted-foreground'
-  if (percentage <= 28) return 'text-green-600'
-  if (percentage <= 35) return 'text-yellow-600'
-  return 'text-red-600'
+  if (percentage <= 28) return 'text-emerald-600 dark:text-emerald-400'
+  if (percentage <= 35) return 'text-amber-600 dark:text-amber-400'
+  return 'text-rose-600 dark:text-rose-400'
 }
 
 export function RecipesPage() {
@@ -182,6 +176,7 @@ export function RecipesPage() {
   }
 
   const handleSave = async () => {
+    if (!form.name) return;
     try {
       const data: any = {
         name: form.name,
@@ -244,261 +239,320 @@ export function RecipesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <RefreshCw className="h-8 w-8 animate-spin" />
+      <div className="flex items-center justify-center p-12">
+        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
+  const avgFoodCost = recipes.length > 0
+    ? (recipes.reduce((s, r) => s + (r.foodCostPercentage || 0), 0) / recipes.length)
+    : 0;
+
+  const breadcrumbs = [
+    { type: 'link' as const, label: 'Dashboard', href: '/dashboard' },
+    { type: 'page' as const, label: 'Platform' },
+    { type: 'page' as const, label: 'Recipes' }
+  ]
+
   return (
-    <div className="flex flex-col h-full gap-4 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Recipes & Food Costing</h1>
-          <p className="text-muted-foreground">
-            {recipes.length} recipes - Track ingredient costs and food cost percentages
-          </p>
+    <div className="flex flex-col h-full">
+      <PageBreadcrumbs items={breadcrumbs} />
+
+      {/* Header */}
+      <div className="px-6 py-6 border-b bg-gradient-to-br from-emerald-500/5 via-background to-amber-500/5">
+        <div className="flex items-start justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight mb-1 flex items-center gap-3">
+              Recipes & Costing
+            </h1>
+            <p className="text-muted-foreground">Master your culinary database and profitability</p>
+          </div>
+          <Button onClick={() => handleOpenDialog()} size="lg" className="bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-100 dark:shadow-none transition-all hover:scale-105 active:scale-95">
+            <Plus className="h-5 w-5 mr-2" />
+            Create Recipe
+          </Button>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Recipe
-        </Button>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="border-2 rounded-2xl bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-background">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20">
+                  <Percent className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Avg Food Cost</div>
+                  <div className="text-3xl font-black mt-1">{avgFoodCost.toFixed(1)}%</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-2 rounded-2xl hover:border-rose-500/30 transition-all">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-rose-500/10 dark:bg-rose-500/20">
+                  <AlertTriangle className="h-6 w-6 text-rose-600 dark:text-rose-400" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">High Cost Items</div>
+                  <div className="text-3xl font-black mt-1">
+                    {recipes.filter(r => (r.foodCostPercentage || 0) > 35).length}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-2 rounded-2xl hover:border-amber-500/30 transition-all">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20">
+                  <BookOpen className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Catalog Size</div>
+                  <div className="text-3xl font-black mt-1">{recipes.length}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-green-500/10 rounded-full">
-              <DollarSign className="h-6 w-6 text-green-600" />
+      {/* Main Content */}
+      <ScrollArea className="flex-1">
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {recipes.length === 0 ? (
+            <div className="col-span-full flex flex-col items-center justify-center py-24 text-center border-2 border-dashed rounded-3xl">
+              <Utensils className="h-12 w-12 text-muted-foreground opacity-20 mb-4" />
+              <h3 className="text-xl font-bold mb-2">Recipe book is empty</h3>
+              <p className="text-muted-foreground mb-8 max-w-xs mx-auto">Build your digital kitchen catalog to track profitability.</p>
+              <Button onClick={() => handleOpenDialog()} variant="outline" className="rounded-xl border-2">
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Recipe
+              </Button>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Avg Food Cost %</p>
-              <p className="text-2xl font-bold">
-                {recipes.length > 0
-                  ? (recipes.reduce((s, r) => s + (r.foodCostPercentage || 0), 0) / recipes.length).toFixed(1)
-                  : '0'}%
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-yellow-500/10 rounded-full">
-              <AlertTriangle className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">High Cost Items</p>
-              <p className="text-2xl font-bold">
-                {recipes.filter(r => (r.foodCostPercentage || 0) > 35).length}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 rounded-full">
-              <ChefHat className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Recipes</p>
-              <p className="text-2xl font-bold">{recipes.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="flex-1">
-        <ScrollArea className="h-[calc(100vh-350px)]">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Recipe</TableHead>
-                <TableHead>Menu Item</TableHead>
-                <TableHead className="text-right">Cost/Serving</TableHead>
-                <TableHead className="text-right">Menu Price</TableHead>
-                <TableHead className="text-right">Food Cost %</TableHead>
-                <TableHead className="text-right">Prep Time</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recipes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    No recipes yet. Add your first recipe to start tracking food costs.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                recipes.map((recipe) => (
-                  <TableRow key={recipe.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleOpenDialog(recipe)}>
-                    <TableCell className="font-medium">{recipe.name}</TableCell>
-                    <TableCell>
-                      {recipe.menuItem ? (
-                        <Badge variant="outline">{recipe.menuItem.name}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">Not linked</span>
+          ) : (
+            recipes.map((recipe) => (
+              <Card 
+                key={recipe.id} 
+                className="border-2 rounded-3xl hover:border-emerald-500/30 transition-all cursor-pointer group overflow-hidden flex flex-col h-full bg-card shadow-sm hover:shadow-xl"
+                onClick={() => handleOpenDialog(recipe)}
+              >
+                {/* Recipe Header Card Section */}
+                <div className="p-6 flex-1 space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold tracking-tight line-clamp-2">{recipe.name}</h3>
+                      {recipe.menuItem && (
+                        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                          <Utensils className="h-3 w-3" />
+                          {recipe.menuItem.name}
+                        </div>
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ${(recipe.costPerServing || 0).toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {recipe.menuItem ? `$${parseFloat(recipe.menuItem.price).toFixed(2)}` : '-'}
-                    </TableCell>
-                    <TableCell className={`text-right font-bold ${getFoodCostColor(recipe.foodCostPercentage)}`}>
-                      {recipe.foodCostPercentage ? `${recipe.foodCostPercentage.toFixed(1)}%` : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {recipe.prepTime ? (
-                        <span className="flex items-center justify-end gap-1">
-                          <Clock className="h-3 w-3" />
-                          {recipe.prepTime}m
-                        </span>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(recipe.id) }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </Card>
+                    </div>
+                    <div className="shrink-0 flex flex-col items-end">
+                       <Badge className={cn("rounded-lg px-2.5 py-1 text-[10px] font-black tracking-widest uppercase", getFoodCostColor(recipe.foodCostPercentage), "bg-muted border-none")}>
+                        {recipe.foodCostPercentage ? `${recipe.foodCostPercentage.toFixed(1)}% FC` : 'No Cost'}
+                      </Badge>
+                    </div>
+                  </div>
 
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-muted/40 p-3 rounded-2xl flex flex-col justify-center">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Cost/Serving</div>
+                      <div className="font-black text-lg">${(recipe.costPerServing || 0).toFixed(2)}</div>
+                    </div>
+                    <div className="bg-muted/40 p-3 rounded-2xl flex flex-col justify-center">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Menu Price</div>
+                      <div className="font-black text-lg">
+                        {recipe.menuItem ? `$${parseFloat(recipe.menuItem.price).toFixed(2)}` : '—'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                    <div className="flex items-center gap-1.5">
+                      <Scale className="size-3.5" />
+                      <span>Yield: {recipe.yield}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Timer className="size-3.5" />
+                      <span>Prep: {recipe.prepTime || 0}m</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Layers className="size-3.5" />
+                      <span>{recipe.recipeIngredients?.length || 0} Ingredients</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-6 py-4 bg-muted/20 border-t flex items-center justify-between">
+                   <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
+                      View Recipe <ArrowUpRight className="size-3" />
+                   </div>
+                   <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-lg text-rose-500 hover:text-rose-600 hover:bg-rose-50 group-hover:opacity-100 opacity-0 transition-opacity"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(recipe.id) }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+      </ScrollArea>
+
+      {/* Editor Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingRecipe ? 'Edit Recipe' : 'Add Recipe'}</DialogTitle>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col rounded-[2rem] p-0">
+          <DialogHeader className="p-8 pb-4">
+            <DialogTitle className="text-2xl font-black tracking-tight">{editingRecipe ? 'Edit Master Recipe' : 'New Master Recipe'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Recipe Name</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Grilled Salmon"
-                />
+          
+          <ScrollArea className="flex-1 px-8 pb-8">
+            <div className="space-y-8 pt-4">
+              {/* Basic Info Group */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Recipe Name *</Label>
+                  <Input
+                    className="h-12 rounded-2xl border-2 px-4 font-bold text-lg"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Signature Dish Name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Menu Item Link</Label>
+                  <Select value={form.menuItemId} onValueChange={(v) => setForm({ ...form, menuItemId: v })}>
+                    <SelectTrigger className="h-12 rounded-2xl border-2 px-4 font-bold">
+                      <SelectValue placeholder="Link to Sales Item" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl">
+                      {menuItems.map((item) => (
+                        <SelectItem key={item.id} value={item.id} className="rounded-xl">
+                          {item.name} (${parseFloat(item.price).toFixed(2)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label>Link to Menu Item</Label>
-                <Select value={form.menuItemId} onValueChange={(v) => setForm({ ...form, menuItemId: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select menu item" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {menuItems.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.name} (${parseFloat(item.price).toFixed(2)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Yield (servings)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={form.yield}
-                  onChange={(e) => setForm({ ...form, yield: parseInt(e.target.value) || 1 })}
-                />
+              {/* Specs Group */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Yield (Servings)</Label>
+                  <div className="relative">
+                    <Scale className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      min={1}
+                      className="h-12 rounded-2xl border-2 pl-12 font-bold"
+                      value={form.yield}
+                      onChange={(e) => setForm({ ...form, yield: parseInt(e.target.value) || 1 })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Prep Time (Min)</Label>
+                  <div className="relative">
+                    <Timer className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      min={0}
+                      className="h-12 rounded-2xl border-2 pl-12 font-bold"
+                      value={form.prepTime}
+                      onChange={(e) => setForm({ ...form, prepTime: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label>Prep Time (minutes)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={form.prepTime}
-                  onChange={(e) => setForm({ ...form, prepTime: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label>Ingredients</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addIngredient}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  Add Ingredient
+              {/* Ingredients List */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Ingredient Composition</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addIngredient} className="rounded-xl border-2 font-bold h-8">
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Add Entry
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {form.recipeIngredients.length === 0 ? (
+                    <div className="text-center py-10 border-2 border-dashed rounded-[2rem] bg-muted/30">
+                       <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Empty composition</p>
+                    </div>
+                  ) : (
+                    form.recipeIngredients.map((ri, idx) => (
+                      <div key={idx} className="flex items-center gap-3 bg-muted/30 p-3 rounded-2xl border-2 border-transparent hover:border-muted-foreground/10 transition-all">
+                        <Select
+                          value={ri.ingredientId}
+                          onValueChange={(v) => updateIngredient(idx, 'ingredientId', v)}
+                        >
+                          <SelectTrigger className="flex-1 rounded-xl h-10 border-none bg-background shadow-sm font-medium">
+                            <SelectValue placeholder="Choose Ingredient" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            {ingredients.map((ing) => (
+                              <SelectItem key={ing.id} value={ing.id} className="rounded-lg">
+                                {ing.name} (${ing.costPerUnit || '0'}/{ing.unit})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="number"
+                          className="w-24 rounded-xl h-10 border-none bg-background shadow-sm font-bold text-center"
+                          value={ri.quantity}
+                          onChange={(e) => updateIngredient(idx, 'quantity', parseFloat(e.target.value) || 0)}
+                          placeholder="Qty"
+                        />
+                        <Select value={ri.unit} onValueChange={(v) => updateIngredient(idx, 'unit', v)}>
+                          <SelectTrigger className="w-24 rounded-xl h-10 border-none bg-background shadow-sm font-bold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            <SelectItem value="kg">kg</SelectItem>
+                            <SelectItem value="lb">lb</SelectItem>
+                            <SelectItem value="oz">oz</SelectItem>
+                            <SelectItem value="liter">liter</SelectItem>
+                            <SelectItem value="each">each</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeIngredient(idx)} className="text-rose-500 rounded-xl hover:bg-rose-50">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Instructions Section */}
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Preparation Instructions</Label>
+                <Textarea
+                  className="rounded-2xl border-2 px-4 py-4 min-h-[120px] resize-none font-medium leading-relaxed"
+                  value={form.instructions}
+                  onChange={(e) => setForm({ ...form, instructions: e.target.value })}
+                  placeholder="Describe the culinary process step by step..."
+                />
+              </div>
+
+              <div className="pt-4">
+                <Button onClick={handleSave} className="w-full h-14 rounded-2xl text-lg font-black uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 shadow-xl shadow-emerald-500/20">
+                   {editingRecipe ? 'Commit Recipe Changes' : 'Publish Master Recipe'}
                 </Button>
               </div>
-              {form.recipeIngredients.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4 border rounded">
-                  No ingredients added yet
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {form.recipeIngredients.map((ri, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Select
-                        value={ri.ingredientId}
-                        onValueChange={(v) => updateIngredient(idx, 'ingredientId', v)}
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select ingredient" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ingredients.map((ing) => (
-                            <SelectItem key={ing.id} value={ing.id}>
-                              {ing.name} (${ing.costPerUnit || '0'}/{ing.unit})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="number"
-                        className="w-20"
-                        value={ri.quantity}
-                        onChange={(e) => updateIngredient(idx, 'quantity', parseFloat(e.target.value) || 0)}
-                        placeholder="Qty"
-                      />
-                      <Select value={ri.unit} onValueChange={(v) => updateIngredient(idx, 'unit', v)}>
-                        <SelectTrigger className="w-24">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="kg">kg</SelectItem>
-                          <SelectItem value="lb">lb</SelectItem>
-                          <SelectItem value="oz">oz</SelectItem>
-                          <SelectItem value="liter">liter</SelectItem>
-                          <SelectItem value="each">each</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removeIngredient(idx)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
-
-            <div>
-              <Label>Instructions</Label>
-              <Textarea
-                value={form.instructions}
-                onChange={(e) => setForm({ ...form, instructions: e.target.value })}
-                placeholder="Preparation steps..."
-                rows={4}
-              />
-            </div>
-
-            <Button onClick={handleSave} className="w-full">
-              {editingRecipe ? 'Update Recipe' : 'Create Recipe'}
-            </Button>
-          </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>

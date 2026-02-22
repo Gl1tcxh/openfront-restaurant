@@ -22,10 +22,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, ShoppingBag, CreditCard } from "lucide-react";
+import { MoreVertical, ShoppingBag, CreditCard, History, Calendar, ExternalLink, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { EditItemDrawerClientWrapper } from "../../components/EditItemDrawerClientWrapper";
 import { GiftCard } from "../actions";
+import { cn } from "@/lib/utils";
 
 interface GiftCardDetailsComponentProps {
   giftcard: GiftCard;
@@ -57,11 +58,12 @@ function ItemPagination({
         size="sm"
         disabled={currentPage <= 1}
         onClick={() => onPageChange(currentPage - 1)}
+        className="h-7 px-2 rounded-lg"
       >
         Prev
       </Button>
-      <span className="text-muted-foreground">
-        Page {currentPage} of {totalPages}
+      <span className="text-muted-foreground font-medium">
+        {currentPage} / {totalPages}
       </span>
       <Button
         type="button"
@@ -69,6 +71,7 @@ function ItemPagination({
         size="sm"
         disabled={currentPage >= totalPages}
         onClick={() => onPageChange(currentPage + 1)}
+        className="h-7 px-2 rounded-lg"
       >
         Next
       </Button>
@@ -87,25 +90,14 @@ export function GiftCardDetailsComponent({
   });
   const [editItemId, setEditItemId] = useState<string>('');
   const [editItemOpen, setEditItemOpen] = useState(false);
-  const itemsPerPage = 5;
+  const itemsPerPage = 6;
 
   const isActive = !giftcard.isDisabled && (!giftcard.endsAt || new Date(giftcard.endsAt) > new Date());
-  const usagePercentage = giftcard.value > 0 ? ((giftcard.value - giftcard.balance) / giftcard.value) * 100 : 0;
   const hasBeenUsed = giftcard.value !== giftcard.balance;
+  const usagePercentage = giftcard.value > 0 ? ((giftcard.value - giftcard.balance) / giftcard.value) * 100 : 0;
 
   // Prepare data for tabs
   const transactionsData = giftcard.giftCardTransactions || [];
-
-  const tabs = [
-    { 
-      key: 'transactions' as TabType, 
-      label: `Transactions`,
-      count: transactionsData.length,
-      data: transactionsData
-    }
-  ];
-
-  const activeTabData = tabs.find(tab => tab.key === activeTab);
 
   const handlePageChange = (tabKey: TabType, newPage: number) => {
     setCurrentPages(prev => ({
@@ -128,251 +120,219 @@ export function GiftCardDetailsComponent({
 
   return (
     <>
-      <Accordion type="single" collapsible className="w-full">
-        <AccordionItem value={giftcard.id} className="border-0">
-          <div className="px-4 md:px-6 py-3 md:py-4 flex justify-between w-full border-b relative min-h-[100px]">
-            <div className="flex flex-col items-start text-left gap-2 sm:gap-1.5">
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                <Link
-                  href={`/dashboard/platform/gift-cards/${giftcard.id}`}
-                  className="font-medium text-base hover:text-blue-600 dark:hover:text-blue-400 font-mono"
-                >
-                  {giftcard.code}
-                </Link>
-                <span className="text-sm font-medium">
-                  <span className="text-muted-foreground/75">
-                    {new Date(giftcard.createdAt).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </span>
-                </span>
-              </div>
-
-              {/* Purchase Order Info */}
-              {giftcard.order && (
-                <div className="flex flex-wrap items-center gap-1.5 text-sm">
-                  <span className="text-muted-foreground">Purchased in</span>
-                  <Link
-                    href={`/dashboard/platform/orders/${giftcard.order.id}`}
-                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
-                  >
-                    #{giftcard.order.orderNumber}
-                  </Link>
-                  <span>‧</span>
-                  <span className="font-medium">${giftcard.order.total}</span>
-                </div>
-              )}
-
-              {/* Balance Information */}
-              <div className="flex flex-wrap items-center gap-1.5 text-sm">
-                <span className="font-medium text-emerald-600">
-                  {formatCurrency(giftcard.balance)} remaining
-                </span>
-                <span className="text-muted-foreground">of {formatCurrency(giftcard.value)}</span>
-                {hasBeenUsed && (
-                  <>
-                    <span>‧</span>
-                    <span className="text-muted-foreground">
-                      {usagePercentage.toFixed(0)}% used
-                    </span>
-                  </>
-                )}
-                {giftcard.endsAt && (
-                  <>
-                    <span>‧</span>
-                    <span className="text-muted-foreground">
-                      Expires {new Date(giftcard.endsAt).toLocaleDateString()}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col justify-between h-full">
-              <div className="flex items-center gap-2">
-                <Badge
-                  color={isActive ? "emerald" : "zinc"}
-                  className="text-[.6rem] sm:text-[.7rem] py-0 px-2 sm:px-3 tracking-wide font-medium rounded-md border h-6"
-                >
-                  {isActive ? "ACTIVE" : giftcard.isDisabled ? "DISABLED" : "EXPIRED"}
-                </Badge>
-                
-                {/* Action buttons */}
-                <div className="absolute bottom-3 right-5 sm:static flex items-center gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="border [&_svg]:size-3 h-6 w-6"
-                      >
-                        <MoreVertical className="stroke-muted-foreground" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setIsEditDrawerOpen(true)}>
-                        Edit Gift Card
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="border [&_svg]:size-3 h-6 w-6"
-                    asChild
-                  >
-                    <AccordionTrigger className="py-0" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <AccordionContent className="pb-0">
-            {/* Responsive Tabs Navigation */}
-            <div className="bg-muted/40">
-              {/* Desktop: Horizontal Tab Buttons */}
-              <div className="hidden md:flex items-center gap-3 px-4 pt-2">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`relative z-10 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-300 border ${
-                      activeTab === tab.key 
-                        ? 'bg-background border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100' 
-                        : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-background/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>
-                        {tab.key === 'transactions' && 'Transactions'}
-                      </span>
-                      <span className="rounded-sm bg-muted border px-1.5 py-0 text-[10px] leading-[14px] font-medium text-muted-foreground inline-flex items-center h-[18px] -mr-1">
-                        {tab.count}
-                      </span>
+      <div className="px-6 py-3">
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value={giftcard.id} className="border-2 rounded-3xl overflow-hidden bg-card hover:border-emerald-500/30 transition-all shadow-md group">
+            <div className="flex flex-col md:flex-row w-full min-h-[140px] relative">
+              {/* Left Side: Physical Card Aesthetic */}
+              <div className="p-6 shrink-0 flex items-center justify-center">
+                <div className={cn(
+                  "w-56 h-32 rounded-2xl p-4 flex flex-col justify-between shadow-2xl relative overflow-hidden transition-transform group-hover:scale-105 duration-500",
+                  isActive 
+                    ? "bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 text-white border border-white/10" 
+                    : "bg-zinc-300 text-zinc-600 border border-zinc-400"
+                )}>
+                  {/* Decorative Chip */}
+                  <div className={cn(
+                    "w-10 h-8 rounded-md mb-2 opacity-80",
+                    isActive ? "bg-gradient-to-br from-amber-200 to-amber-500" : "bg-zinc-400"
+                  )} />
+                  
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-bold uppercase tracking-widest opacity-60">Balance</div>
+                    <div className="text-2xl font-black tracking-tighter">
+                      {formatCurrency(giftcard.balance)}
                     </div>
-                  </button>
-                ))}
-              </div>
+                  </div>
 
-              {/* Mobile: Select Dropdown */}
-              <div className="md:hidden px-4 py-2">
-                <div className="w-fit">
-                  <Select value={activeTab} onValueChange={(value: TabType) => setActiveTab(value)}>
-                    <SelectTrigger className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-background border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 h-auto w-auto">
-                      <div className="flex items-center gap-1.5">
-                        <SelectValue />
-                        <span className="rounded-sm bg-muted border px-1.5 py-0 text-[10px] leading-[14px] font-medium text-muted-foreground inline-flex items-center h-[18px] -mr-1">
-                          ({activeTabData?.count || 0})
-                        </span>
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tabs.map((tab) => (
-                        <SelectItem key={tab.key} value={tab.key} className="text-xs">
-                          {tab.key === 'transactions' && 'Transactions'}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-end justify-between">
+                    <div className="font-mono text-[10px] tracking-widest opacity-70">
+                      {giftcard.code.match(/.{1,4}/g)?.join(' ') || giftcard.code}
+                    </div>
+                    <CreditCard className="size-5 opacity-40" />
+                  </div>
+
+                  {/* Glassmorphism Shine */}
+                  <div className="absolute top-0 -left-[100%] w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-[45deg] group-hover:left-[100%] transition-all duration-1000" />
                 </div>
               </div>
-            </div>
-            
-            {/* Tab Content Area */}
-            <div className="bg-muted/40">
-              {activeTabData && (
-                <>
-                  {/* Pagination for active tab */}
-                  {activeTabData.count > itemsPerPage && (
-                    <div className="flex justify-between items-center p-4 pb-2">
-                      <div />
-                      <ItemPagination
-                        currentPage={currentPages[activeTab]}
-                        totalItems={activeTabData.count}
-                        itemsPerPage={itemsPerPage}
-                        onPageChange={(newPage) => handlePageChange(activeTab, newPage)}
+
+              {/* Main Info */}
+              <div className="flex-1 p-6 flex flex-col justify-center gap-4 border-l-2 border-dashed border-muted">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xl font-black tracking-tight font-mono truncate">
+                        {giftcard.code}
+                      </h3>
+                      <Badge
+                        className={cn(
+                          "rounded-full px-2.5 py-0.5 text-[10px] font-black tracking-wider",
+                          isActive 
+                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
+                            : "bg-zinc-500/10 text-zinc-500 border-zinc-500/20"
+                        )}
+                        variant="outline"
+                      >
+                        {isActive ? "ACTIVE" : giftcard.isDisabled ? "DISABLED" : "EXPIRED"}
+                      </Badge>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="size-3.5" />
+                        <span>Issued: {new Date(giftcard.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      {giftcard.endsAt && (
+                        <div className="flex items-center gap-1.5">
+                          <History className="size-3.5" />
+                          <span>Exp: {new Date(giftcard.endsAt).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-left md:text-right shrink-0">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Value</div>
+                    <div className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(giftcard.value)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress Tracking */}
+                {hasBeenUsed && (
+                  <div className="space-y-2 max-w-md">
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                      <span className="text-muted-foreground">Depletion</span>
+                      <span className="text-emerald-600">{usagePercentage.toFixed(0)}% Used</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-1000" 
+                        style={{ width: `${usagePercentage}%` }}
                       />
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  <div className="px-4 py-2">
-                    {/* Transactions Tab */}
-                    {activeTab === 'transactions' && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {transactionsData.length > 0 ? (
-                          transactionsData.slice(
-                            (currentPages.transactions - 1) * itemsPerPage,
-                            currentPages.transactions * itemsPerPage
-                          ).map((transaction) => (
-                            transaction.order && (
-                              <div key={transaction.id} className="rounded-md border bg-background p-3 shadow-sm">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                                    <CreditCard className="w-4 h-4 text-muted-foreground shrink-0" />
-                                    <div className="min-w-0 flex-1">
-                                      <Link
-                                        href={`/dashboard/platform/orders/${transaction.order.id}`}
-                                        className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                                      >
-                                        #{transaction.order.orderNumber}
-                                      </Link>
-                                      <div className="text-xs text-muted-foreground">
-                                        {new Date(transaction.createdAt).toLocaleDateString("en-US", {
-                                          year: "numeric",
-                                          month: "short",
-                                          day: "numeric",
-                                        })}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 shrink-0"
-                                      >
-                                        <MoreVertical className="h-3 w-3" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => handleEditItem(transaction.id)}>
-                                        Edit Transaction
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </div>
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="text-muted-foreground">Order Total:</span>
-                                  <span className="font-medium">${transaction.order.total}</span>
-                                </div>
-                                <div className="flex items-center justify-between text-xs">
-                                  <span className="text-muted-foreground">Gift Card Used:</span>
-                                  <span className="font-medium text-red-600">
-                                    -{formatCurrency(transaction.amount)}
-                                  </span>
-                                </div>
-                              </div>
-                            )
-                          ))
-                        ) : (
-                          <div className="col-span-full text-center py-8 text-muted-foreground">
-                            <ShoppingBag className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No transactions have used this gift card yet</p>
-                          </div>
-                        )}
-                      </div>
+                {/* Bottom Bar */}
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-4">
+                    {giftcard.order && (
+                      <Link 
+                        href={`/dashboard/platform/orders/${giftcard.order.id}`}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-muted/80 transition-colors"
+                      >
+                        <ShoppingBag className="size-3" />
+                        Order #{giftcard.order.orderNumber}
+                        <ExternalLink className="size-2.5 opacity-50" />
+                      </Link>
                     )}
                   </div>
-                </>
-              )}
+
+                  <div className="flex items-center gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl">
+                          <MoreVertical className="size-4 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 rounded-xl p-2">
+                        <DropdownMenuItem onClick={() => setIsEditDrawerOpen(true)} className="rounded-lg gap-2 cursor-pointer">
+                          <History className="size-4 text-blue-500" />
+                          View Full History
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setIsEditDrawerOpen(true)} className="rounded-lg gap-2 cursor-pointer">
+                          <ExternalLink className="size-4 text-blue-500" />
+                          Edit Gift Card
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <AccordionTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-2 font-black uppercase tracking-widest text-[10px] hover:bg-muted group">
+                        Timeline
+                        <ArrowRight className="size-3.5 ml-2 group-data-[state=open]:rotate-90 transition-transform" />
+                      </Button>
+                    </AccordionTrigger>
+                  </div>
+                </div>
+              </div>
             </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+
+            <AccordionContent>
+              <div className="p-8 pt-0 border-t-2 border-dashed bg-muted/30">
+                <div className="flex items-center justify-between mb-6 pt-6">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <History className="size-4" />
+                    Transaction History
+                  </h4>
+                  {transactionsData.length > itemsPerPage && (
+                    <ItemPagination
+                      currentPage={currentPages.transactions}
+                      totalItems={transactionsData.length}
+                      itemsPerPage={itemsPerPage}
+                      onPageChange={(newPage) => handlePageChange('transactions', newPage)}
+                    />
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {transactionsData.length > 0 ? (
+                    transactionsData.slice(
+                      (currentPages.transactions - 1) * itemsPerPage,
+                      currentPages.transactions * itemsPerPage
+                    ).map((transaction) => (
+                      <div key={transaction.id} className="bg-card border-2 border-muted rounded-2xl p-4 shadow-sm hover:border-emerald-500/20 transition-all group/tx relative overflow-hidden">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="p-2 rounded-xl bg-muted group-hover/tx:bg-emerald-500/10 transition-colors">
+                            <History className="size-4 text-muted-foreground group-hover/tx:text-emerald-600" />
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Used</div>
+                            <div className="text-sm font-black text-rose-600">
+                              -{formatCurrency(transaction.amount)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {transaction.order && (
+                          <div className="space-y-2 mt-4">
+                            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
+                              <span className="text-muted-foreground">Order</span>
+                              <Link 
+                                href={`/dashboard/platform/orders/${transaction.order.id}`}
+                                className="text-blue-600 hover:underline"
+                              >
+                                #{transaction.order.orderNumber}
+                              </Link>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest">
+                              <span className="text-muted-foreground">Date</span>
+                              <span className="text-zinc-600 dark:text-zinc-400">
+                                {new Date(transaction.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Interactive Shine */}
+                        <div className="absolute top-0 -left-[100%] w-full h-full bg-gradient-to-r from-transparent via-emerald-500/5 to-transparent skew-x-[45deg] group-hover/tx:left-[100%] transition-all duration-1000" />
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full flex flex-col items-center justify-center py-12 text-center bg-card border-2 border-dashed rounded-3xl">
+                      <ShoppingBag className="size-12 text-muted-foreground opacity-20 mb-4" />
+                      <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">No Transactions Recorded</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
 
       <EditItemDrawerClientWrapper
         listKey="gift-cards"

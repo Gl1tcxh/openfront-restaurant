@@ -1,6 +1,6 @@
 /**
  * ApiKeyListPageClient - Client Component for API Keys Platform Page
- * Using React Query for data fetching with SSR hydration
+ * Redesigned with a clean security-focused aesthetic
  */
 
 'use client'
@@ -11,18 +11,36 @@ import {
   Triangle,
   Square,
   Circle,
-  Search
+  Search,
+  Key,
+  Lock,
+  Shield,
+  Activity,
+  Calendar,
+  MoreVertical,
+  Copy,
+  Trash2,
+  RefreshCw,
+  Terminal,
+  ExternalLink,
+  Plus,
+  Clock
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs"
 import { PlatformFilterBar } from '@/features/platform/components/PlatformFilterBar'
-import { ListTable } from '@/features/dashboard/components/ListTable'
+import { FilterList } from '@/features/dashboard/components/FilterList'
 import { useSelectedFields } from '@/features/dashboard/hooks/useSelectedFields'
 import { useListItemsQuery } from '@/features/dashboard/hooks/useListItems.query'
 import { buildOrderByClause } from '@/features/dashboard/lib/buildOrderByClause'
 import { buildWhereClause } from '@/features/dashboard/lib/buildWhereClause'
 import { CreateApiKey } from './CreateApiKey'
+import { cn } from '@/lib/utils'
 
 interface ApiKeyListPageClientProps {
   list: any
@@ -33,30 +51,6 @@ interface ApiKeyListPageClientProps {
     pageSize: number
     search: string
   }
-}
-
-function EmptyStateDefault({ list }: { list: any }) {
-  return (
-    <EmptyState
-      title={`No ${list.label} Created`}
-      description={`You can create a new ${list.singular.toLowerCase()} to get started.`}
-      icons={[Triangle, Square, Circle]}
-    />
-  )
-}
-
-function EmptyStateSearch({ onResetFilters }: { onResetFilters: () => void }) {
-  return (
-    <EmptyState
-      title="No Results Found"
-      description="Try adjusting your search filters."
-      icons={[Search]}
-      action={{
-        label: "Reset Filters",
-        onClick: onResetFilters
-      }}
-    />
-  )
 }
 
 export function ApiKeyListPageClient({
@@ -71,7 +65,7 @@ export function ApiKeyListPageClient({
   // Hooks for field selection
   const selectedFields = useSelectedFields(list)
 
-  // Extract current search params (reactive to URL changes)
+  // Extract current search params
   const currentSearchParams = useMemo(() => {
     const params: Record<string, string> = {}
     searchParams?.forEach((value, key) => {
@@ -84,14 +78,13 @@ export function ApiKeyListPageClient({
   const pageSize = parseInt(currentSearchParams.pageSize || list.pageSize?.toString() || '50', 10)
   const searchString = currentSearchParams.search || ''
 
-  // Build query variables from current search params
+  // Build query variables
   const variables = useMemo(() => {
     const orderBy = buildOrderByClause(list, currentSearchParams)
     const filterWhere = buildWhereClause(list, currentSearchParams)
     const searchParameters = searchString ? { search: searchString } : {}
     const searchWhere = buildWhereClause(list, searchParameters)
 
-    // Combine search and filters
     const whereConditions = []
     if (Object.keys(searchWhere).length > 0) {
       whereConditions.push(searchWhere)
@@ -110,27 +103,12 @@ export function ApiKeyListPageClient({
     }
   }, [list, currentSearchParams, currentPage, pageSize, searchString])
 
-  // For api-keys, use raw GraphQL string to include relationship fields
   const querySelectedFields = `
-    id
-    name
-    tokenPreview
-    scopes
-    status
-    expiresAt
-    lastUsedAt
-    usageCount
-    restrictedToIPs
-    user {
-      id
-      name
-      email
-    }
-    createdAt
-    updatedAt
+    id name tokenPreview scopes status expiresAt lastUsedAt usageCount restrictedToIPs
+    user { id name email }
+    createdAt updatedAt
   `
 
-  // Use React Query hook with server-side initial data
   const { data: queryData, error: queryError, isLoading, isFetching } = useListItemsQuery(
     {
       listKey: list.key,
@@ -142,122 +120,162 @@ export function ApiKeyListPageClient({
     }
   )
 
-  // Use query data, fallback to initial data
   const data = queryData || initialData
   const error = queryError ? queryError.message : initialError
 
-  // Handle reset filters
   const handleResetFilters = useCallback(() => {
     router.push(window.location.pathname)
   }, [router])
 
-  if (!list) {
-    return (
-      <section
-        aria-label="API Keys overview"
-        className="overflow-hidden flex flex-col"
-      >
-        <Alert variant="destructive">
-          <AlertDescription>
-            The requested list was not found.
-          </AlertDescription>
-        </Alert>
-      </section>
-    )
-  }
-
-  // Check if we have any active filters (search or actual filters)
-  const hasFilters = !!searchString
-  const isFiltered = hasFilters
-  const isEmpty = data?.count === 0 && !isFiltered
+  const isEmpty = data?.count === 0 && !searchString
 
   return (
-    <section
-      aria-label="API Keys overview"
-      className="overflow-hidden flex flex-col"
-    >
+    <div className="flex flex-col h-full bg-background">
       <PageBreadcrumbs
         items={[
-          {
-            type: "link",
-            label: "Dashboard",
-            href: "/",
-          },
-          {
-            type: "page",
-            label: "Platform",
-          },
-          {
-            type: "page",
-            label: "API Keys",
-          },
+          { type: "link", label: "Dashboard", href: "/dashboard" },
+          { type: "page", label: "Platform" },
+          { type: "page", label: "API Keys" },
         ]}
       />
 
-      <div className="flex flex-col flex-1 min-h-0">
-        <div className="border-gray-200 dark:border-gray-800">
-          <div className="px-4 md:px-6 pt-4 md:pt-6 pb-4">
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">
-              API Keys
+      {/* Header */}
+      <div className="px-6 py-8 border-b bg-gradient-to-br from-background via-zinc-500/5 to-background">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight mb-2 flex items-center gap-3">
+              <Shield className="size-8 text-primary" />
+              API Access Keys
             </h1>
-            <p className="text-muted-foreground">
-              <span>Create and manage secure API keys for programmatic access</span>
+            <p className="text-muted-foreground max-w-2xl">
+              Securely manage programmatic access to your restaurant data. Use these keys to integrate with third-party logistics, custom websites, and analytics engines.
             </p>
           </div>
+          <CreateApiKey />
         </div>
 
-        {/* Platform Filter Bar with custom create button */}
-        <div className="px-4 md:px-6">
-          <PlatformFilterBar
-            list={{
-              key: list.key,
-              path: list.path,
-              label: list.label,
-              singular: list.singular,
-              plural: list.plural,
-              description: list.description || undefined,
-              labelField: list.labelField as string,
-              initialColumns: list.initialColumns,
-              groups: list.groups as unknown as string[],
-              graphql: {
-                plural: list.plural,
-                singular: list.singular
-              },
-              fields: list.fields
-            }}
-            customCreateButton={<CreateApiKey />}
-            showDisplayButton={true}
-            selectedFields={selectedFields}
-          />
+        {/* Security Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="border-2 rounded-2xl bg-card">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-primary/10">
+                <Key className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Active Keys</div>
+                <div className="text-2xl font-black mt-1">{data?.items?.filter(k => k.status === 'active').length || 0}</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-2 rounded-2xl bg-card">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-amber-500/10">
+                <Activity className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Requests</div>
+                <div className="text-2xl font-black mt-1">
+                  {data?.items?.reduce((sum, k) => sum + (k.usageCount || 0), 0).toLocaleString() || 0}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-2 rounded-2xl bg-card">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-blue-500/10">
+                <Terminal className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">API Version</div>
+                <div className="text-2xl font-black mt-1">v1.2.4</div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-
-        {/* Data table using dashboard ListTable component */}
-        {error ? (
-          <div className="px-4 md:px-6">
-            <Alert variant="destructive">
-              <AlertDescription>
-                Failed to load items: {error}
-              </AlertDescription>
-            </Alert>
-          </div>
-        ) : isEmpty ? (
-          <div className="px-4 md:px-6">
-            <EmptyStateDefault list={list} />
-          </div>
-        ) : data?.count === 0 ? (
-          <div className="px-4 md:px-6">
-            <EmptyStateSearch onResetFilters={handleResetFilters} />
-          </div>
-        ) : (
-          <ListTable
-            data={data}
-            list={list}
-            selectedFields={selectedFields}
-            currentPage={currentPage}
-            pageSize={pageSize}
-          />
-        )}
       </div>
-    </section>
+
+      {/* Toolbar */}
+      <div className="px-6 py-4 border-b">
+         <PlatformFilterBar 
+          list={list} 
+          showDisplayButton={false}
+         />
+      </div>
+
+      {/* Keys List */}
+      <ScrollArea className="flex-1">
+        <div className="p-6 pb-20 space-y-4">
+          {error ? (
+            <Alert variant="destructive" className="rounded-2xl border-2">
+              <AlertDescription>Security fault: {error}</AlertDescription>
+            </Alert>
+          ) : isEmpty ? (
+            <div className="py-24 flex flex-col items-center justify-center text-center">
+               <div className="w-24 h-24 rounded-[2rem] bg-muted flex items-center justify-center mb-6">
+                 <Lock className="size-10 text-muted-foreground opacity-20" />
+               </div>
+               <h2 className="text-2xl font-black mb-2">No keys found</h2>
+               <p className="text-muted-foreground max-w-sm mb-8">Generate your first API key to start integrating your restaurant with our public API endpoints.</p>
+               <CreateApiKey />
+            </div>
+          ) : (
+            data?.items?.map((apiKey) => (
+              <Card key={apiKey.id} className="border-2 rounded-3xl overflow-hidden hover:border-primary/30 transition-all group">
+                <CardContent className="p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    <div className="space-y-3 flex-1">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-black tracking-tight">{apiKey.name}</h3>
+                        <Badge className={cn(
+                          "rounded-lg px-2 py-0.5 text-[10px] font-black uppercase tracking-widest border-none",
+                          apiKey.status === 'active' ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
+                        )}>
+                          {apiKey.status}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-2xl border-2 border-dashed border-muted relative group/token max-w-md">
+                        <code className="text-xs font-mono font-bold opacity-70">
+                          {apiKey.tokenPreview || "••••••••••••••••••••••••••••"}
+                        </code>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl ml-auto hover:bg-muted" onClick={() => {
+                          navigator.clipboard.writeText(apiKey.tokenPreview || "");
+                        }}>
+                          <Copy className="size-3.5" />
+                        </Button>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Activity className="size-3.5" />
+                          <span>Used: {apiKey.usageCount || 0} times</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="size-3.5" />
+                          <span>Last Used: {apiKey.lastUsedAt ? new Date(apiKey.lastUsedAt).toLocaleDateString() : 'Never'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                          <Terminal className="size-3.5" />
+                          <span>{apiKey.scopes?.length || 0} Scopes</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0 self-end lg:self-center">
+                       <Button variant="outline" className="rounded-xl border-2 font-bold text-xs uppercase tracking-widest h-10 px-6">
+                         Details
+                       </Button>
+                       <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-rose-600 hover:bg-rose-50 group-hover:opacity-100 opacity-0 transition-opacity">
+                         <Trash2 className="size-4" />
+                       </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      </ScrollArea>
+    </div>
   )
 }
