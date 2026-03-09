@@ -12,14 +12,16 @@ Openfront Restaurant is a specialized version of the Openfront platform designed
 
 | | |
 |---|---|
-| **POS Interface** | [restaurant-demo.openship.org](https://restaurant-demo.openship.org) |
-| **Dashboard** | [restaurant-demo.openship.org/dashboard](https://restaurant-demo.openship.org/dashboard) |
-| **User** | `admin@openship.org` |
-| **Password** | `(Contact for access)` |
+| **Storefront** | [craft-burgers.openship.org](https://craft-burgers.openship.org) |
+| **Dashboard** | [craft-burgers.openship.org/dashboard](https://craft-burgers.openship.org/dashboard) |
+| **User** | `craft@openship.org` |
+| **Password** | `xZZ8nqW&!KT1^S6b45c^gwmv51Y50y!y@a*` |
 
 [Watch full demo on YouTube →](#)
 
 [Learn more →](https://openship.org/openfront-restaurant)
+
+[Documentation →](https://docs.openship.org/docs/openfront/restaurant/)
 
 ## Core Features
 
