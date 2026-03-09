@@ -24,6 +24,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Trash2, Plus, DollarSign, AlertTriangle, RefreshCw, TrendingDown, TrendingUp, Calendar } from 'lucide-react'
 import { gql, request } from 'graphql-request'
 import { cn } from '@/lib/utils'
+import { formatCurrency } from '@/features/storefront/lib/currency'
 
 interface WasteLog {
   id: string
@@ -71,6 +72,10 @@ const GET_WASTE_DATA = gql`
       unit
       costPerUnit
     }
+    storeSettings {
+      currencyCode
+      locale
+    }
   }
 `
 
@@ -91,6 +96,7 @@ export function WastePage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [currencyConfig, setCurrencyConfig] = useState({ currencyCode: 'USD', locale: 'en-US' })
 
   const [form, setForm] = useState({
     ingredientId: '',
@@ -104,6 +110,12 @@ export function WastePage() {
       const data = await request('/api/graphql', GET_WASTE_DATA)
       setLogs((data as any).wasteLogs || [])
       setIngredients((data as any).ingredients || [])
+      if ((data as any).storeSettings) {
+        setCurrencyConfig({
+          currencyCode: (data as any).storeSettings.currencyCode || 'USD',
+          locale: (data as any).storeSettings.locale || 'en-US'
+        })
+      }
     } catch (err) {
       console.error('Error:', err)
     } finally {
@@ -198,7 +210,7 @@ export function WastePage() {
                 </div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Cost</span>
               </div>
-              <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">${totalWasteCost.toFixed(2)}</p>
+              <p className="text-3xl font-bold text-rose-600 dark:text-rose-400">{formatCurrency(totalWasteCost, currencyConfig, { inputIsCents: false })}</p>
               <p className="text-xs text-muted-foreground mt-1">All time</p>
             </CardContent>
           </Card>
@@ -211,7 +223,7 @@ export function WastePage() {
                 </div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Last 7 Days</span>
               </div>
-              <p className="text-3xl font-bold">${last7DaysCost.toFixed(2)}</p>
+              <p className="text-3xl font-bold">{formatCurrency(last7DaysCost, currencyConfig, { inputIsCents: false })}</p>
               <p className="text-xs text-muted-foreground mt-1">{logs.filter(l => new Date(l.createdAt) > new Date(Date.now() - 7 * 86400000)).length} incidents</p>
             </CardContent>
           </Card>
@@ -224,7 +236,7 @@ export function WastePage() {
                 </div>
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Avg/Day</span>
               </div>
-              <p className="text-3xl font-bold">${avgDailyCost.toFixed(2)}</p>
+              <p className="text-3xl font-bold">{formatCurrency(avgDailyCost, currencyConfig, { inputIsCents: false })}</p>
               <p className="text-xs text-muted-foreground mt-1">30-day average</p>
             </CardContent>
           </Card>
@@ -238,7 +250,7 @@ export function WastePage() {
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Top Issue</span>
               </div>
               <p className="text-2xl font-bold">{reasonBreakdown[0]?.label || 'None'}</p>
-              <p className="text-xs text-muted-foreground mt-1">${reasonBreakdown[0]?.cost.toFixed(2) || '0.00'}</p>
+              <p className="text-xs text-muted-foreground mt-1">{formatCurrency(reasonBreakdown[0]?.cost || 0, currencyConfig, { inputIsCents: false })}</p>
             </CardContent>
           </Card>
         </div>
@@ -308,7 +320,7 @@ export function WastePage() {
                             <div className="flex items-center gap-3 shrink-0">
                               <div className="text-right">
                                 <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
-                                  ${(log.cost || 0).toFixed(2)}
+                                  {formatCurrency(log.cost || 0, currencyConfig, { inputIsCents: false })}
                                 </p>
                               </div>
                               <Button variant="ghost" size="sm" onClick={() => handleDelete(log.id)} className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -348,7 +360,7 @@ export function WastePage() {
                         <span className="text-xs text-muted-foreground">{percentage.toFixed(0)}%</span>
                       </div>
                       <div className="flex items-baseline justify-between">
-                        <span className="text-lg font-bold">${r.cost.toFixed(2)}</span>
+                        <span className="text-lg font-bold">{formatCurrency(r.cost, currencyConfig, { inputIsCents: false })}</span>
                         <span className="text-xs text-muted-foreground">{r.count} {r.count === 1 ? 'log' : 'logs'}</span>
                       </div>
                       <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">

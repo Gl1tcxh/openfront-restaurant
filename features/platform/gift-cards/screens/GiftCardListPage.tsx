@@ -10,6 +10,7 @@ import { buildWhereClause } from '../../../dashboard/lib/buildWhereClause'
 import { notFound } from 'next/navigation'
 import { GiftCardListPageClient } from './GiftCardListPageClient'
 import { getGiftCards, getGiftCardStatusCounts } from '../actions'
+import { getStoreSettings } from '@/features/storefront/lib/data/menu'
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -61,12 +62,11 @@ export async function GiftCardListPage({ searchParams }: PageProps) {
   const where = whereConditions.length > 0 ? { AND: whereConditions } : {}
 
   // Use GiftCards actions with where clause
-  const response = await getGiftCards(
-    where,
-    pageSize,
-    (currentPage - 1) * pageSize,
-    orderBy
-  )
+  const [response, statusCountsResponse, storeSettings] = await Promise.all([
+    getGiftCards(where, pageSize, (currentPage - 1) * pageSize, orderBy),
+    getGiftCardStatusCounts(),
+    getStoreSettings(),
+  ])
 
   let fetchedData: { items: any[], count: number } = { items: [], count: 0 }
   let error: string | null = null
@@ -87,9 +87,6 @@ export async function GiftCardListPage({ searchParams }: PageProps) {
   // Create enhanced list with validation data
   const enhancedList = adminMetaList || list
 
-  // Get status counts using dedicated action
-  const statusCountsResponse = await getGiftCardStatusCounts()
-  
   let statusCounts = {"active":0,"all":0,"disabled":0}
 
   if (statusCountsResponse.success) {
@@ -107,6 +104,8 @@ export async function GiftCardListPage({ searchParams }: PageProps) {
         search: searchString
       }}
       statusCounts={statusCounts}
+      currencyCode={storeSettings?.currencyCode || "USD"}
+      locale={storeSettings?.locale || "en-US"}
     />
   )
 }

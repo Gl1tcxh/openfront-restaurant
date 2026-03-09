@@ -10,6 +10,10 @@ export async function getStoreSettings() {
       address
       phone
       email
+      currencyCode
+      locale
+      timezone
+      countryCode
       hours
       deliveryFee
       deliveryMinimum
@@ -182,7 +186,7 @@ export async function createOrder(data: {
       subtotal,
       tax,
       total,
-      table: data.tableId ? { connect: { id: data.tableId } } : undefined,
+      tables: data.tableId ? { connect: { id: data.tableId } } : undefined,
     },
     query: 'id orderNumber'
   });

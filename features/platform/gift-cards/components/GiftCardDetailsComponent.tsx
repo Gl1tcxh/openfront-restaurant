@@ -31,6 +31,8 @@ import { cn } from "@/lib/utils";
 interface GiftCardDetailsComponentProps {
   giftcard: GiftCard;
   list: any;
+  currencyCode?: string;
+  locale?: string;
 }
 
 type TabType = 'transactions';
@@ -82,6 +84,8 @@ function ItemPagination({
 export function GiftCardDetailsComponent({
   giftcard,
   list,
+  currencyCode = "USD",
+  locale = "en-US",
 }: GiftCardDetailsComponentProps) {
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('transactions');
@@ -107,10 +111,17 @@ export function GiftCardDetailsComponent({
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    // Use provided locale and currency
+    const NO_DIVISION_CURRENCIES = [
+      "krw", "jpy", "vnd", "clp", "pyg", "xaf", "xof", "bif", "djf", "gnf", "kmf", "mga", "rwf", "xpf", "htg", "vuv", "xag", "xdr", "xau"
+    ];
+    const shouldDivideBy100 = !NO_DIVISION_CURRENCIES.includes(currencyCode.toLowerCase());
+    const value = shouldDivideBy100 ? amount / 100 : amount;
+
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'USD',
-    }).format(amount / 100);
+      currency: currencyCode,
+    }).format(value);
   };
 
   const handleEditItem = (itemId: string) => {

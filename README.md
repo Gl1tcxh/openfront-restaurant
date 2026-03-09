@@ -1,73 +1,108 @@
-# Next.js + KeystoneJS Starter
+# Openfront Restaurant
 
-A modern full-stack application combining Next.js 15 with KeystoneJS 6, featuring admin dashboard implementation and sophisticated role-based permissions.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fopenshiporg%2Fopenfront-restaurant&env=SESSION_SECRET&products=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22group%22%3A%22postgres%22%7D%5D)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjunaid33%2Fnext-keystone-starter%2F&stores=[{"type"%3A"postgres"}])
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/openfront-restaurant)
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/TK5wC1?referralCode=I_tWSs)
+Openfront Restaurant is a specialized version of the Openfront platform designed specifically for the food and beverage industry. It provides a complete suite of tools for restaurant management, including Point of Sale (POS), Kitchen Display Systems (KDS), table management, menu engineering, and waitlist handling.
 
-## Architecture Overview
+## Demo
 
-This project features a **modern admin architecture** with:
+<a href="#"><img src="https://github.com/user-attachments/assets/c0cf0110-a79e-4b1c-8ba7-2a9ca09947cf" alt="Openfront Restaurant Demo" width="600"></a>
 
-- **Backend**: KeystoneJS 6 providing GraphQL API, authentication, and database operations
-- **Frontend**: Custom Next.js admin dashboard with enhanced UI components
-- **Image Support**: S3-compatible image storage and management 
+| | |
+|---|---|
+| **POS Interface** | [restaurant-demo.openship.org](https://restaurant-demo.openship.org) |
+| **Dashboard** | [restaurant-demo.openship.org/dashboard](https://restaurant-demo.openship.org/dashboard) |
+| **User** | `admin@openship.org` |
+| **Password** | `(Contact for access)` |
 
-## Tech Stack
+[Watch full demo on YouTube →](#)
 
-### Frontend
-- **Next.js 15** with App Router
-- **React 19** with TypeScript
-- **Radix UI** primitives for accessible components
-- **Tailwind CSS 4** for styling
-- **Remix Icons** (@remixicon/react) for icons
-- **SWR** for client-side data fetching
-- **TipTap** for rich text editing
-- **React Hook Form** for form management
-- **Zod** for schema validation
+[Learn more →](https://openship.org/openfront-restaurant)
 
-### Backend
-- **KeystoneJS 6** for GraphQL API and admin interface
-- **Prisma ORM** for database operations
-- **GraphQL Yoga** for GraphQL server
-- **PostgreSQL** database
-- **S3-compatible storage** for image management
+## Core Features
 
-### Key Features
-- **Role-based access control** with granular permissions
-- **Dynamic field controllers** with conditional behavior
-- **Rich text editing** with document fields
-- **Relationship management** with inline editing capabilities
-- **Image upload and management** with S3 storage
-- **Inline create/edit components** for seamless UX
-- **Advanced filtering system** for all field types
-- **Responsive design** with mobile support
+### Point of Sale (POS)
+A modern, touch-optimized POS interface for staff to take orders, manage tables, and process payments. Supports complex modifications, split checks, and real-time synchronization with the kitchen.
+
+### Kitchen Display System (KDS)
+Streamline your back-of-house operations with a digital KDS. Orders from the POS appear instantly, allowing chefs to manage preparation times, mark items as ready, and coordinate with the front-of-house.
+
+### Table & Seating Management
+Visualize your floor plan and manage guest seating in real-time. Track table status (Available, Occupied, Dirty, Reserved) and optimize your restaurant's capacity.
+
+### Menu Engineering
+Manage complex menus with categories, products, variants, and modifiers. Set up happy hours, seasonal specials, and digital menus that update across all devices instantly.
+
+### Waitlist & Reservations
+Integrated waitlist management with SMS notifications. Allow guests to join the waitlist remotely or at the door, and manage reservations to ensure smooth service.
+
+### AI Assistant
+Streamline your restaurant operations with our MCP-powered AI Assistant.
+- **Menu Management**: Add new menu items or update prices via natural language.
+- **Operational Efficiency**: Mark items out-of-stock or update table status through chat.
+- **Permission Safe**: The AI respects your user role's permissions, calling the same API as the POS and Dashboard.
+
+## Architecture
+
+### Technology Stack
+- **Frontend**: Next.js 15 with App Router
+- **Backend**: KeystoneJS 6 with GraphQL API
+- **Database**: PostgreSQL with Prisma ORM
+- **Styling**: Tailwind CSS 4 with shadcn/ui components
+- **Real-time**: GraphQL Subscriptions & SWR for live updates
+
+### Application Structure
+```
+openfront-restaurant/
+├── app/                    # Next.js App Router
+│   ├── dashboard/         # Admin platform interface
+│   ├── pos/              # Point of Sale interface
+│   ├── kds/              # Kitchen Display System
+│   └── api/              # API endpoints and webhooks
+├── features/
+│   ├── keystone/         # Backend models and GraphQL schema
+│   ├── platform/         # Admin platform components
+│   ├── pos/             # POS-specific components
+│   └── kds/             # KDS-specific components
+└── components/           # Shared UI components
+```
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 20+
 - PostgreSQL database
+- npm, yarn, pnpm, or bun
 
 ### Setup
 
 1. **Clone and install dependencies:**
    ```bash
-   git clone https://github.com/junaid33/next-keystone-starter
-   cd next-keystone-starter
+   git clone https://github.com/openship-org/openfront-restaurant.git
+   cd openfront-restaurant
    npm install
    ```
 
 2. **Configure environment variables:**
    ```bash
-   cp env.example .env
+   cp .env.example .env
    ```
-   
-   Update `.env` with your database configuration:
+
+   Update `.env` with your configuration:
    ```env
-   DATABASE_URL=postgresql://username:password@localhost:5432/database_name
-   SESSION_SECRET=your-super-secret-session-key-change-this-in-production
+   # Required - Database Connection
+   DATABASE_URL="postgresql://username:password@localhost:5432/openfront_restaurant"
+
+   # Required - Session Security
+   SESSION_SECRET="your-very-long-session-secret-key-here-32-chars-minimum"
+
+   # Optional - S3 Storage for Food Images
+   S3_BUCKET_NAME="your-bucket-name"
+   S3_REGION="us-east-1"
+   S3_ACCESS_KEY_ID="your-access-key"
+   S3_SECRET_ACCESS_KEY="your-secret-key"
    ```
 
 3. **Start development server:**
@@ -75,89 +110,28 @@ This project features a **modern admin architecture** with:
    npm run dev
    ```
 
-   This will:
-   - Build KeystoneJS schema
-   - Run database migrations
-   - Start Next.js development server with Turbopack
-
 4. **Access the application:**
-   - Frontend: [http://localhost:3000](http://localhost:3000)
-   - Dashboard: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
-   - GraphQL API: [http://localhost:3000/api/graphql](http://localhost:3000/api/graphql)
+   - **Dashboard**: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
+   - **POS**: [http://localhost:3000/pos](http://localhost:3000/pos)
+   - **KDS**: [http://localhost:3000/kds](http://localhost:3000/kds)
 
-## Development Commands
+## Security & Permissions
 
-- `npm run dev` - Build Keystone + migrate + start Next.js dev server
-- `npm run build` - Build Keystone + migrate + build Next.js for production
-- `npm run migrate:gen` - Generate and apply new database migrations
-- `npm run migrate` - Deploy existing migrations to database
-- `npm run lint` - Run ESLint
+### Role-Based Access Control
+- `canManageMenu` - Edit products and prices
+- `canAccessPOS` - Access the ordering interface
+- `canAccessKDS` - Access kitchen prep view
+- `canManageWaitlist` - Manage guest flow
+- `canViewReports` - Financial and operational analytics
 
-## API Endpoints
+## Documentation
 
-### GraphQL API
-- **Endpoint**: `/api/graphql`
-- **Features**: Full CRUD operations, relationships, authentication
-- **Playground**: Available in development mode
+For comprehensive technical documentation, see [docs.openship.org/docs/openfront/restaurant](https://docs.openship.org/docs/openfront/restaurant/)
 
-## Data Models
+## License
 
-### Core Models
-- **User** - Authentication and user management
-- **Role** - Role-based access control
-- **Todo** - Example content model with relationships
-- **TodoImage** - Image management for Todo items with S3 storage
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### Permission System
-Sophisticated role-based permissions including:
-- `canAccessDashboard`, `canManagePeople`, `canManageRoles`
-- `canCreateTodos`, `canManageAllTodos`
-- `canSeeOtherPeople`, `canEditOtherPeople`
+---
 
-## Project Structure
-
-```
-├── app/                    # Next.js App Router
-│   ├── api/
-│   │   └── graphql.ts     # GraphQL API endpoint
-│   └── dashboard/         # Admin dashboard pages
-├── features/
-│   ├── keystone/          # Backend configuration
-│   │   ├── models/        # Keystone list definitions
-│   │   ├── access.ts      # Permission logic
-│   │   └── mutations/     # Custom GraphQL mutations
-│   └── dashboard/         # Admin interface implementation
-│       ├── actions/       # Server actions
-│       ├── components/    # Reusable UI components
-│       ├── screens/       # Page-level components
-│       └── views/         # Field type implementations
-├── keystone.ts            # KeystoneJS configuration
-└── schema.prisma          # Database schema
-```
-
-## Development Notes
-
-- **GraphQL endpoint** available at `/api/graphql`
-- **Field implementations** follow KeystoneJS controller patterns
-- **Permission checks** are integrated throughout the UI layer
-- **Server actions** used for data mutations in dashboard components
-- **Inline editing** components provide seamless UX for relationship management
-- **Image uploads** configured for S3-compatible storage
-- **Advanced filtering** supports all field types including documents, JSON, and images
-
-## Deployment
-
-The application can be deployed to any platform supporting Node.js and PostgreSQL:
-
-1. Set up PostgreSQL database
-2. Configure environment variables
-3. Run `npm run build`
-4. Run `npm start`
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
+Built on top of [next-keystone-starter](https://github.com/junaid33/next-keystone-starter)

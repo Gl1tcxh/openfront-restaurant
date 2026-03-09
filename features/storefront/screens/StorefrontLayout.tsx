@@ -4,7 +4,7 @@ import { useState } from "react"
 import { StoreHeader } from "@/features/storefront/components/StoreHeader"
 import { CartSidebar } from "@/features/storefront/components/CartSidebar"
 import { StripeCheckoutModal } from "@/features/storefront/components/StripeCheckoutModal"
-import { type StoreInfo } from "@/features/storefront/lib/store-data"
+import { type StoreInfo, type DayHours } from "@/features/storefront/lib/store-data"
 import { usePathname } from "next/navigation"
 
 interface StorefrontLayoutProps {
@@ -21,6 +21,94 @@ export default function StorefrontLayout({ children, storeInfo, user }: Storefro
   if (!storeInfo) return <>{children}</>
 
   const isHomePage = pathname === "/"
+
+  const parseHours = (value: string | DayHours | undefined): DayHours | null => {
+    if (!value) return null
+
+    if (typeof value === "object") {
+      if (value.ranges?.length) return { ...value, enabled: value.enabled ?? true }
+      if (value.open && value.close) {
+        return {
+          enabled: value.enabled ?? true,
+          ranges: [{ open: value.open, close: value.close }],
+        }
+      }
+      return value.enabled === false ? { enabled: false, ranges: [] } : null
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase()
+      if (!normalized || normalized === "closed") {
+        return { enabled: false, ranges: [] }
+      }
+      const [open, close] = value.split("-").map((s) => s.trim())
+      if (!open || !close) return null
+      return { enabled: true, ranges: [{ open, close }] }
+    }
+
+    return null
+  }
+
+  const formatTime = (time: string) => {
+    const normalized = time.trim().toLowerCase()
+    const meridianMatch = normalized.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/)
+
+    let h = 0
+    let m = 0
+
+    if (meridianMatch) {
+      h = Number.parseInt(meridianMatch[1], 10)
+      m = Number.parseInt(meridianMatch[2] || "0", 10)
+      const meridian = meridianMatch[3]
+      if (meridian === 'pm' && h < 12) h += 12
+      if (meridian === 'am' && h === 12) h = 0
+    } else {
+      const hhmm = normalized.includes(":") ? normalized : `${normalized}:00`
+      const [hRaw, mRaw] = hhmm.split(":")
+      h = Number.parseInt(hRaw, 10)
+      m = Number.parseInt(mRaw || "0", 10)
+    }
+
+    if (Number.isNaN(h) || Number.isNaN(m)) return time
+
+    const date = new Date()
+    date.setHours(h, m, 0, 0)
+
+    try {
+      return new Intl.DateTimeFormat(storeInfo.locale || "en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: storeInfo.timezone || "UTC",
+      }).format(date)
+    } catch {
+      return time
+    }
+  }
+
+  const dayOrder: Array<keyof StoreInfo["hours"]> = [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+  ]
+
+  const footerHours = dayOrder.map((day) => {
+    const parsed = parseHours(storeInfo.hours?.[day])
+    const label = day.charAt(0).toUpperCase() + day.slice(1, 3)
+
+    if (!parsed || parsed.enabled === false || !parsed.ranges?.length) {
+      return { day: label, value: "Closed" }
+    }
+
+    const first = parsed.ranges[0]
+    return {
+      day: label,
+      value: `${formatTime(first.open)} – ${formatTime(first.close)}`,
+    }
+  })
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -50,9 +138,9 @@ export default function StorefrontLayout({ children, storeInfo, user }: Storefro
             <div>
               <h4 className="text-sm font-medium uppercase tracking-wide mb-4">Hours</h4>
               <div className="text-sm text-muted-foreground space-y-1">
-                <p>Mon-Thu: {storeInfo.hours?.monday || '11 AM - 10 PM'}</p>
-                <p>Fri-Sat: {storeInfo.hours?.friday || '11 AM - 11 PM'}</p>
-                <p>Sunday: {storeInfo.hours?.sunday || '10 AM - 9 PM'}</p>
+                {footerHours.map((entry) => (
+                  <p key={entry.day}>{entry.day}: {entry.value}</p>
+                ))}
               </div>
             </div>
             <div>

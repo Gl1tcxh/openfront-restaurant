@@ -36,9 +36,15 @@ export default async function processPayment(
   }
 
   const { orderId, amount, paymentMethod, tipAmount = 0 } = args;
-  const currency = "usd";
 
   try {
+    // Get store settings for currency
+    const settings = await context.sudo().query.StoreSettings.findOne({
+      where: { id: '1' },
+      query: 'currencyCode'
+    });
+    const currency = (settings?.currencyCode || "USD").toLowerCase();
+
     // Verify the order exists and get its details
     const order = await context.db.RestaurantOrder.findOne({
       where: { id: orderId },
@@ -121,6 +127,7 @@ export default async function processPayment(
         amount: amount, 
         status: paymentStatus,
         paymentMethod,
+        currencyCode: currency.toUpperCase(),
         stripePaymentIntentId: usesStripe ? providerPaymentId : null,
         providerPaymentId,
         paymentProvider: provider

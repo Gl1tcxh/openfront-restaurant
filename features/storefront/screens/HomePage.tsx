@@ -3,6 +3,7 @@ import { getMenuCategories, getMenuItems, getFeaturedMenuItems, getStoreSettings
 import { getUser } from "@/features/storefront/lib/data/user"
 import { type StoreInfo } from "@/features/storefront/lib/store-data"
 import HomePageClient from "./HomePageClient"
+import { getCurrencyConfig } from "@/features/storefront/lib/currency"
 
 // Force dynamic rendering since we fetch data
 export const dynamic = 'force-dynamic'
@@ -33,11 +34,17 @@ export default async function HomePage() {
   }
 
   // Build storeInfo from database settings
+  const currencyConfig = getCurrencyConfig(storeSettings)
+
   const storeInfo: StoreInfo = {
     name: storeSettings.name,
     tagline: storeSettings.tagline || '',
     address: storeSettings.address || '',
     phone: storeSettings.phone || '',
+    currencyCode: currencyConfig.currencyCode,
+    locale: currencyConfig.locale,
+    timezone: storeSettings.timezone || 'America/New_York',
+    countryCode: storeSettings.countryCode || 'US',
     hours: storeSettings.hours || {},
     deliveryFee: parseFloat(storeSettings.deliveryFee) || 0,
     deliveryMinimum: parseFloat(storeSettings.deliveryMinimum) || 0,
@@ -54,7 +61,7 @@ export default async function HomePage() {
 
   // Add "All" category at the beginning
   const allCategories = [
-    { id: "all", name: "All", icon: "🍽️", sortOrder: -1 },
+    { id: "all", name: "All", icon: "all", sortOrder: -1 },
     ...categories
   ]
 

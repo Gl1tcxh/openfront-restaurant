@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 import { getUser, getUserOrders } from "@/features/storefront/lib/data/user"
 import { formatCurrency } from "@/features/storefront/lib/currency"
+import { getStoreSettings } from "@/features/storefront/lib/data/menu"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Package, ChevronRight } from "lucide-react"
@@ -15,6 +16,11 @@ export const metadata: Metadata = {
 export default async function AccountOrdersPage() {
   const user = await getUser()
   const orders = await getUserOrders()
+  const storeSettings = await getStoreSettings()
+  const currencyConfig = {
+    currencyCode: storeSettings?.currencyCode || "USD",
+    locale: storeSettings?.locale || "en-US",
+  }
 
   if (!user) {
     notFound()
@@ -41,7 +47,7 @@ export default async function AccountOrdersPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {orders.map((order) => (
+          {orders.map((order: any) => (
             <Link key={order.id} href={`/account/orders/details/${order.id}`}>
               <Card className="overflow-hidden hover:shadow-md transition-all cursor-pointer group mb-4">
                 <div className="p-6">
@@ -50,9 +56,7 @@ export default async function AccountOrdersPage() {
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium text-lg">Order #{order.orderNumber}</span>
                         <Badge variant={
-                          order.status === 'completed' ? 'success' : 
-                          order.status === 'cancelled' ? 'destructive' : 
-                          'secondary'
+                          order.status === 'cancelled' ? 'destructive' : 'secondary'
                         }>
                           {order.status.replace(/_/g, ' ')}
                         </Badge>
@@ -62,7 +66,7 @@ export default async function AccountOrdersPage() {
                       </p>
                     </div>
                     <div className="text-right flex flex-col items-end">
-                      <p className="font-bold text-xl">{formatCurrency(order.total)}</p>
+                      <p className="font-bold text-xl">{formatCurrency(order.total, currencyConfig)}</p>
                       <p className="text-xs text-muted-foreground uppercase tracking-widest">{order.orderType}</p>
                     </div>
                   </div>

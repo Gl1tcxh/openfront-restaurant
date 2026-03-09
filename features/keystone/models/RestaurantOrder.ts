@@ -166,6 +166,23 @@ export const RestaurantOrder = list({
     discount: integer({ defaultValue: 0 }),
     total: integer({ defaultValue: 0 }),
     
+    currencyCode: text({
+      defaultValue: "USD",
+      ui: { description: "ISO 4217 currency code at time of order" },
+      hooks: {
+        resolveInput: async ({ operation, inputData, context }) => {
+          if (operation === "create" && !inputData.currencyCode) {
+            const settings = await context.sudo().query.StoreSettings.findOne({
+              where: { id: '1' },
+              query: 'currencyCode'
+            });
+            return settings?.currencyCode || "USD";
+          }
+          return inputData.currencyCode;
+        }
+      }
+    }),
+
     // Customer Info
     customerName: text(),
     customerEmail: text(),

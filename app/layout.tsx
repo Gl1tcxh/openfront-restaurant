@@ -19,8 +19,8 @@ const instrument = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Restaurant",
-  description: "",
+  title: "Openfront Restaurant",
+  description: "Restaurant operations platform for POS, menu, and fulfillment",
 };
 
 export default function RootLayout({

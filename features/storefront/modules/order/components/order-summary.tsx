@@ -1,18 +1,15 @@
 "use client";
 
+import { formatCurrency } from "@/features/storefront/lib/currency";
+
 interface OrderSummaryProps {
   subtotal: number;
   tax: number;
   tip: number;
   discount: number;
   total: number;
-}
-
-function formatPrice(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
+  currencyCode?: string;
+  locale?: string;
 }
 
 export function OrderSummary({
@@ -21,35 +18,38 @@ export function OrderSummary({
   tip,
   discount,
   total,
+  currencyCode = "USD",
+  locale = "en-US",
 }: OrderSummaryProps) {
+  const currencyConfig = { currencyCode, locale };
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Order Summary</h3>
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Subtotal</span>
-          <span>{formatPrice(subtotal)}</span>
+          <span>{formatCurrency(subtotal, currencyConfig)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Tax</span>
-          <span>{formatPrice(tax)}</span>
+          <span>{formatCurrency(tax, currencyConfig)}</span>
         </div>
         {tip > 0 && (
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Tip</span>
-            <span>{formatPrice(tip)}</span>
+            <span>{formatCurrency(tip, currencyConfig)}</span>
           </div>
         )}
         {discount > 0 && (
           <div className="flex justify-between text-sm text-green-600">
             <span>Discount</span>
-            <span>-{formatPrice(discount)}</span>
+            <span>-{formatCurrency(discount, currencyConfig)}</span>
           </div>
         )}
         <div className="border-t pt-2">
           <div className="flex justify-between font-medium">
             <span>Total</span>
-            <span>{formatPrice(total)}</span>
+            <span>{formatCurrency(total, currencyConfig)}</span>
           </div>
         </div>
       </div>

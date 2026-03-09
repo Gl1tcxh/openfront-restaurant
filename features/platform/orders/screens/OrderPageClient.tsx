@@ -32,6 +32,8 @@ import { StatusDot, statusConfig } from "../components/StatusDot";
 
 interface OrderPageClientProps {
   order: any;
+  currencyCode?: string;
+  locale?: string;
 }
 
 const NEXT_STATUS: Record<string, string | null> = {
@@ -48,7 +50,7 @@ function prettyStatus(value: string) {
   return value.replace(/_/g, " ");
 }
 
-export function OrderPageClient({ order }: OrderPageClientProps) {
+export function OrderPageClient({ order, currencyCode = "USD", locale = "en-US" }: OrderPageClientProps) {
   const [isPending, startTransition] = useTransition();
   const [currentStatus, setCurrentStatus] = useState(order.status);
 
@@ -140,7 +142,7 @@ export function OrderPageClient({ order }: OrderPageClientProps) {
             <div className="flex items-end gap-2">
               <div className="text-right mr-1">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
-                <div className="text-3xl font-semibold leading-none">{formatCurrency(order.total)}</div>
+                <div className="text-3xl font-semibold leading-none">{formatCurrency(order.total, { currencyCode, locale })}</div>
               </div>
 
               <Select value={currentStatus} onValueChange={handleStatusChange} disabled={isPending}>
@@ -216,7 +218,7 @@ export function OrderPageClient({ order }: OrderPageClientProps) {
                       )}
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold">{formatCurrency(item.price * item.quantity)}</div>
+                      <div className="font-semibold">{formatCurrency(item.price * item.quantity, { currencyCode, locale })}</div>
                       <div className="text-xs text-muted-foreground">{formatCurrency(item.price)} each</div>
                     </div>
                   </div>
@@ -240,11 +242,11 @@ export function OrderPageClient({ order }: OrderPageClientProps) {
                 <CardTitle className="text-base inline-flex items-center gap-2"><CreditCard className="h-4 w-4" />Payment summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2.5 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(order.subtotal)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span>{formatCurrency(order.tax)}</span></div>
-                {order.tip > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Tip</span><span>{formatCurrency(order.tip)}</span></div>}
+                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(order.subtotal, { currencyCode, locale })}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span>{formatCurrency(order.tax, { currencyCode, locale })}</span></div>
+                {order.tip > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Tip</span><span>{formatCurrency(order.tip, { currencyCode, locale })}</span></div>}
                 {order.discount > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span>-{formatCurrency(order.discount)}</span></div>}
-                <div className="pt-2 border-t flex justify-between font-semibold text-base"><span>Total</span><span>{formatCurrency(order.total)}</span></div>
+                <div className="pt-2 border-t flex justify-between font-semibold text-base"><span>Total</span><span>{formatCurrency(order.total, { currencyCode, locale })}</span></div>
 
                 {order.payments?.length > 0 && (
                   <div className="pt-3 mt-3 border-t space-y-2">

@@ -14,6 +14,7 @@ import {
   formatNumber,
   formatPercentage,
 } from "../lib/reportHelpers";
+import { getStoreSettings } from "@/features/storefront/lib/data/menu";
 import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs";
 import { StatsCards } from "../components/StatsCards";
 import { PeriodSelector } from "../components/PeriodSelector";
@@ -55,10 +56,16 @@ export async function SalesReportPage({ searchParams }: PageProps) {
   const previousEndDate = previousRange.endDate;
 
   try {
-    const [salesResponse, paymentResponse] = await Promise.all([
+    const [salesResponse, paymentResponse, storeSettings] = await Promise.all([
       getSalesOverview(startDate, endDate, previousStartDate, previousEndDate),
       getPaymentBreakdown(startDate, endDate),
+      getStoreSettings(),
     ]);
+
+    const currencyConfig = {
+      currencyCode: storeSettings?.currencyCode || "USD",
+      locale: storeSettings?.locale || "en-US",
+    };
 
     const salesData = salesResponse.success ? salesResponse.data : null;
     const paymentData = paymentResponse.success ? paymentResponse.data : null;
@@ -80,8 +87,8 @@ export async function SalesReportPage({ searchParams }: PageProps) {
     const statsData = [
       {
         name: "Total Revenue",
-        value: formatCurrency(salesMetrics.totalRevenue),
-        previous: formatCurrency(salesMetrics.previousRevenue),
+        value: formatCurrency(salesMetrics.totalRevenue, currencyConfig),
+        previous: formatCurrency(salesMetrics.previousRevenue, currencyConfig),
         change: salesMetrics.previousRevenue > 0
           ? `${calculatePercentageChange(salesMetrics.totalRevenue, salesMetrics.previousRevenue).value.toFixed(1)}%`
           : undefined,
@@ -106,8 +113,8 @@ export async function SalesReportPage({ searchParams }: PageProps) {
       },
       {
         name: "Average Check",
-        value: formatCurrency(salesMetrics.averageCheckSize),
-        previous: formatCurrency(salesMetrics.previousAverageCheck),
+        value: formatCurrency(salesMetrics.averageCheckSize, currencyConfig),
+        previous: formatCurrency(salesMetrics.previousAverageCheck, currencyConfig),
         change: salesMetrics.previousAverageCheck > 0
           ? `${calculatePercentageChange(salesMetrics.averageCheckSize, salesMetrics.previousAverageCheck).value.toFixed(1)}%`
           : undefined,
@@ -180,8 +187,14 @@ export async function SalesReportPage({ searchParams }: PageProps) {
                 totalRevenue={salesMetrics.totalRevenue}
                 totalOrders={salesMetrics.completedOrders}
                 totalGuests={salesMetrics.totalGuests}
+                currencyCode={currencyConfig.currencyCode}
+                locale={currencyConfig.locale}
               />
-              <DaypartChart data={daypartMetrics} />
+              <DaypartChart
+                data={daypartMetrics}
+                currencyCode={currencyConfig.currencyCode}
+                locale={currencyConfig.locale}
+              />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -190,8 +203,14 @@ export async function SalesReportPage({ searchParams }: PageProps) {
                   ordersByType: salesMetrics.ordersByType,
                   revenueByType: salesMetrics.revenueByType,
                 }}
+                currencyCode={currencyConfig.currencyCode}
+                locale={currencyConfig.locale}
               />
-              <PaymentMethodChart data={paymentBreakdown} />
+              <PaymentMethodChart
+                data={paymentBreakdown}
+                currencyCode={currencyConfig.currencyCode}
+                locale={currencyConfig.locale}
+              />
             </div>
 
             <div className="bg-card rounded-lg p-4 border">
@@ -199,19 +218,19 @@ export async function SalesReportPage({ searchParams }: PageProps) {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Total Tax</span>
-                  <div className="font-semibold">{formatCurrency(salesMetrics.totalTax)}</div>
+                  <div className="font-semibold">{formatCurrency(salesMetrics.totalTax, currencyConfig)}</div>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Total Tips</span>
-                  <div className="font-semibold">{formatCurrency(salesMetrics.totalTips)}</div>
+                  <div className="font-semibold">{formatCurrency(salesMetrics.totalTips, currencyConfig)}</div>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Total Discounts</span>
-                  <div className="font-semibold">{formatCurrency(salesMetrics.totalDiscounts)}</div>
+                  <div className="font-semibold">{formatCurrency(salesMetrics.totalDiscounts, currencyConfig)}</div>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Revenue per Guest</span>
-                  <div className="font-semibold">{formatCurrency(salesMetrics.revenuePerGuest)}</div>
+                  <div className="font-semibold">{formatCurrency(salesMetrics.revenuePerGuest, currencyConfig)}</div>
                 </div>
               </div>
             </div>

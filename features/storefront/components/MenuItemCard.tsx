@@ -8,6 +8,8 @@ import { formatCurrency } from "@/features/storefront/lib/currency"
 interface MenuItemCardProps {
   item: MenuItem
   onSelect: (item: MenuItem) => void
+  currencyCode?: string
+  locale?: string
 }
 
 // Helper to get image URL
@@ -36,7 +38,7 @@ function getDescriptionText(description: any): string {
   return ''
 }
 
-export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
+export function MenuItemCard({ item, onSelect, currencyCode = "USD", locale = "en-US" }: MenuItemCardProps) {
   return (
     <article className="group cursor-pointer" onClick={() => onSelect(item)}>
       {/* Image */}
@@ -67,7 +69,7 @@ export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-4">
           <h3 className="font-serif text-lg group-hover:text-primary transition-colors">{item.name}</h3>
-          <span className="text-sm font-medium shrink-0">{formatCurrency(item.price)}</span>
+          <span className="text-sm font-medium shrink-0">{formatCurrency(item.price, { currencyCode, locale })}</span>
         </div>
         <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{getDescriptionText(item.description)}</p>
         {item.calories && <p className="text-xs text-muted-foreground">{item.calories} cal</p>}

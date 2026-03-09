@@ -32,6 +32,7 @@ import { DollarSign, Plus, Users, RefreshCw, Calculator, Wallet, ArrowRight, Che
 import { gql, request } from 'graphql-request'
 import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs"
 import { cn } from '@/lib/utils'
+import { formatCurrency } from '@/features/storefront/lib/currency'
 
 interface TipPool {
   id: string
@@ -70,6 +71,10 @@ const GET_TIP_POOLS = gql`
       creditTips
       distributions
       status
+    }
+    storeSettings {
+      currencyCode
+      locale
     }
   }
 `
@@ -115,6 +120,7 @@ export function TipsPage() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [calculatedDistributions, setCalculatedDistributions] = useState<Distribution[]>([])
+  const [currencyConfig, setCurrencyConfig] = useState({ currencyCode: 'USD', locale: 'en-US' })
 
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
@@ -127,6 +133,12 @@ export function TipsPage() {
     try {
       const data = await request('/api/graphql', GET_TIP_POOLS)
       setTipPools((data as any).tipPools || [])
+      if ((data as any).storeSettings) {
+        setCurrencyConfig({
+          currencyCode: (data as any).storeSettings.currencyCode || 'USD',
+          locale: (data as any).storeSettings.locale || 'en-US'
+        })
+      }
     } catch (err) {
       console.error('Error fetching tip pools:', err)
     } finally {
@@ -290,7 +302,7 @@ export function TipsPage() {
               </div>
               <div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">30-Day Distribution</div>
-                <div className="text-3xl font-black mt-1">${totalDistributed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                <div className="text-3xl font-black mt-1">{formatCurrency(totalDistributed, currencyConfig, { inputIsCents: false })}</div>
               </div>
             </CardContent>
           </Card>
@@ -362,15 +374,15 @@ export function TipsPage() {
                           </div>
                           <div>
                              <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Cash Intake</div>
-                             <div className="font-bold text-sm text-amber-600 dark:text-amber-400">${parseFloat(pool.cashTips || '0').toFixed(2)}</div>
+                             <div className="font-bold text-sm text-amber-600 dark:text-amber-400">{formatCurrency(parseFloat(pool.cashTips || '0'), currencyConfig, { inputIsCents: false })}</div>
                           </div>
                           <div>
                              <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Digital Intake</div>
-                             <div className="font-bold text-sm text-blue-600 dark:text-blue-400">${parseFloat(pool.creditTips || '0').toFixed(2)}</div>
+                             <div className="font-bold text-sm text-blue-600 dark:text-blue-400">{formatCurrency(parseFloat(pool.creditTips || '0'), currencyConfig, { inputIsCents: false })}</div>
                           </div>
                           <div>
                              <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Total Pool</div>
-                             <div className="font-black text-lg">${parseFloat(pool.totalTips).toLocaleString()}</div>
+                             <div className="font-black text-lg">{formatCurrency(parseFloat(pool.totalTips), currencyConfig, { inputIsCents: false })}</div>
                           </div>
                        </div>
 
@@ -378,7 +390,7 @@ export function TipsPage() {
                        <div className="p-6 md:w-64 bg-muted/10 flex flex-col items-center justify-center gap-3">
                           <Badge className={cn(
                             "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest border-none shadow-sm",
-                            pool.status === 'distributed' ? "bg-emerald-500/20 text-emerald-600" : "bg-amber-500/20 text-amber-600"
+                            pool.status === 'distributed' ? "bg-emerald-500/20 text-emerald-600" : "bg-amber-50/20 text-amber-600"
                           )}>
                              {pool.status}
                           </Badge>
@@ -466,7 +478,7 @@ export function TipsPage() {
               <div className="p-6 bg-muted/40 rounded-[2rem] border-2 border-dashed flex justify-between items-center">
                 <span className="text-sm font-black uppercase tracking-widest opacity-60">Calculated Pool</span>
                 <span className="text-4xl font-black tracking-tighter">
-                  ${(parseFloat(form.cashTips || '0') + parseFloat(form.creditTips || '0')).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {formatCurrency(parseFloat(form.cashTips || '0') + parseFloat(form.creditTips || '0'), currencyConfig, { inputIsCents: false })}
                 </span>
               </div>
 
@@ -489,7 +501,7 @@ export function TipsPage() {
                             <TableCell className="font-bold text-xs py-3">{d.staffName}</TableCell>
                             <TableCell><Badge variant="outline" className="text-[9px] font-bold uppercase rounded-md h-5">{d.role}</Badge></TableCell>
                             <TableCell className="text-right text-xs font-mono">{d.hoursWorked?.toFixed(1) || '-'}</TableCell>
-                            <TableCell className="text-right font-black text-emerald-600 dark:text-emerald-400">${d.amount.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(d.amount, currencyConfig, { inputIsCents: false })}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

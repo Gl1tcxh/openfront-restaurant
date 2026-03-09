@@ -15,12 +15,16 @@ interface OrderListPageClientProps {
   };
   statusCounts: any;
   error?: string | null;
+  currencyCode?: string;
+  locale?: string;
 }
 
 export function OrderListPageClient({
   initialData,
   statusCounts,
   error,
+  currencyCode = "USD",
+  locale = "en-US",
 }: OrderListPageClientProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -141,7 +145,12 @@ export function OrderListPageClient({
           ) : (
             <div className="border-t divide-y">
               {initialData.items.map((order) => (
-                <OrderDetailsComponent key={order.id} order={order} />
+                <OrderDetailsComponent
+                  key={order.id}
+                  order={order}
+                  currencyCode={currencyCode}
+                  locale={locale}
+                />
               ))}
             </div>
           )}

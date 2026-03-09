@@ -18,6 +18,8 @@ interface RevenueChartProps {
   totalRevenue: number;
   totalOrders: number;
   totalGuests: number;
+  currencyCode?: string;
+  locale?: string;
 }
 
 export function RevenueChart({
@@ -25,14 +27,17 @@ export function RevenueChart({
   totalRevenue,
   totalOrders,
   totalGuests,
+  currencyCode = "USD",
+  locale = "en-US",
 }: RevenueChartProps) {
   const id = useId();
   const [metricView, setMetricView] = useState<"revenue" | "orders" | "guests">("revenue");
+  const currencyConfig = { currencyCode, locale };
 
   const getDisplayValue = () => {
     switch (metricView) {
       case "revenue":
-        return formatCurrency(totalRevenue);
+        return formatCurrency(totalRevenue, currencyConfig);
       case "orders":
         return formatNumber(totalOrders);
       case "guests":
@@ -124,8 +129,9 @@ export function RevenueChart({
                 fontSize={12}
                 tickFormatter={(value) => {
                   if (metricView === "revenue") {
-                    if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-                    return `$${value}`;
+                    const formatted = formatCurrency(value, currencyConfig);
+                    if (value >= 1000) return `${formatted.substring(0, 1)}${(value / 1000).toFixed(0)}K`;
+                    return formatted;
                   }
                   return value.toString();
                 }}
@@ -138,7 +144,7 @@ export function RevenueChart({
                     <div className="rounded-lg border bg-background p-2 shadow-md">
                       <div className="text-xs text-muted-foreground">{label}</div>
                       <div className="text-sm font-semibold">
-                        {metricView === "revenue" ? formatCurrency(value) : formatNumber(value)}
+                        {metricView === "revenue" ? formatCurrency(value, currencyConfig) : formatNumber(value)}
                       </div>
                     </div>
                   );

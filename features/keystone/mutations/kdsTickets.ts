@@ -66,10 +66,8 @@ async function getOrCreateStation(
 function mapOrderItemsByStation(order: any): Record<string, TicketItem[]> {
   const grouped: Record<string, TicketItem[]> = {};
 
-  const seen = new Set<string>();
-  const pushItem = (item: any) => {
-    if (!item?.id || seen.has(item.id)) return;
-    seen.add(item.id);
+  for (const item of order.orderItems || []) {
+    if (!item?.id) continue;
     const station = item.menuItem?.kitchenStation || 'expo';
     if (!grouped[station]) grouped[station] = [];
     grouped[station].push({
@@ -81,17 +79,6 @@ function mapOrderItemsByStation(order: any): Record<string, TicketItem[]> {
       status: 'new',
       fulfilledAt: null,
     });
-  };
-
-  for (const course of order.courses || []) {
-    for (const item of course.orderItems || []) {
-      pushItem(item);
-    }
-  }
-
-  // Fallback for existing orders that may not have courses wired
-  for (const item of order.orderItems || []) {
-    pushItem(item);
   }
 
   return grouped;
@@ -180,8 +167,8 @@ export async function syncKitchenTickets(root: any, args: any, context: Context)
             station: { id: { equals: station.id } },
             status: { in: ['new', 'in_progress', 'ready'] },
           },
-          query: 'id items status',
-          take: 1,
+          query: 'id items status firedAt',
+          orderBy: { firedAt: 'asc' },
         });
 
         const priority = order.isUrgent ? 100 : order.onHold ? -10 : 0;
@@ -209,6 +196,12 @@ export async function syncKitchenTickets(root: any, args: any, context: Context)
               status: existing.status === 'ready' && order.status !== 'ready' ? 'in_progress' : undefined,
             },
           });
+
+          const duplicateTickets = existingTickets.slice(1);
+          for (const duplicate of duplicateTickets) {
+            await sudo.db.KitchenTicket.deleteOne({ where: { id: duplicate.id } });
+          }
+
           updated += 1;
         } else {
           await sudo.db.KitchenTicket.createOne({

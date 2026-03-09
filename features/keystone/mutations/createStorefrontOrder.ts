@@ -30,6 +30,7 @@ interface CreateStorefrontOrderArgs {
   tax: string;
   tip: string;
   total: string;
+  currencyCode?: string;
   specialInstructions?: string;
 }
 
@@ -59,6 +60,7 @@ export default async function createStorefrontOrder(
       tax,
       tip,
       total,
+      currencyCode,
       specialInstructions,
     } = args;
 
@@ -69,6 +71,7 @@ export default async function createStorefrontOrder(
         orderId: null,
         orderNumber: null,
         clientSecret: null,
+        secretKey: null,
         error: "Customer information is required",
       };
     }
@@ -79,6 +82,7 @@ export default async function createStorefrontOrder(
         orderId: null,
         orderNumber: null,
         clientSecret: null,
+        secretKey: null,
         error: "Order must contain at least one item",
       };
     }
@@ -96,6 +100,7 @@ export default async function createStorefrontOrder(
         orderId: null,
         orderNumber: null,
         clientSecret: null,
+        secretKey: null,
         error: "Stripe payment provider not configured",
       };
     }
@@ -133,6 +138,7 @@ export default async function createStorefrontOrder(
         tax: parseInt(tax),
         tip: parseInt(tip),
         total: parseInt(total),
+        currencyCode: currencyCode || "USD",
         customer: customerId ? { connect: { id: customerId } } : undefined,
         customerName: customerInfo.name,
         customerEmail: customerInfo.email,
@@ -161,14 +167,15 @@ export default async function createStorefrontOrder(
       });
     }
 
-    // Use the payment provider adapter (like OpenFront does)
+    // Use store-configured currency when creating payment intents/orders
     const amountInCents = parseInt(total);
+    const normalizedCurrency = (currencyCode || "USD").toLowerCase();
 
     const sessionData = await createPayment({
       provider: stripeProvider,
       order,
       amount: amountInCents,
-      currency: "usd",
+      currency: normalizedCurrency,
     });
 
     // Create Payment record with pending status
@@ -177,6 +184,7 @@ export default async function createStorefrontOrder(
         amount: amountInCents,
         status: "pending",
         paymentMethod: "credit_card",
+        currencyCode: currencyCode || "USD",
         stripePaymentIntentId: sessionData.paymentIntentId,
         tipAmount: parseInt(tip),
         order: { connect: { id: order.id } },
@@ -201,6 +209,7 @@ export default async function createStorefrontOrder(
       orderId: null,
       orderNumber: null,
       clientSecret: null,
+      secretKey: null,
       error: errorMessage,
     };
   }

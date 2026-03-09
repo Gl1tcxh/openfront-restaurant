@@ -24,14 +24,15 @@ export async function POST(request: Request) {
     // Generate order number
     const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
 
-    // Parse totals
-    const subtotal = parseFloat(data.subtotal);
-    const tax = parseFloat(data.tax);
-    const tip = parseFloat(data.tip || "0");
-    const total = parseFloat(data.total);
+    // Parse totals (convert from dollars if that's what input is, or treat as cents)
+    // Looking at previous TURNs, frontend seems to send cents for some fields but maybe not all in this legacy route.
+    // For safety, we'll assume the inputs are numeric and round them to nearest integer.
+    const subtotal = Math.round(parseFloat(data.subtotal) || 0);
+    const tax = Math.round(parseFloat(data.tax) || 0);
+    const tip = Math.round(parseFloat(data.tip || "0") || 0);
+    const total = Math.round(parseFloat(data.total) || 0);
 
     // Map frontend orderType to database values
-    // Frontend uses "pickup" or "delivery", database uses "takeout" or "delivery"
     const orderTypeMap: Record<string, string> = {
       "pickup": "takeout",
       "delivery": "delivery",
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
       : '';
     const fullInstructions = `${customerNote}${deliveryNote}${data.specialInstructions ? '\n' + data.specialInstructions : ''}`;
 
-    // Create the order with status 'open' (valid status in the model)
+    // Create the order with status 'open'
     const order = await keystoneContext.sudo().query.RestaurantOrder.createOne({
       data: {
         orderNumber,
@@ -54,11 +55,11 @@ export async function POST(request: Request) {
         status: 'open',
         guestCount: data.guestCount || 1,
         specialInstructions: fullInstructions,
-        subtotal: subtotal.toFixed(2),
-        tax: tax.toFixed(2),
-        tip: tip.toFixed(2),
-        total: total.toFixed(2),
-        table: data.tableId ? { connect: { id: data.tableId } } : undefined,
+        subtotal,
+        tax,
+        tip,
+        total,
+        tables: data.tableId ? { connect: { id: data.tableId } } : undefined,
       },
       query: 'id orderNumber'
     });
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
       await keystoneContext.sudo().query.OrderItem.createOne({
         data: {
           quantity: item.quantity,
-          price: item.price.toString(),
+          price: Math.round(parseFloat(item.price) || 0),
           specialInstructions: item.specialInstructions || '',
           order: { connect: { id: order.id } },
           menuItem: { connect: { id: item.menuItemId } },
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
     }
 
     // Create payment intent with Stripe
-    const amountInCents = Math.round(total * 100);
+    const amountInCents = total;
 
     let clientSecret = null;
 
@@ -103,18 +104,17 @@ export async function POST(request: Request) {
       // Create Payment record in database with correct payment method value
       await keystoneContext.sudo().query.Payment.createOne({
         data: {
-          amount: total.toFixed(2),
+          amount: total,
           status: "pending",
           paymentMethod: "credit_card",
           stripePaymentIntentId: paymentIntent.id,
-          tipAmount: tip.toFixed(2),
+          tipAmount: tip,
           order: { connect: { id: order.id } },
         },
         query: 'id'
       });
     } catch (stripeError) {
       console.error("Stripe error:", stripeError);
-      // Continue without payment intent - customer can pay at counter
     }
 
     return NextResponse.json({

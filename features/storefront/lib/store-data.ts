@@ -79,19 +79,33 @@ export interface SelectedModifier {
   price: number
 }
 
+export interface DayHours {
+  enabled?: boolean
+  open?: string
+  close?: string
+  ranges?: Array<{
+    open: string
+    close: string
+  }>
+}
+
 export interface StoreInfo {
   name: string
   tagline: string
   address: string
   phone: string
+  currencyCode: string
+  locale: string
+  timezone: string
+  countryCode?: string
   hours: {
-    monday: string
-    tuesday: string
-    wednesday: string
-    thursday: string
-    friday: string
-    saturday: string
-    sunday: string
+    monday?: string | DayHours
+    tuesday?: string | DayHours
+    wednesday?: string | DayHours
+    thursday?: string | DayHours
+    friday?: string | DayHours
+    saturday?: string | DayHours
+    sunday?: string | DayHours
   }
   deliveryFee: number
   deliveryMinimum: number

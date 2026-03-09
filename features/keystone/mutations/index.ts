@@ -116,6 +116,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
           tax: Int!
           tip: Int!
           total: Int!
+          currencyCode: String
           specialInstructions: String
         ): CreateStorefrontOrderResult
 

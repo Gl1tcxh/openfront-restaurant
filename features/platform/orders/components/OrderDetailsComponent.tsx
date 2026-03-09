@@ -28,7 +28,15 @@ import { StatusDot, statusConfig } from "./StatusDot";
 import { updateOrderStatus } from "../actions";
 import { toast } from "sonner";
 
-export function OrderDetailsComponent({ order }: { order: any }) {
+export function OrderDetailsComponent({
+  order,
+  currencyCode = "USD",
+  locale = "en-US",
+}: {
+  order: any
+  currencyCode?: string
+  locale?: string
+}) {
   const [isPending, startTransition] = useTransition();
   const [currentStatus, setCurrentStatus] = useState(order.status);
 
@@ -125,7 +133,7 @@ export function OrderDetailsComponent({ order }: { order: any }) {
           <div className="flex flex-col items-end gap-2 shrink-0">
             <div className="flex items-center gap-3">
               <span className="font-bold text-xl text-foreground">
-                {formatCurrency(order.total)}
+                {formatCurrency(order.total, { currencyCode, locale })}
               </span>
 
               <Select
@@ -184,7 +192,7 @@ export function OrderDetailsComponent({ order }: { order: any }) {
                       <span className="font-medium">{item.menuItem?.name}</span>
                     </div>
                     <span className="text-muted-foreground">
-                      {formatCurrency(item.price * item.quantity)}
+                      {formatCurrency(item.price * item.quantity, { currencyCode, locale })}
                     </span>
                   </div>
                 ))}

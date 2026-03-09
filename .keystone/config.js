@@ -627,8 +627,9 @@ var User = (0, import_core.list)({
       field: import_core.graphql.field({
         type: import_core.graphql.String,
         resolve(item) {
-          if (!item.name) return "";
-          return item.name.trim().split(/\s+/)[0] || "";
+          const name = item.name || "";
+          if (!name) return "";
+          return name.trim().split(/\s+/)[0] || "";
         }
       })
     }),
@@ -636,8 +637,9 @@ var User = (0, import_core.list)({
       field: import_core.graphql.field({
         type: import_core.graphql.String,
         resolve(item) {
-          if (!item.name) return "";
-          const parts = item.name.trim().split(/\s+/);
+          const name = item.name || "";
+          if (!name) return "";
+          const parts = name.trim().split(/\s+/);
           return parts.length > 1 ? parts.slice(1).join(" ") : "";
         }
       })
@@ -1447,6 +1449,22 @@ var RestaurantOrder = (0, import_core10.list)({
     tip: (0, import_fields11.integer)({ defaultValue: 0 }),
     discount: (0, import_fields11.integer)({ defaultValue: 0 }),
     total: (0, import_fields11.integer)({ defaultValue: 0 }),
+    currencyCode: (0, import_fields11.text)({
+      defaultValue: "USD",
+      ui: { description: "ISO 4217 currency code at time of order" },
+      hooks: {
+        resolveInput: async ({ operation, inputData, context }) => {
+          if (operation === "create" && !inputData.currencyCode) {
+            const settings = await context.sudo().query.StoreSettings.findOne({
+              where: { id: "1" },
+              query: "currencyCode"
+            });
+            return settings?.currencyCode || "USD";
+          }
+          return inputData.currencyCode;
+        }
+      }
+    }),
     // Customer Info
     customerName: (0, import_fields11.text)(),
     customerEmail: (0, import_fields11.text)(),
@@ -2016,6 +2034,22 @@ var Payment = (0, import_core17.list)({
       validation: { isRequired: true },
       ui: {
         description: "Payment amount in cents"
+      }
+    }),
+    currencyCode: (0, import_fields18.text)({
+      defaultValue: "USD",
+      ui: { description: "ISO 4217 currency code for this payment" },
+      hooks: {
+        resolveInput: async ({ operation, inputData, context }) => {
+          if (operation === "create" && !inputData.currencyCode) {
+            const settings = await context.sudo().query.StoreSettings.findOne({
+              where: { id: "1" },
+              query: "currencyCode"
+            });
+            return settings?.currencyCode || "USD";
+          }
+          return inputData.currencyCode;
+        }
       }
     }),
     status: (0, import_fields18.select)({
@@ -3123,6 +3157,23 @@ var StoreSettings = (0, import_core33.list)({
     email: (0, import_fields34.text)({
       ui: { description: "Contact email" }
     }),
+    // Localization
+    currencyCode: (0, import_fields34.text)({
+      defaultValue: "USD",
+      ui: { description: "ISO 4217 currency code (e.g. USD, EUR, JPY)" }
+    }),
+    locale: (0, import_fields34.text)({
+      defaultValue: "en-US",
+      ui: { description: "Locale used for formatting numbers/dates (e.g. en-US)" }
+    }),
+    timezone: (0, import_fields34.text)({
+      defaultValue: "America/New_York",
+      ui: { description: "IANA timezone (e.g. America/New_York)" }
+    }),
+    countryCode: (0, import_fields34.text)({
+      defaultValue: "US",
+      ui: { description: "Primary storefront country code (ISO 3166-1 alpha-2)" }
+    }),
     // Hours (stored as JSON for flexibility)
     hours: (0, import_fields34.json)({
       defaultValue: {
@@ -3909,8 +3960,12 @@ async function processPayment(root, args, context) {
     };
   }
   const { orderId, amount, paymentMethod, tipAmount = 0 } = args;
-  const currency = "usd";
   try {
+    const settings = await context.sudo().query.StoreSettings.findOne({
+      where: { id: "1" },
+      query: "currencyCode"
+    });
+    const currency = (settings?.currencyCode || "USD").toLowerCase();
     const order = await context.db.RestaurantOrder.findOne({
       where: { id: orderId }
     });
@@ -3969,6 +4024,7 @@ async function processPayment(root, args, context) {
         amount,
         status: paymentStatus,
         paymentMethod,
+        currencyCode: currency.toUpperCase(),
         stripePaymentIntentId: usesStripe ? providerPaymentId : null,
         providerPaymentId,
         paymentProvider: provider ? { connect: { id: provider.id } } : void 0,
@@ -4360,7 +4416,7 @@ async function voidOrderItem(root, args, context) {
         error: "Manager approval required for void"
       };
     }
-    const voidAmount = parseFloat(String(orderItem.price)) * orderItem.quantity;
+    const voidAmount = (orderItem.price || 0) * (orderItem.quantity || 0);
     await context.db.OrderItem.deleteOne({
       where: { id: orderItemId }
     });
@@ -4369,15 +4425,16 @@ async function voidOrderItem(root, args, context) {
         where: { id: orderItem.orderId }
       });
       if (order) {
-        const currentSubtotal = parseFloat(String(order.subtotal)) - voidAmount;
-        const newTax = currentSubtotal * 0.08;
+        const currentSubtotal = (order.subtotal || 0) - voidAmount;
+        const taxRate = order.subtotal ? (order.tax || 0) / order.subtotal : 0.08;
+        const newTax = Math.round(currentSubtotal * taxRate);
         const newTotal = currentSubtotal + newTax;
         await context.db.RestaurantOrder.updateOne({
           where: { id: orderItem.orderId },
           data: {
-            subtotal: Math.max(0, currentSubtotal).toFixed(2),
-            tax: Math.max(0, newTax).toFixed(2),
-            total: Math.max(0, newTotal).toFixed(2),
+            subtotal: Math.max(0, currentSubtotal),
+            tax: Math.max(0, newTax),
+            total: Math.max(0, newTotal),
             specialInstructions: order.specialInstructions ? `${order.specialInstructions} | VOID: ${reason}` : `VOID: ${reason}`
           }
         });
@@ -4386,8 +4443,7 @@ async function voidOrderItem(root, args, context) {
     return {
       success: true,
       requiresManagerApproval: false,
-      adjustedAmount: Math.round(voidAmount * 100),
-      // Return in cents
+      adjustedAmount: voidAmount,
       error: null
     };
   } catch (err) {
@@ -4440,9 +4496,10 @@ async function compOrderItem(root, args, context) {
         error: "Manager approval required for comp"
       };
     }
-    const itemTotal = parseFloat(String(orderItem.price)) * orderItem.quantity;
-    const actualCompAmount = compAmount ? Math.min(compAmount / 100, itemTotal) : itemTotal;
-    const newPrice = parseFloat(String(orderItem.price)) - actualCompAmount / orderItem.quantity;
+    const itemTotal = (orderItem.price || 0) * (orderItem.quantity || 0);
+    const actualCompAmount = compAmount !== void 0 && compAmount !== null ? Math.min(compAmount, itemTotal) : itemTotal;
+    const perItemComp = Math.floor(actualCompAmount / (orderItem.quantity || 1));
+    const newPrice = (orderItem.price || 0) - perItemComp;
     if (newPrice <= 0) {
       await context.db.OrderItem.deleteOne({
         where: { id: orderItemId }
@@ -4451,7 +4508,7 @@ async function compOrderItem(root, args, context) {
       await context.db.OrderItem.updateOne({
         where: { id: orderItemId },
         data: {
-          price: newPrice.toFixed(2),
+          price: newPrice,
           specialInstructions: orderItem.specialInstructions ? `${orderItem.specialInstructions} | COMP: ${reason}` : `COMP: ${reason}`
         }
       });
@@ -4461,15 +4518,16 @@ async function compOrderItem(root, args, context) {
         where: { id: orderItem.orderId }
       });
       if (order) {
-        const currentSubtotal = parseFloat(String(order.subtotal)) - actualCompAmount;
-        const newTax = currentSubtotal * 0.08;
+        const currentSubtotal = (order.subtotal || 0) - actualCompAmount;
+        const taxRate = order.subtotal ? (order.tax || 0) / order.subtotal : 0.08;
+        const newTax = Math.round(currentSubtotal * taxRate);
         const newTotal = currentSubtotal + newTax;
         await context.db.RestaurantOrder.updateOne({
           where: { id: orderItem.orderId },
           data: {
-            subtotal: Math.max(0, currentSubtotal).toFixed(2),
-            tax: Math.max(0, newTax).toFixed(2),
-            total: Math.max(0, newTotal).toFixed(2),
+            subtotal: Math.max(0, currentSubtotal),
+            tax: Math.max(0, newTax),
+            total: Math.max(0, newTotal),
             specialInstructions: order.specialInstructions ? `${order.specialInstructions} | COMP: ${reason}` : `COMP: ${reason}`
           }
         });
@@ -4478,8 +4536,7 @@ async function compOrderItem(root, args, context) {
     return {
       success: true,
       requiresManagerApproval: false,
-      adjustedAmount: Math.round(actualCompAmount * 100),
-      // Return in cents
+      adjustedAmount: actualCompAmount,
       error: null
     };
   } catch (err) {
@@ -4532,7 +4589,7 @@ async function voidOrder(root, args, context) {
         error: "Manager approval required for void"
       };
     }
-    const voidAmount = parseFloat(String(order.total));
+    const voidAmount = order.total || 0;
     const orderItems = await context.db.OrderItem.findMany({
       where: { order: { id: { equals: orderId } } }
     });
@@ -4545,17 +4602,16 @@ async function voidOrder(root, args, context) {
       where: { id: orderId },
       data: {
         status: "cancelled",
-        subtotal: "0.00",
-        tax: "0.00",
-        total: "0.00",
+        subtotal: 0,
+        tax: 0,
+        total: 0,
         specialInstructions: order.specialInstructions ? `${order.specialInstructions} | VOIDED: ${reason}` : `VOIDED: ${reason}`
       }
     });
     return {
       success: true,
       requiresManagerApproval: false,
-      adjustedAmount: Math.round(voidAmount * 100),
-      // Return in cents
+      adjustedAmount: voidAmount,
       error: null
     };
   } catch (err) {
@@ -4583,6 +4639,7 @@ async function createStorefrontOrder(root, args, context) {
       tax,
       tip,
       total,
+      currencyCode,
       specialInstructions
     } = args;
     if (!customerInfo?.name || !customerInfo?.email || !customerInfo?.phone) {
@@ -4591,6 +4648,7 @@ async function createStorefrontOrder(root, args, context) {
         orderId: null,
         orderNumber: null,
         clientSecret: null,
+        secretKey: null,
         error: "Customer information is required"
       };
     }
@@ -4600,6 +4658,7 @@ async function createStorefrontOrder(root, args, context) {
         orderId: null,
         orderNumber: null,
         clientSecret: null,
+        secretKey: null,
         error: "Order must contain at least one item"
       };
     }
@@ -4614,6 +4673,7 @@ async function createStorefrontOrder(root, args, context) {
         orderId: null,
         orderNumber: null,
         clientSecret: null,
+        secretKey: null,
         error: "Stripe payment provider not configured"
       };
     }
@@ -4640,6 +4700,7 @@ Delivery: ${deliveryAddress.address}, ${deliveryAddress.city} ${deliveryAddress.
         tax: parseInt(tax),
         tip: parseInt(tip),
         total: parseInt(total),
+        currencyCode: currencyCode || "USD",
         customer: customerId ? { connect: { id: customerId } } : void 0,
         customerName: customerInfo.name,
         customerEmail: customerInfo.email,
@@ -4665,17 +4726,19 @@ Delivery: ${deliveryAddress.address}, ${deliveryAddress.city} ${deliveryAddress.
       });
     }
     const amountInCents = parseInt(total);
+    const normalizedCurrency = (currencyCode || "USD").toLowerCase();
     const sessionData = await createPayment({
       provider: stripeProvider,
       order,
       amount: amountInCents,
-      currency: "usd"
+      currency: normalizedCurrency
     });
     await sudoContext.query.Payment.createOne({
       data: {
         amount: amountInCents,
         status: "pending",
         paymentMethod: "credit_card",
+        currencyCode: currencyCode || "USD",
         stripePaymentIntentId: sessionData.paymentIntentId,
         tipAmount: parseInt(tip),
         order: { connect: { id: order.id } },
@@ -4699,6 +4762,7 @@ Delivery: ${deliveryAddress.address}, ${deliveryAddress.city} ${deliveryAddress.
       orderId: null,
       orderNumber: null,
       clientSecret: null,
+      secretKey: null,
       error: errorMessage
     };
   }
@@ -5129,10 +5193,8 @@ async function getOrCreateStation(stationKey, context, cachedStations) {
 }
 function mapOrderItemsByStation(order) {
   const grouped = {};
-  const seen = /* @__PURE__ */ new Set();
-  const pushItem = (item) => {
-    if (!item?.id || seen.has(item.id)) return;
-    seen.add(item.id);
+  for (const item of order.orderItems || []) {
+    if (!item?.id) continue;
     const station = item.menuItem?.kitchenStation || "expo";
     if (!grouped[station]) grouped[station] = [];
     grouped[station].push({
@@ -5144,14 +5206,6 @@ function mapOrderItemsByStation(order) {
       status: "new",
       fulfilledAt: null
     });
-  };
-  for (const course of order.courses || []) {
-    for (const item of course.orderItems || []) {
-      pushItem(item);
-    }
-  }
-  for (const item of order.orderItems || []) {
-    pushItem(item);
   }
   return grouped;
 }
@@ -5227,8 +5281,8 @@ async function syncKitchenTickets(root, args, context) {
             station: { id: { equals: station.id } },
             status: { in: ["new", "in_progress", "ready"] }
           },
-          query: "id items status",
-          take: 1
+          query: "id items status firedAt",
+          orderBy: { firedAt: "asc" }
         });
         const priority = order.isUrgent ? 100 : order.onHold ? -10 : 0;
         if (existingTickets.length > 0) {
@@ -5252,6 +5306,10 @@ async function syncKitchenTickets(root, args, context) {
               status: existing.status === "ready" && order.status !== "ready" ? "in_progress" : void 0
             }
           });
+          const duplicateTickets = existingTickets.slice(1);
+          for (const duplicate of duplicateTickets) {
+            await sudo.db.KitchenTicket.deleteOne({ where: { id: duplicate.id } });
+          }
           updated += 1;
         } else {
           await sudo.db.KitchenTicket.createOne({
@@ -5564,6 +5622,7 @@ function extendGraphqlSchema(baseSchema) {
           tax: Int!
           tip: Int!
           total: Int!
+          currencyCode: String
           specialInstructions: String
         ): CreateStorefrontOrderResult
 

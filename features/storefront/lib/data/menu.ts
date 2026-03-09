@@ -13,6 +13,10 @@ export const getStoreSettings = cache(async function () {
         address
         phone
         email
+        currencyCode
+        locale
+        timezone
+        countryCode
         hours
         deliveryFee
         deliveryMinimum

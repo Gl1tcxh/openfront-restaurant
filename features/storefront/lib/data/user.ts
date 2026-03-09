@@ -80,8 +80,8 @@ export async function login(_currentState: any, formData: FormData) {
 
     if (auth.sessionToken) {
       await setAuthToken(auth.sessionToken);
-      revalidatePath("/");
-      revalidateTag("customer");
+      (revalidatePath as any)("/");
+      (revalidateTag as any)("customer");
       return null; // Success
     }
 
@@ -173,7 +173,7 @@ export async function updateCustomerEmail(_prevState: any, formData: FormData) {
       },
       headers
     );
-    revalidateTag("customer");
+    (revalidateTag as any)("customer");
     return { success: true, error: null };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -199,7 +199,7 @@ export async function updateCustomerName(_prevState: any, formData: FormData) {
       },
       headers
     );
-    revalidateTag("customer");
+    (revalidateTag as any)("customer");
     return { success: true, error: null };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -224,7 +224,7 @@ export async function updateCustomerPassword(_prevState: any, formData: FormData
       },
       headers
     );
-    revalidateTag("customer");
+    (revalidateTag as any)("customer");
     return { success: true, error: null };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
@@ -250,7 +250,7 @@ export async function updateCustomerPhone(_prevState: any, formData: FormData) {
       },
       headers
     );
-    revalidateTag("customer");
+    (revalidateTag as any)("customer");
     return { success: true, error: null };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };

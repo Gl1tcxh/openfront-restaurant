@@ -18,15 +18,18 @@ interface OrderTypeData {
 
 interface OrderTypeChartProps {
   data: OrderTypeData;
+  currencyCode?: string;
+  locale?: string;
 }
 
 const orderTypeLabels = {
-  dine_in: { label: "Dine-in", icon: "🍽️", color: "bg-blue-500" },
-  takeout: { label: "Takeout", icon: "🥡", color: "bg-green-500" },
-  delivery: { label: "Delivery", icon: "🚗", color: "bg-amber-500" },
+  dine_in: { label: "Dine-in", color: "bg-blue-500" },
+  takeout: { label: "Takeout", color: "bg-green-500" },
+  delivery: { label: "Delivery", color: "bg-amber-500" },
 };
 
-export function OrderTypeChart({ data }: OrderTypeChartProps) {
+export function OrderTypeChart({ data, currencyCode = "USD", locale = "en-US" }: OrderTypeChartProps) {
+  const currencyConfig = { currencyCode, locale };
   const totalOrders = Object.values(data.ordersByType).reduce((sum, n) => sum + n, 0);
   const totalRevenue = Object.values(data.revenueByType).reduce((sum, n) => sum + n, 0);
 
@@ -51,11 +54,10 @@ export function OrderTypeChart({ data }: OrderTypeChartProps) {
               <div key={type.key} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">{info.icon}</span>
                     <span className="font-medium">{info.label}</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold">{formatCurrency(type.revenue)}</div>
+                    <div className="font-semibold">{formatCurrency(type.revenue, currencyConfig)}</div>
                     <div className="text-xs text-muted-foreground">
                       {formatNumber(type.orders)} orders ({formatPercentage(type.orderPercentage)})
                     </div>

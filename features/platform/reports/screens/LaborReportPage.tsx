@@ -26,6 +26,7 @@ import { DollarSign, Clock, Users, TrendingDown, TrendingUp, RefreshCw, Calendar
 import { gql, request } from 'graphql-request'
 import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs"
 import { cn } from '@/lib/utils'
+import { formatCurrency, formatNumber } from "../lib/reportHelpers";
 
 interface TimeEntry {
   id: string
@@ -37,6 +38,11 @@ interface TimeEntry {
   hoursWorked: number | null
   laborCost: number | null
   tips: string | null
+}
+
+interface StoreSettingsData {
+  currencyCode: string
+  locale: string
 }
 
 const GET_LABOR_DATA = gql`
@@ -65,6 +71,10 @@ const GET_LABOR_DATA = gql`
       total
       createdAt
     }
+    storeSettings {
+      currencyCode
+      locale
+    }
   }
 `
 
@@ -83,6 +93,7 @@ export function LaborReportPage() {
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [totalSales, setTotalSales] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [currencyConfig, setCurrencyConfig] = useState({ currencyCode: 'USD', locale: 'en-US' })
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().slice(0, 10),
     end: new Date().toISOString().slice(0, 10),
@@ -106,6 +117,13 @@ export function LaborReportPage() {
       const orders = (data as any).restaurantOrders || []
       const sales = orders.reduce((sum: number, o: any) => sum + parseFloat(o.total || '0'), 0)
       setTotalSales(sales)
+      
+      if ((data as any).storeSettings) {
+        setCurrencyConfig({
+          currencyCode: (data as any).storeSettings.currencyCode || 'USD',
+          locale: (data as any).storeSettings.locale || 'en-US'
+        })
+      }
     } catch (err) {
       console.error('Error fetching labor data:', err)
     } finally {
@@ -215,7 +233,7 @@ export function LaborReportPage() {
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Payroll Cost</span>
               </div>
-              <p className="text-3xl font-black">${totalLaborCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-3xl font-black">{formatCurrency(totalLaborCost, currencyConfig)}</p>
             </CardContent>
           </Card>
 
@@ -247,7 +265,7 @@ export function LaborReportPage() {
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">S / Labor Hr</span>
               </div>
-              <p className="text-3xl font-black">${salesPerLaborHour.toFixed(2)}</p>
+              <p className="text-3xl font-black">{formatCurrency(salesPerLaborHour, currencyConfig)}</p>
             </CardContent>
           </Card>
 
@@ -259,7 +277,7 @@ export function LaborReportPage() {
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tips Pool</span>
               </div>
-              <p className="text-3xl font-black">${totalTips.toLocaleString()}</p>
+              <p className="text-3xl font-black">{formatCurrency(totalTips, currencyConfig)}</p>
             </CardContent>
           </Card>
         </div>
@@ -312,10 +330,10 @@ export function LaborReportPage() {
                            {entry.hoursWorked?.toFixed(1) || '0.0'}
                         </TableCell>
                         <TableCell className="text-right font-black text-sm">
-                           ${entry.laborCost?.toFixed(2) || '0.00'}
+                           {formatCurrency(entry.laborCost || 0, currencyConfig)}
                         </TableCell>
                         <TableCell className="text-right text-emerald-600 dark:text-emerald-400 font-bold text-sm">
-                           ${parseFloat(entry.tips || '0').toFixed(2)}
+                           {formatCurrency(parseFloat(entry.tips || '0'), currencyConfig)}
                         </TableCell>
                       </TableRow>
                     ))
@@ -345,7 +363,7 @@ export function LaborReportPage() {
                         <span className="font-bold text-muted-foreground">{percentage.toFixed(0)}%</span>
                       </div>
                       <div className="flex items-baseline justify-between">
-                         <span className="text-lg font-black">${r.cost.toLocaleString()}</span>
+                         <span className="text-lg font-black">{formatCurrency(r.cost, currencyConfig)}</span>
                          <span className="text-[10px] font-bold text-muted-foreground italic">{r.hours.toFixed(1)} hrs</span>
                       </div>
                       <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">

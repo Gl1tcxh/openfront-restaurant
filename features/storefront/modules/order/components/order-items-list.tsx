@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
+import { formatCurrency } from "@/features/storefront/lib/currency";
 
 interface OrderItem {
   id: string;
@@ -27,16 +28,12 @@ interface OrderItem {
 
 interface OrderItemsListProps {
   items: OrderItem[];
+  currencyCode?: string;
+  locale?: string;
 }
 
-function formatPrice(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
-}
-
-export function OrderItemsList({ items }: OrderItemsListProps) {
+export function OrderItemsList({ items, currencyCode = "USD", locale = "en-US" }: OrderItemsListProps) {
+  const currencyConfig = { currencyCode, locale };
   if (!items || items.length === 0) {
     return (
       <div className="text-muted-foreground text-sm">No items in this order.</div>
@@ -64,14 +61,14 @@ export function OrderItemsList({ items }: OrderItemsListProps) {
                   <p className="font-medium">{item.menuItem.name}</p>
                   <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                 </div>
-                <p className="font-medium">{formatPrice(item.totalPrice)}</p>
+                <p className="font-medium">{formatCurrency(item.totalPrice, currencyConfig)}</p>
               </div>
               {item.modifiers && item.modifiers.length > 0 && (
                 <div className="mt-1">
                   {item.modifiers.map((mod) => (
                     <p key={mod.id} className="text-sm text-muted-foreground">
                       + {mod.name}{" "}
-                      {mod.priceAdjustment > 0 && `(${formatPrice(mod.priceAdjustment)})`}
+                      {mod.priceAdjustment > 0 && `(${formatCurrency(mod.priceAdjustment, currencyConfig)})`}
                     </p>
                   ))}
                 </div>

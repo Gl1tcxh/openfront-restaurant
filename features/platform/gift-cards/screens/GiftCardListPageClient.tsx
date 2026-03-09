@@ -50,6 +50,8 @@ interface GiftCardListPageClientProps {
     all: number
     disabled: number
   } | null
+  currencyCode?: string
+  locale?: string
 }
 
 export function GiftCardListPageClient({
@@ -57,7 +59,9 @@ export function GiftCardListPageClient({
   initialData,
   initialError,
   initialSearchParams,
-  statusCounts
+  statusCounts,
+  currencyCode = "USD",
+  locale = "en-US"
 }: GiftCardListPageClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -219,7 +223,13 @@ export function GiftCardListPageClient({
             <>
               <div className="grid grid-cols-1">
                 {data?.items?.map((giftcard: any) => (
-                  <GiftCardDetailsComponent key={giftcard.id} giftcard={giftcard} list={list} />
+                  <GiftCardDetailsComponent
+                    key={giftcard.id}
+                    giftcard={giftcard}
+                    list={list}
+                    currencyCode={currencyCode}
+                    locale={locale}
+                  />
                 ))}
               </div>
               

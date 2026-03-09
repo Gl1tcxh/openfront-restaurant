@@ -24,6 +24,7 @@ function getImageUrl(item: MenuItem): string {
 }
 
 export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarProps) {
+  const currencyConfig = { currencyCode: storeInfo.currencyCode, locale: storeInfo.locale }
   const { items, removeItem, updateQuantity, subtotal, isCartOpen, setIsCartOpen, clearCart } = useCart()
 
   const deliveryFee = orderType === "delivery" ? storeInfo.deliveryFee : 0
@@ -109,7 +110,7 @@ export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarPro
                               <Plus className="h-3 w-3" />
                             </button>
                           </div>
-                          <span className="text-sm">{formatCurrency(itemPrice)}</span>
+                          <span className="text-sm">{formatCurrency(itemPrice, currencyConfig)}</span>
                         </div>
                       </div>
                     </div>
@@ -131,28 +132,28 @@ export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarPro
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>{formatCurrency(subtotal)}</span>
+                  <span>{formatCurrency(subtotal, currencyConfig)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-primary">
                     <span>Pickup Discount</span>
-                    <span>-{formatCurrency(discount)}</span>
+                    <span>-{formatCurrency(discount, currencyConfig)}</span>
                   </div>
                 )}
                 {deliveryFee > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Delivery</span>
-                    <span>{formatCurrency(deliveryFee)}</span>
+                    <span>{formatCurrency(deliveryFee, currencyConfig)}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tax</span>
-                  <span>{formatCurrency(tax)}</span>
+                  <span>{formatCurrency(tax, currencyConfig)}</span>
                 </div>
               </div>
               <div className="flex justify-between font-serif text-lg pt-4 border-t border-border">
                 <span>Total</span>
-                <span>{formatCurrency(total)}</span>
+                <span>{formatCurrency(total, currencyConfig)}</span>
               </div>
               <Button
                 className="w-full h-12 bg-foreground text-background hover:bg-foreground/90 uppercase tracking-widest text-xs"

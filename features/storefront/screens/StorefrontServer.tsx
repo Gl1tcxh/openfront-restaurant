@@ -4,6 +4,7 @@ import { CartProvider } from '@/features/storefront/lib/cart-context';
 import { getUser } from '@/features/storefront/lib/data/user';
 import { getStoreSettings } from '@/features/storefront/lib/data/menu';
 import { fetchCart } from '@/features/storefront/lib/data';
+import { getCurrencyConfig } from '@/features/storefront/lib/currency';
 import StorefrontLayout from './StorefrontLayout';
 
 interface StorefrontServerProps {
@@ -37,11 +38,17 @@ export default async function StorefrontServer({
     queryClient.setQueryData(["cart"], cart);
   }
 
+  const currencyConfig = getCurrencyConfig(storeSettings || undefined)
+
   const storeInfo = storeSettings ? {
     name: storeSettings.name,
     tagline: storeSettings.tagline || '',
     address: storeSettings.address || '',
     phone: storeSettings.phone || '',
+    currencyCode: currencyConfig.currencyCode,
+    locale: currencyConfig.locale,
+    timezone: storeSettings.timezone || 'America/New_York',
+    countryCode: storeSettings.countryCode || 'US',
     hours: storeSettings.hours || {},
     deliveryFee: parseFloat(storeSettings.deliveryFee) || 0,
     deliveryMinimum: parseFloat(storeSettings.deliveryMinimum) || 0,

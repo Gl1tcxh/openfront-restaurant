@@ -1,5 +1,6 @@
 import { getOrders, getOrderStatusCounts } from "../actions";
 import { OrderListPageClient } from "./OrderListPageClient";
+import { getStoreSettings } from "@/features/storefront/lib/data/menu";
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -42,8 +43,11 @@ export async function OrderListPage({ searchParams }: PageProps) {
     where.orderSource = { equals: sourceFilter };
   }
 
-  const response = await getOrders(where, 50, 0);
-  const statusCountsResponse = await getOrderStatusCounts();
+  const [response, statusCountsResponse, storeSettings] = await Promise.all([
+    getOrders(where, 50, 0),
+    getOrderStatusCounts(),
+    getStoreSettings(),
+  ]);
 
   let fetchedData = { items: [], count: 0 };
   if (response.success) {
@@ -68,7 +72,9 @@ export async function OrderListPage({ searchParams }: PageProps) {
   return (
     <OrderListPageClient 
       initialData={fetchedData} 
-      statusCounts={statusCounts} 
+      statusCounts={statusCounts}
+      currencyCode={storeSettings?.currencyCode || "USD"}
+      locale={storeSettings?.locale || "en-US"}
     />
   );
 }

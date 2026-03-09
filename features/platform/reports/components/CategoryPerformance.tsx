@@ -16,6 +16,8 @@ interface CategoryData {
 interface CategoryPerformanceProps {
   categories: CategoryData[];
   totalRevenue: number;
+  currencyCode?: string;
+  locale?: string;
 }
 
 const COLORS = [
@@ -29,7 +31,8 @@ const COLORS = [
   "#F97316",
 ];
 
-export function CategoryPerformance({ categories, totalRevenue }: CategoryPerformanceProps) {
+export function CategoryPerformance({ categories, totalRevenue, currencyCode = "USD", locale = "en-US" }: CategoryPerformanceProps) {
+  const currencyConfig = { currencyCode, locale };
   const chartData = categories.map((cat, index) => ({
     name: cat.name,
     value: cat.revenue,
@@ -61,7 +64,7 @@ export function CategoryPerformance({ categories, totalRevenue }: CategoryPerfor
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value: number) => formatCurrency(value, currencyConfig)}
                   contentStyle={{
                     backgroundColor: "hsl(var(--background))",
                     border: "1px solid hsl(var(--border))",
@@ -90,7 +93,7 @@ export function CategoryPerformance({ categories, totalRevenue }: CategoryPerfor
                     />
                     <span className="font-medium">{category.name}</span>
                   </div>
-                  <span className="font-semibold">{formatCurrency(category.revenue)}</span>
+                  <span className="font-semibold">{formatCurrency(category.revenue, currencyConfig)}</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div

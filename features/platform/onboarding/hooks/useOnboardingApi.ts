@@ -88,7 +88,7 @@ export function useOnboardingApi({
     const storeInfo = data.storeInfo;
     if (!storeInfo) return;
 
-    const storeName = storeInfo.name || 'My Restaurant';
+    const storeName = storeInfo.name || 'Openfront Restaurant';
     setItemLoading('storeInfo', storeName);
 
     try {
@@ -107,6 +107,10 @@ export function useOnboardingApi({
           tagline: storeInfo.tagline,
           address: storeInfo.address,
           phone: storeInfo.phone,
+          currencyCode: storeInfo.currencyCode || 'USD',
+          locale: storeInfo.locale || 'en-US',
+          timezone: storeInfo.timezone || 'America/New_York',
+          countryCode: storeInfo.countryCode || 'US',
           hours: storeInfo.hours,
           deliveryFee: storeInfo.deliveryFee?.toString(),
           deliveryMinimum: storeInfo.deliveryMinimum?.toString(),

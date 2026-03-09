@@ -36,6 +36,7 @@ const CREATE_STOREFRONT_ORDER_MUTATION = `
     $tax: Int!
     $tip: Int!
     $total: Int!
+    $currencyCode: String
     $specialInstructions: String
   ) {
     createStorefrontOrder(
@@ -47,6 +48,7 @@ const CREATE_STOREFRONT_ORDER_MUTATION = `
       tax: $tax
       tip: $tip
       total: $total
+      currencyCode: $currencyCode
       specialInstructions: $specialInstructions
     ) {
       success
@@ -79,6 +81,7 @@ async function createStorefrontOrderGraphQL(variables: {
   tip: number
   total: number
   specialInstructions?: string
+  currencyCode?: string
 }) {
   const response = await fetch("/api/graphql", {
     method: "POST",
@@ -157,6 +160,8 @@ function CheckoutForm({
   const stripe = useStripe()
   const elements = useElements()
   const { subtotal, items, clearCart } = useCart()
+  const currencyConfig = { currencyCode: storeInfo.currencyCode, locale: storeInfo.locale }
+  const paypalCurrency = (storeInfo.currencyCode || "USD").toUpperCase()
   
   const [step, setStep] = useState<CheckoutStep>("details")
   const [tipPercent, setTipPercent] = useState(18)
@@ -239,7 +244,10 @@ function CheckoutForm({
     setError(null)
 
     try {
-      const orderData = await createStorefrontOrderGraphQL(createOrderData())
+      const orderData = await createStorefrontOrderGraphQL({
+        ...createOrderData(),
+        currencyCode: storeInfo.currencyCode,
+      })
 
       if (!orderData.success) {
         throw new Error(orderData.error || "Failed to create order")
@@ -292,7 +300,10 @@ function CheckoutForm({
     
     try {
       // Create order in our system
-      const orderData = await createStorefrontOrderGraphQL(createOrderData())
+      const orderData = await createStorefrontOrderGraphQL({
+        ...createOrderData(),
+        currencyCode: storeInfo.currencyCode,
+      })
       
       if (!orderData.success) {
         throw new Error(orderData.error || "Failed to create order")
@@ -320,7 +331,10 @@ function CheckoutForm({
     setError(null)
     
     try {
-      const orderData = await createStorefrontOrderGraphQL(createOrderData())
+      const orderData = await createStorefrontOrderGraphQL({
+        ...createOrderData(),
+        currencyCode: storeInfo.currencyCode,
+      })
       
       if (!orderData.success) {
         throw new Error(orderData.error || "Failed to create order")
@@ -604,7 +618,7 @@ function CheckoutForm({
                       intent: "CAPTURE",
                       purchase_units: [{
                         amount: {
-                          currency_code: "USD",
+                          currency_code: paypalCurrency,
                           value: (total / 100).toFixed(2),
                         },
                       }],
@@ -651,7 +665,7 @@ function CheckoutForm({
                     >
                       <span className="text-sm font-medium">{percent}%</span>
                       <span className="text-xs text-muted-foreground">
-                        {formatCurrency((subtotal - discount) * (percent / 100))}
+                        {formatCurrency((subtotal - discount) * (percent / 100), currencyConfig)}
                       </span>
                     </Label>
                   </div>
@@ -663,31 +677,31 @@ function CheckoutForm({
             <div className="space-y-2 text-sm border-t border-border pt-4">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal ({items.length})</span>
-                <span>{formatCurrency(subtotal)}</span>
+                <span>{formatCurrency(subtotal, currencyConfig)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-primary">
                   <span>Pickup Discount</span>
-                  <span>-{formatCurrency(discount)}</span>
+                  <span>-{formatCurrency(discount, currencyConfig)}</span>
                 </div>
               )}
               {deliveryFee > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery</span>
-                  <span>{formatCurrency(deliveryFee)}</span>
+                  <span>{formatCurrency(deliveryFee, currencyConfig)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tax</span>
-                <span>{formatCurrency(tax)}</span>
+                <span>{formatCurrency(tax, currencyConfig)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tip</span>
-                <span>{formatCurrency(tip)}</span>
+                <span>{formatCurrency(tip, currencyConfig)}</span>
               </div>
               <div className="flex justify-between font-serif text-lg pt-4 border-t border-border">
                 <span>Total</span>
-                <span>{formatCurrency(total)}</span>
+                <span>{formatCurrency(total, currencyConfig)}</span>
               </div>
             </div>
 
@@ -699,7 +713,7 @@ function CheckoutForm({
                 disabled={isSubmitting || (paymentMethod === "card" && !cardComplete)}
               >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {paymentMethod === "cash" ? "Place Order (Pay on Arrival)" : `Place Order · ${formatCurrency(total)}`}
+                {paymentMethod === "cash" ? "Place Order (Pay on Arrival)" : `Place Order · ${formatCurrency(total, currencyConfig)}`}
               </Button>
             )}
           </div>
@@ -794,7 +808,7 @@ export function StripeCheckoutModal({ isOpen, onClose, orderType, storeInfo, use
         <PayPalScriptProvider
           options={{
             clientId: paypalClientId,
-            currency: "USD",
+            currency: (storeInfo.currencyCode || "USD").toUpperCase(),
             intent: "capture",
             components: "buttons",
           }}

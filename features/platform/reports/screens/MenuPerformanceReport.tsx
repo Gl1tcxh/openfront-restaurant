@@ -11,6 +11,7 @@ import {
   formatCurrency,
   formatNumber,
 } from "../lib/reportHelpers";
+import { getStoreSettings } from "@/features/storefront/lib/data/menu";
 import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs";
 import { PeriodSelector } from "../components/PeriodSelector";
 import { DateRangePickerWrapper } from "../components/DateRangePickerWrapper";
@@ -47,7 +48,16 @@ export async function MenuPerformanceReport({ searchParams }: PageProps) {
   }
 
   try {
-    const response = await getMenuItemPerformance(startDate, endDate);
+    const [response, storeSettings] = await Promise.all([
+      getMenuItemPerformance(startDate, endDate),
+      getStoreSettings(),
+    ]);
+    
+    const currencyConfig = {
+      currencyCode: storeSettings?.currencyCode || "USD",
+      locale: storeSettings?.locale || "en-US",
+    };
+
     const orderItems = response.success ? response.data?.orderItems || [] : [];
 
     const menuItemPerformance = calculateMenuItemPerformance(orderItems);
@@ -58,10 +68,10 @@ export async function MenuPerformanceReport({ searchParams }: PageProps) {
     const uniqueItems = menuItemPerformance.length;
 
     const statsData = [
-      { name: "Total Revenue", value: formatCurrency(totalRevenue), icon: TrendingUp, color: 'text-blue-600 dark:text-blue-400' },
+      { name: "Total Revenue", value: formatCurrency(totalRevenue, currencyConfig), icon: TrendingUp, color: 'text-blue-600 dark:text-blue-400' },
       { name: "Items Sold", value: formatNumber(totalItemsSold), icon: Layers, color: 'text-emerald-600 dark:text-emerald-400' },
       { name: "Unique Items", value: formatNumber(uniqueItems), icon: Utensils, color: 'text-amber-600 dark:text-amber-400' },
-      { name: "Avg Revenue/Item", value: formatCurrency(uniqueItems > 0 ? totalRevenue / uniqueItems : 0), icon: Target, color: 'text-indigo-600 dark:text-indigo-400' },
+      { name: "Avg Revenue/Item", value: formatCurrency(uniqueItems > 0 ? totalRevenue / uniqueItems : 0, currencyConfig), icon: Target, color: 'text-indigo-600 dark:text-indigo-400' },
     ];
 
     return (
@@ -120,7 +130,12 @@ export async function MenuPerformanceReport({ searchParams }: PageProps) {
                        </h2>
                        <Badge variant="outline" className="rounded-lg font-bold border-2">Ranked by Sales</Badge>
                     </div>
-                    <MenuItemPerformance items={menuItemPerformance} totalRevenue={totalRevenue} />
+                    <MenuItemPerformance
+                      items={menuItemPerformance}
+                      totalRevenue={totalRevenue}
+                      currencyCode={currencyConfig.currencyCode}
+                      locale={currencyConfig.locale}
+                    />
                   </section>
 
                   <section>
@@ -130,7 +145,12 @@ export async function MenuPerformanceReport({ searchParams }: PageProps) {
                          Category Heatmap
                        </h2>
                     </div>
-                    <CategoryPerformance categories={categoryPerformance} totalRevenue={totalRevenue} />
+                    <CategoryPerformance
+                      categories={categoryPerformance}
+                      totalRevenue={totalRevenue}
+                      currencyCode={currencyConfig.currencyCode}
+                      locale={currencyConfig.locale}
+                    />
                   </section>
                </div>
 

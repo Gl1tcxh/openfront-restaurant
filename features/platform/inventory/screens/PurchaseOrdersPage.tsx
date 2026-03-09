@@ -24,6 +24,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Plus, Trash2, Package, Truck, RefreshCw, FileText, Send, CheckCircle2, XCircle } from 'lucide-react'
 import { gql, request } from 'graphql-request'
 import { cn } from '@/lib/utils'
+import { formatCurrency } from '@/features/storefront/lib/currency'
 
 interface PurchaseOrder {
   id: string
@@ -92,6 +93,10 @@ const GET_PO_DATA = gql`
       unit
       costPerUnit
     }
+    storeSettings {
+      currencyCode
+      locale
+    }
   }
 `
 
@@ -125,6 +130,7 @@ export function PurchaseOrdersPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPO, setEditingPO] = useState<PurchaseOrder | null>(null)
   const [activeFilter, setActiveFilter] = useState<string>('all')
+  const [currencyConfig, setCurrencyConfig] = useState({ currencyCode: 'USD', locale: 'en-US' })
 
   const [form, setForm] = useState({
     vendorId: '',
@@ -139,6 +145,12 @@ export function PurchaseOrdersPage() {
       setOrders((data as any).purchaseOrders || [])
       setVendors((data as any).vendors || [])
       setIngredients((data as any).ingredients || [])
+      if ((data as any).storeSettings) {
+        setCurrencyConfig({
+          currencyCode: (data as any).storeSettings.currencyCode || 'USD',
+          locale: (data as any).storeSettings.locale || 'en-US'
+        })
+      }
     } catch (err) {
       console.error('Error:', err)
     } finally {
@@ -311,7 +323,7 @@ export function PurchaseOrdersPage() {
               </div>
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">Pending Value</p>
-                <p className="text-3xl font-bold mt-1">${pendingValue.toFixed(2)}</p>
+                <p className="text-3xl font-bold mt-1">{formatCurrency(pendingValue, currencyConfig, { inputIsCents: false })}</p>
               </div>
             </CardContent>
           </Card>
@@ -421,7 +433,7 @@ export function PurchaseOrdersPage() {
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-2xl font-bold">${(po.totalCost || 0).toFixed(2)}</p>
+                        <p className="text-2xl font-bold">{formatCurrency(po.totalCost || 0, currencyConfig, { inputIsCents: false })}</p>
                         <div className="flex gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
                           {po.status === 'draft' && (
                             <>
@@ -527,9 +539,9 @@ export function PurchaseOrdersPage() {
                               className="w-28"
                               value={li.unitCost}
                               onChange={(e) => updateLineItem(idx, 'unitCost', parseFloat(e.target.value) || 0)}
-                              placeholder="$/unit"
+                              placeholder="/unit"
                             />
-                            <span className="text-base font-bold w-24 text-right">${li.totalCost.toFixed(2)}</span>
+                            <span className="text-base font-bold w-24 text-right">{formatCurrency(li.totalCost, currencyConfig, { inputIsCents: false })}</span>
                             <Button type="button" variant="ghost" size="sm" onClick={() => removeLineItem(idx)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -544,7 +556,7 @@ export function PurchaseOrdersPage() {
               <Card className="bg-muted border-2">
                 <CardContent className="p-4 flex justify-between items-center">
                   <span className="text-lg font-bold">Order Total</span>
-                  <span className="text-3xl font-bold">${formTotal.toFixed(2)}</span>
+                  <span className="text-3xl font-bold">{formatCurrency(formTotal, currencyConfig, { inputIsCents: false })}</span>
                 </CardContent>
               </Card>
 

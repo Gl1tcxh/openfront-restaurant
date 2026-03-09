@@ -104,6 +104,14 @@ export const platformNavItems: PlatformNavItem[] = [
 
   // Menu & Catalog
   {
+    title: 'Menu Architect',
+    href: '/platform/menu',
+    color: 'green',
+    description: 'Unified visual workspace for menu items, categories, and modifiers.',
+    icon: BookOpen,
+    group: 'menu'
+  },
+  {
     title: 'Menu Items',
     href: '/platform/menu-items',
     color: 'green',

@@ -12,19 +12,22 @@ interface PaymentMethodData {
 
 interface PaymentMethodChartProps {
   data: PaymentMethodData;
+  currencyCode?: string;
+  locale?: string;
 }
 
-const methodLabels: Record<string, { label: string; icon: string; color: string }> = {
-  credit_card: { label: "Credit Card", icon: "💳", color: "bg-blue-500" },
-  debit_card: { label: "Debit Card", icon: "💳", color: "bg-cyan-500" },
-  cash: { label: "Cash", icon: "💵", color: "bg-green-500" },
-  gift_card: { label: "Gift Card", icon: "🎁", color: "bg-purple-500" },
-  apple_pay: { label: "Apple Pay", icon: "🍎", color: "bg-gray-800" },
-  google_pay: { label: "Google Pay", icon: "🔵", color: "bg-red-500" },
-  unknown: { label: "Other", icon: "📋", color: "bg-gray-500" },
+const methodLabels: Record<string, { label: string; color: string }> = {
+  credit_card: { label: "Credit Card", color: "bg-blue-500" },
+  debit_card: { label: "Debit Card", color: "bg-cyan-500" },
+  cash: { label: "Cash", color: "bg-green-500" },
+  gift_card: { label: "Gift Card", color: "bg-purple-500" },
+  apple_pay: { label: "Apple Pay", color: "bg-gray-800" },
+  google_pay: { label: "Google Pay", color: "bg-red-500" },
+  unknown: { label: "Other", color: "bg-gray-500" },
 };
 
-export function PaymentMethodChart({ data }: PaymentMethodChartProps) {
+export function PaymentMethodChart({ data, currencyCode = "USD", locale = "en-US" }: PaymentMethodChartProps) {
+  const currencyConfig = { currencyCode, locale };
   const totalRevenue = Object.values(data).reduce((sum, d) => sum + d.total, 0);
   const totalTransactions = Object.values(data).reduce((sum, d) => sum + d.count, 0);
 
@@ -65,11 +68,10 @@ export function PaymentMethodChart({ data }: PaymentMethodChartProps) {
             const info = methodLabels[method.method] || methodLabels.unknown;
             return (
               <div key={method.method} className="flex items-center gap-3">
-                <span className="text-xl w-8">{info.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-medium truncate">{info.label}</span>
-                    <span className="font-semibold ml-2">{formatCurrency(method.total)}</span>
+                    <span className="font-semibold ml-2">{formatCurrency(method.total, currencyConfig)}</span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div

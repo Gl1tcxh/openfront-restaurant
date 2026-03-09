@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { formatCurrency } from '@/features/storefront/lib/currency'
 import {
   Sheet,
   SheetContent,
@@ -126,6 +127,11 @@ const GET_SERVICE_FLOOR = gql`
       name
       price
       available
+    }
+
+    storeSettings {
+      currencyCode
+      locale
     }
   }
 `
@@ -265,16 +271,13 @@ function formatStatusLabel(value: string) {
   return value.replace(/_/g, ' ')
 }
 
-function formatMoney(cents: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((cents || 0) / 100)
-}
-
 export function ServiceFloorClient() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [tables, setTables] = useState<Table[]>([])
   const [orders, setOrders] = useState<ActiveOrder[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [currencyConfig, setCurrencyConfig] = useState({ currencyCode: 'USD', locale: 'en-US' })
 
   const [dragTableId, setDragTableId] = useState<string | null>(null)
   const [updatingTable, setUpdatingTable] = useState<string | null>(null)
@@ -298,6 +301,12 @@ export function ServiceFloorClient() {
       setTables(res.tables || [])
       setOrders(res.restaurantOrders || [])
       setMenuItems(res.menuItems || [])
+      if (res.storeSettings) {
+        setCurrencyConfig({
+          currencyCode: res.storeSettings.currencyCode || 'USD',
+          locale: res.storeSettings.locale || 'en-US'
+        })
+      }
     } catch (err) {
       console.error(err)
     } finally {
@@ -604,7 +613,7 @@ export function ServiceFloorClient() {
                                 </div>
                                 <div className="text-[11px] text-muted-foreground flex items-center justify-between">
                                   <span>{activeOrder.guestCount || 1} guests</span>
-                                  <span className="font-medium text-foreground">{formatMoney(activeOrder.total || 0)}</span>
+                                  <span className="font-medium text-foreground">{formatCurrency(activeOrder.total || 0, currencyConfig)}</span>
                                 </div>
                               </div>
                             ) : (
@@ -646,7 +655,7 @@ export function ServiceFloorClient() {
                     </div>
                     <div className="text-right">
                       <div className="text-[11px] text-muted-foreground uppercase">Total</div>
-                      <div className="text-sm font-semibold">{formatMoney(selectedOrder.total || 0)}</div>
+                      <div className="text-sm font-semibold">{formatCurrency(selectedOrder.total || 0, currencyConfig)}</div>
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground mt-2">
@@ -670,7 +679,7 @@ export function ServiceFloorClient() {
                   <SelectContent>
                     {menuItems.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
-                        {item.name} • {formatMoney(item.price)}
+                        {item.name} • {formatCurrency(item.price, currencyConfig)}
                       </SelectItem>
                     ))}
                   </SelectContent>

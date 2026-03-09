@@ -38,6 +38,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { gql, request } from 'graphql-request'
+import { formatCurrency } from '@/features/storefront/lib/currency'
 
 interface OrderItem {
   id: string
@@ -112,6 +113,10 @@ const GET_ORDER = gql`
         name
       }
     }
+    storeSettings {
+      currencyCode
+      locale
+    }
   }
 `
 
@@ -183,6 +188,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [activeTab, setActiveTab] = useState<string>('cash')
+  const [currencyConfig, setCurrencyConfig] = useState({ currencyCode: 'USD', locale: 'en-US' })
 
   // Cash payment state
   const [cashReceived, setCashReceived] = useState<string>('')
@@ -216,6 +222,12 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
       setLoading(true)
       const data = await request('/api/graphql', GET_ORDER, { id: orderId })
       setOrder((data as any).restaurantOrder)
+      if ((data as any).storeSettings) {
+        setCurrencyConfig({
+          currencyCode: (data as any).storeSettings.currencyCode || 'USD',
+          locale: (data as any).storeSettings.locale || 'en-US'
+        })
+      }
     } catch (err) {
       console.error('Error fetching order:', err)
     } finally {
@@ -430,10 +442,10 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
         } else {
           // Partial payment - refresh order to show updated balance
           await fetchOrder()
-          setGiftCardCode('')
           setGiftCardBalance(null)
           setGiftCardId(null)
-          alert(`$${amountToCharge.toFixed(2)} charged to gift card. Remaining balance: $${(total - amountToCharge).toFixed(2)}`)
+          const msg = formatCurrency(amountToCharge, currencyConfig) + " charged to gift card. Remaining balance: " + formatCurrency(total - amountToCharge, currencyConfig);
+          alert(msg);
         }
       } else {
         alert(`Payment failed: ${error}`)
@@ -579,7 +591,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
                 <span>
                   {item.quantity}x {item.menuItem?.name || 'Unknown Item'}
                 </span>
-                <span>${parseFloat(item.price).toFixed(2)}</span>
+                <span>{formatCurrency(parseFloat(item.price), currencyConfig)}</span>
               </div>
             ))}
           </div>
@@ -589,16 +601,16 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>${parseFloat(order.subtotal).toFixed(2)}</span>
+              <span>{formatCurrency(parseFloat(order.subtotal), currencyConfig)}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Tax</span>
-              <span>${parseFloat(order.tax).toFixed(2)}</span>
+              <span>{formatCurrency(parseFloat(order.tax), currencyConfig)}</span>
             </div>
             {parseFloat(order.discount) > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Discount</span>
-                <span>-${parseFloat(order.discount).toFixed(2)}</span>
+                <span>-{formatCurrency(parseFloat(order.discount), currencyConfig)}</span>
               </div>
             )}
             <div className="flex justify-between items-center">
@@ -615,17 +627,17 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
             <Separator />
             <div className="flex justify-between font-bold text-lg">
               <span>Total</span>
-              <span>${getOrderTotal().toFixed(2)}</span>
+              <span>{formatCurrency(getOrderTotal(), currencyConfig)}</span>
             </div>
             {getAmountPaid() > 0 && (
               <>
                 <div className="flex justify-between text-green-600">
                   <span>Paid</span>
-                  <span>-${getAmountPaid().toFixed(2)}</span>
+                  <span>-{formatCurrency(getAmountPaid(), currencyConfig)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg text-primary">
                   <span>Remaining</span>
-                  <span>${remaining.toFixed(2)}</span>
+                  <span>{formatCurrency(remaining, currencyConfig)}</span>
                 </div>
               </>
             )}
@@ -664,7 +676,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
               <div className="space-y-4 flex-1">
                 <div>
                   <Label>Amount Due</Label>
-                  <div className="text-3xl font-bold">${remaining.toFixed(2)}</div>
+                  <div className="text-3xl font-bold">{formatCurrency(remaining, currencyConfig)}</div>
                 </div>
 
                 <div>
@@ -688,7 +700,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
                       className="flex-1"
                       onClick={() => setCashReceived(amount.toString())}
                     >
-                      ${amount}
+                      {formatCurrency(amount, currencyConfig)}
                     </Button>
                   ))}
                   <Button
@@ -704,7 +716,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
                   <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
                     <p className="text-sm text-muted-foreground">Change Due</p>
                     <p className="text-2xl font-bold text-green-600">
-                      ${(parseFloat(cashReceived || '0') - remaining).toFixed(2)}
+                      {formatCurrency(parseFloat(cashReceived || '0') - remaining, currencyConfig)}
                     </p>
                   </div>
                 )}
@@ -730,7 +742,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
               <div className="space-y-4 flex-1">
                 <div>
                   <Label>Amount to Charge</Label>
-                  <div className="text-3xl font-bold">${remaining.toFixed(2)}</div>
+                  <div className="text-3xl font-bold">{formatCurrency(remaining, currencyConfig)}</div>
                 </div>
 
                 <div className="p-8 border-2 border-dashed rounded-lg text-center">
@@ -762,7 +774,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
               <div className="space-y-4 flex-1">
                 <div>
                   <Label>Amount Due</Label>
-                  <div className="text-3xl font-bold">${remaining.toFixed(2)}</div>
+                  <div className="text-3xl font-bold">{formatCurrency(remaining, currencyConfig)}</div>
                 </div>
 
                 <div className="space-y-2">
@@ -793,12 +805,12 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
                   <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
                     <p className="text-sm text-muted-foreground">Gift Card Balance</p>
                     <p className="text-2xl font-bold text-green-600">
-                      ${giftCardBalance.toFixed(2)}
+                      {formatCurrency(giftCardBalance, currencyConfig)}
                     </p>
                     {giftCardBalance < remaining && (
                       <p className="text-sm text-yellow-600 mt-2">
-                        Partial payment: ${giftCardBalance.toFixed(2)} will be charged, 
-                        ${(remaining - giftCardBalance).toFixed(2)} remaining
+                        Partial payment: {formatCurrency(giftCardBalance, currencyConfig)} will be charged, 
+                        {formatCurrency(remaining - giftCardBalance, currencyConfig)} remaining
                       </p>
                     )}
                   </div>
@@ -826,12 +838,12 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
                 <div className="flex justify-between">
                   <div>
                     <Label>Total to Split</Label>
-                    <div className="text-2xl font-bold">${remaining.toFixed(2)}</div>
+                    <div className="text-2xl font-bold">{formatCurrency(remaining, currencyConfig)}</div>
                   </div>
                   <div>
                     <Label>Remaining</Label>
                     <div className="text-2xl font-bold text-primary">
-                      ${getSplitRemaining().toFixed(2)}
+                      {formatCurrency(getSplitRemaining(), currencyConfig)}
                     </div>
                   </div>
                 </div>
@@ -847,7 +859,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
                       <div className="flex items-center gap-3">
                         <Badge variant="outline">#{index + 1}</Badge>
                         <span className="capitalize">{payment.method.replace('_', ' ')}</span>
-                        <span className="font-medium">${payment.amount.toFixed(2)}</span>
+                        <span className="font-medium">{formatCurrency(payment.amount, currencyConfig)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         {payment.status === 'completed' && (
@@ -916,11 +928,10 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
             <div>
               <Label>Amount</Label>
               <Input
-                type="number"
                 step="0.01"
                 min="0"
                 max={getSplitRemaining()}
-                placeholder={`Max: $${getSplitRemaining().toFixed(2)}`}
+                placeholder={`Max: ${formatCurrency(getSplitRemaining(), currencyConfig)}`}
                 value={newSplitAmount}
                 onChange={(e) => setNewSplitAmount(e.target.value)}
               />
@@ -977,7 +988,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
                 <div className="mt-4 p-4 bg-green-50 dark:bg-green-950 rounded-lg">
                   <p className="text-sm text-muted-foreground">Change Due</p>
                   <p className="text-3xl font-bold text-green-600">
-                    ${changeAmount.toFixed(2)}
+                    {formatCurrency(changeAmount, currencyConfig)}
                   </p>
                 </div>
               )}

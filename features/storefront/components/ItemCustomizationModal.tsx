@@ -15,6 +15,8 @@ interface ItemCustomizationModalProps {
   item: MenuItem | null
   isOpen: boolean
   onClose: () => void
+  currencyCode?: string
+  locale?: string
 }
 
 // Helper to get image URL
@@ -43,7 +45,7 @@ function getDescriptionText(description: any): string {
   return ''
 }
 
-export function ItemCustomizationModal({ item, isOpen, onClose }: ItemCustomizationModalProps) {
+export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "USD", locale = "en-US" }: ItemCustomizationModalProps) {
   const { addItem } = useCart()
   const [quantity, setQuantity] = useState(1)
   const [selectedModifiers, setSelectedModifiers] = useState<SelectedModifier[]>([])
@@ -171,7 +173,7 @@ export function ItemCustomizationModal({ item, isOpen, onClose }: ItemCustomizat
             <h2 className="font-serif text-2xl md:text-3xl mb-2">{item.name}</h2>
             <p className="text-muted-foreground leading-relaxed">{getDescriptionText(item.description)}</p>
             <div className="flex items-center gap-4 mt-3 text-sm">
-              <span className="font-medium">{formatCurrency(item.price)}</span>
+              <span className="font-medium">{formatCurrency(item.price, { currencyCode, locale })}</span>
               {item.calories && <span className="text-muted-foreground">{item.calories} cal</span>}
             </div>
           </div>
@@ -216,7 +218,7 @@ export function ItemCustomizationModal({ item, isOpen, onClose }: ItemCustomizat
                               )}
                             </div>
                           </div>
-                          {modifier.price > 0 && <span className="text-sm">+{formatCurrency(modifier.price)}</span>}
+                          {modifier.price > 0 && <span className="text-sm">+{formatCurrency(modifier.price, { currencyCode, locale })}</span>}
                         </button>
                       )
                     })}
@@ -262,7 +264,7 @@ export function ItemCustomizationModal({ item, isOpen, onClose }: ItemCustomizat
               className="flex-1 h-12 bg-foreground text-background hover:bg-foreground/90 uppercase tracking-widest text-xs"
               onClick={handleAddToCart}
             >
-              Add to Bag · {formatCurrency(itemTotal)}
+              Add to Bag · {formatCurrency(itemTotal, { currencyCode, locale })}
             </Button>
           </div>
         </div>

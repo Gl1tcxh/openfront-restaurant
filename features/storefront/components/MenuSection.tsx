@@ -6,12 +6,13 @@ import type { MenuItem } from "@/features/storefront/lib/store-data"
 
 interface MenuSectionProps {
   title: string
-  icon: string
   items: MenuItem[]
   onItemSelect: (item: MenuItem) => void
+  currencyCode?: string
+  locale?: string
 }
 
-export const MenuSection = forwardRef<HTMLDivElement, MenuSectionProps>(({ title, items, onItemSelect }, ref) => {
+export const MenuSection = forwardRef<HTMLDivElement, MenuSectionProps>(({ title, items, onItemSelect, currencyCode = "USD", locale = "en-US" }, ref) => {
   if (items.length === 0) return null
 
   return (
@@ -22,7 +23,13 @@ export const MenuSection = forwardRef<HTMLDivElement, MenuSectionProps>(({ title
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {items.map((item) => (
-          <MenuItemCard key={item.id} item={item} onSelect={onItemSelect} />
+          <MenuItemCard
+            key={item.id}
+            item={item}
+            onSelect={onItemSelect}
+            currencyCode={currencyCode}
+            locale={locale}
+          />
         ))}
       </div>
     </section>

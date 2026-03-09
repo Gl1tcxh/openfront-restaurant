@@ -1,5 +1,6 @@
 import { getUser, getUserOrders } from "@/features/storefront/lib/data/user";
 import { formatCurrency } from "@/features/storefront/lib/currency";
+import { getStoreSettings } from "@/features/storefront/lib/data/menu";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Package, MapPin, User, ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -8,6 +9,11 @@ import { notFound } from "next/navigation";
 export default async function AccountOverviewPage() {
   const user = await getUser();
   const orders = await getUserOrders();
+  const storeSettings = await getStoreSettings();
+  const currencyConfig = {
+    currencyCode: storeSettings?.currencyCode || "USD",
+    locale: storeSettings?.locale || "en-US",
+  }
 
   if (!user) notFound();
 
@@ -84,7 +90,7 @@ export default async function AccountOverviewPage() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {orders.slice(0, 3).map((order) => (
+            {orders.slice(0, 3).map((order: any) => (
               <Link key={order.id} href={`/account/orders/details/${order.id}`}>
                 <Card className="hover:bg-muted/50 transition-colors cursor-pointer group mb-3">
                   <CardContent className="p-4">
@@ -101,7 +107,7 @@ export default async function AccountOverviewPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold">{formatCurrency(order.total)}</p>
+                        <p className="text-sm font-bold">{formatCurrency(order.total, currencyConfig)}</p>
                         <p className="text-[10px] uppercase tracking-tighter text-muted-foreground group-hover:text-primary transition-colors flex items-center justify-end">
                           View Details <ChevronRight size={10} />
                         </p>

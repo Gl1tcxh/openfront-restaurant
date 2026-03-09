@@ -4,6 +4,10 @@
     "tagline": "Stacked Fresh, Served Bold",
     "address": "742 Artisan Way, Brooklyn, NY 11201",
     "phone": "(718) 555-0142",
+    "currencyCode": "USD",
+    "locale": "en-US",
+    "timezone": "America/New_York",
+    "countryCode": "US",
     "hours": {
       "monday": "11:00 AM - 10:00 PM",
       "tuesday": "11:00 AM - 10:00 PM",
@@ -152,12 +156,12 @@
     }
   ],
   "categories": [
-    { "name": "Featured", "icon": "⭐", "sortOrder": 1 },
-    { "name": "Burgers", "icon": "🍔", "sortOrder": 2 },
-    { "name": "Chicken", "icon": "🍗", "sortOrder": 3 },
-    { "name": "Sides", "icon": "🍟", "sortOrder": 4 },
-    { "name": "Drinks", "icon": "🥤", "sortOrder": 5 },
-    { "name": "Desserts", "icon": "🍦", "sortOrder": 6 }
+    { "name": "Featured", "icon": "sparkles", "sortOrder": 1 },
+    { "name": "Burgers", "icon": "burger", "sortOrder": 2 },
+    { "name": "Chicken", "icon": "drumstick", "sortOrder": 3 },
+    { "name": "Sides", "icon": "fries", "sortOrder": 4 },
+    { "name": "Drinks", "icon": "cup", "sortOrder": 5 },
+    { "name": "Desserts", "icon": "ice-cream", "sortOrder": 6 }
   ],
   "menuItems": [
     {

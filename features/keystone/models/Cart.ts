@@ -18,9 +18,9 @@ export const Cart = list({
     subtotal: virtual({
       field: graphql.field({
         type: graphql.Int,
-        async resolve(item, args, context) {
+        async resolve(item: any, args, context) {
           const cart = await context.sudo().query.Cart.findOne({
-            where: { id: item.id },
+            where: { id: item.id as string },
             query: 'items { quantity menuItem { price } modifiers { priceAdjustment } }'
           });
           if (!cart?.items) return 0;

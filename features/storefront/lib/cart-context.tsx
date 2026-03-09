@@ -65,13 +65,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addItemMutation = useMutation({
     mutationFn: async (params: { menuItemId: string; quantity: number; modifierIds: string[]; specialInstructions?: string }) => {
-      let currentCartId = getCartId()
-      if (!currentCartId) {
+      const existingCartId = getCartId()
+      let cartId: string = existingCartId || ''
+      if (!cartId) {
         const newCart = await createCart()
-        currentCartId = newCart.id
-        setCartIdCookie(currentCartId)
+        cartId = newCart.id
+        setCartIdCookie(cartId)
       }
-      return addToCart({ ...params, cartId: currentCartId! })
+      return addToCart({ ...params, cartId })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cart"] })

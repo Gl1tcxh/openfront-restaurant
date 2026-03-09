@@ -45,6 +45,27 @@ export const StoreSettings = list({
       ui: { description: "Contact email" },
     }),
 
+    // Localization
+    currencyCode: text({
+      defaultValue: "USD",
+      ui: { description: "ISO 4217 currency code (e.g. USD, EUR, JPY)" },
+    }),
+
+    locale: text({
+      defaultValue: "en-US",
+      ui: { description: "Locale used for formatting numbers/dates (e.g. en-US)" },
+    }),
+
+    timezone: text({
+      defaultValue: "America/New_York",
+      ui: { description: "IANA timezone (e.g. America/New_York)" },
+    }),
+
+    countryCode: text({
+      defaultValue: "US",
+      ui: { description: "Primary storefront country code (ISO 3166-1 alpha-2)" },
+    }),
+
     // Hours (stored as JSON for flexibility)
     hours: json({
       defaultValue: {

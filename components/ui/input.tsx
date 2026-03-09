@@ -14,6 +14,8 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
           "[&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none [&::-webkit-search-results-button]:appearance-none [&::-webkit-search-results-decoration]:appearance-none",
         type === "file" &&
           "text-muted-foreground/70 file:border-input file:text-foreground p-0 pr-3 italic file:me-3 file:h-full file:border-0 file:border-r file:border-solid file:bg-transparent file:px-3 file:font-medium file:not-italic",
+        type === "time" &&
+          "pr-2 [&::-webkit-date-and-time-value]:min-w-0 [&::-webkit-datetime-edit]:min-w-0 [&::-webkit-datetime-edit-fields-wrapper]:min-w-0",
         className,
       )}
       {...props}

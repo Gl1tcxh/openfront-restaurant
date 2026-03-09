@@ -126,9 +126,10 @@ export const User = list({
     firstName: virtual({
       field: graphql.field({
         type: graphql.String,
-        resolve(item) {
-          if (!item.name) return '';
-          return item.name.trim().split(/\s+/)[0] || '';
+        resolve(item: any) {
+          const name = (item.name as string) || '';
+          if (!name) return '';
+          return name.trim().split(/\s+/)[0] || '';
         },
       }),
     }),
@@ -136,9 +137,10 @@ export const User = list({
     lastName: virtual({
       field: graphql.field({
         type: graphql.String,
-        resolve(item) {
-          if (!item.name) return '';
-          const parts = item.name.trim().split(/\s+/);
+        resolve(item: any) {
+          const name = (item.name as string) || '';
+          if (!name) return '';
+          const parts = name.trim().split(/\s+/);
           return parts.length > 1 ? parts.slice(1).join(' ') : '';
         },
       }),

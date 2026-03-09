@@ -280,11 +280,22 @@ export const generateTimeSeriesData = (
   });
 };
 
-export const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
+export const formatCurrency = (amount: number, config?: { currencyCode?: string; locale?: string }) => {
+  const currencyCode = config?.currencyCode || 'USD';
+  const locale = config?.locale || 'en-US';
+  
+  // Basic no-division currency check - mirrored from storefront/lib/currency
+  const NO_DIVISION_CURRENCIES = [
+    "krw", "jpy", "vnd", "clp", "pyg", "xaf", "xof", "bif", "djf", "gnf", "kmf", "mga", "rwf", "xpf", "htg", "vuv", "xag", "xdr", "xau"
+  ];
+  
+  const shouldDivideBy100 = !NO_DIVISION_CURRENCIES.includes(currencyCode.toLowerCase());
+  const value = shouldDivideBy100 ? amount / 100 : amount;
+
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'USD',
-  }).format(amount);
+    currency: currencyCode,
+  }).format(value);
 };
 
 export const formatPercentage = (value: number, decimals: number = 1) => {

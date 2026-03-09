@@ -12,6 +12,8 @@ interface DaypartData {
 
 interface DaypartChartProps {
   data: DaypartData;
+  currencyCode?: string;
+  locale?: string;
 }
 
 const daypartLabels: Record<keyof DaypartData, { label: string; time: string; color: string }> = {
@@ -21,7 +23,8 @@ const daypartLabels: Record<keyof DaypartData, { label: string; time: string; co
   lateNight: { label: "Late Night", time: "10PM - 6AM", color: "bg-purple-500" },
 };
 
-export function DaypartChart({ data }: DaypartChartProps) {
+export function DaypartChart({ data, currencyCode = "USD", locale = "en-US" }: DaypartChartProps) {
+  const currencyConfig = { currencyCode, locale };
   const totalRevenue = Object.values(data).reduce((sum, d) => sum + d.revenue, 0);
   
   const sortedDayparts = (Object.entries(data) as Array<[keyof DaypartData, { orders: number; revenue: number }]>)
@@ -50,7 +53,7 @@ export function DaypartChart({ data }: DaypartChartProps) {
                     <span className="text-xs text-muted-foreground">({info.time})</span>
                   </div>
                   <div className="text-right">
-                    <span className="font-semibold">{formatCurrency(daypart.revenue)}</span>
+                    <span className="font-semibold">{formatCurrency(daypart.revenue, currencyConfig)}</span>
                     <span className="text-xs text-muted-foreground ml-2">
                       ({formatNumber(daypart.orders)} orders)
                     </span>

@@ -100,8 +100,8 @@ export async function voidOrderItem(
       };
     }
 
-    // Calculate the void amount
-    const voidAmount = parseFloat(String(orderItem.price)) * (orderItem.quantity as number);
+    // Calculate the void amount (all values in cents)
+    const voidAmount = (orderItem.price || 0) * (orderItem.quantity || 0);
 
     // Delete the order item
     await context.db.OrderItem.deleteOne({
@@ -115,16 +115,20 @@ export async function voidOrderItem(
       });
 
       if (order) {
-        const currentSubtotal = parseFloat(String(order.subtotal)) - voidAmount;
-        const newTax = currentSubtotal * 0.08;
+        const currentSubtotal = (order.subtotal || 0) - voidAmount;
+        // Keep current tax ratio or recalculate if needed. 
+        // For now, simple proportional adjustment or re-summing would be better.
+        // But for simplicity in this mutation:
+        const taxRate = order.subtotal ? (order.tax || 0) / order.subtotal : 0.08;
+        const newTax = Math.round(currentSubtotal * taxRate);
         const newTotal = currentSubtotal + newTax;
 
         await context.db.RestaurantOrder.updateOne({
           where: { id: orderItem.orderId },
           data: {
-            subtotal: Math.max(0, currentSubtotal).toFixed(2),
-            tax: Math.max(0, newTax).toFixed(2),
-            total: Math.max(0, newTotal).toFixed(2),
+            subtotal: Math.max(0, currentSubtotal),
+            tax: Math.max(0, newTax),
+            total: Math.max(0, newTotal),
             specialInstructions: order.specialInstructions
               ? `${order.specialInstructions} | VOID: ${reason}`
               : `VOID: ${reason}`,
@@ -136,7 +140,7 @@ export async function voidOrderItem(
     return {
       success: true,
       requiresManagerApproval: false,
-      adjustedAmount: Math.round(voidAmount * 100), // Return in cents
+      adjustedAmount: voidAmount,
       error: null,
     };
   } catch (err) {
@@ -205,14 +209,15 @@ export async function compOrderItem(
       };
     }
 
-    // Calculate the comp amount
-    const itemTotal = parseFloat(String(orderItem.price)) * (orderItem.quantity as number);
-    const actualCompAmount = compAmount
-      ? Math.min(compAmount / 100, itemTotal) // Convert cents to dollars, cap at item total
+    // Calculate the comp amount (all in cents)
+    const itemTotal = (orderItem.price || 0) * (orderItem.quantity || 0);
+    const actualCompAmount = compAmount !== undefined && compAmount !== null
+      ? Math.min(compAmount, itemTotal)
       : itemTotal; // Full comp
 
     // Update the order item price to reflect comp
-    const newPrice = parseFloat(String(orderItem.price)) - (actualCompAmount / (orderItem.quantity as number));
+    const perItemComp = Math.floor(actualCompAmount / (orderItem.quantity || 1));
+    const newPrice = (orderItem.price || 0) - perItemComp;
 
     if (newPrice <= 0) {
       // Full comp - delete the item
@@ -224,7 +229,7 @@ export async function compOrderItem(
       await context.db.OrderItem.updateOne({
         where: { id: orderItemId },
         data: {
-          price: newPrice.toFixed(2),
+          price: newPrice,
           specialInstructions: orderItem.specialInstructions
             ? `${orderItem.specialInstructions} | COMP: ${reason}`
             : `COMP: ${reason}`,
@@ -239,16 +244,17 @@ export async function compOrderItem(
       });
 
       if (order) {
-        const currentSubtotal = parseFloat(String(order.subtotal)) - actualCompAmount;
-        const newTax = currentSubtotal * 0.08;
+        const currentSubtotal = (order.subtotal || 0) - actualCompAmount;
+        const taxRate = order.subtotal ? (order.tax || 0) / order.subtotal : 0.08;
+        const newTax = Math.round(currentSubtotal * taxRate);
         const newTotal = currentSubtotal + newTax;
 
         await context.db.RestaurantOrder.updateOne({
           where: { id: orderItem.orderId },
           data: {
-            subtotal: Math.max(0, currentSubtotal).toFixed(2),
-            tax: Math.max(0, newTax).toFixed(2),
-            total: Math.max(0, newTotal).toFixed(2),
+            subtotal: Math.max(0, currentSubtotal),
+            tax: Math.max(0, newTax),
+            total: Math.max(0, newTotal),
             specialInstructions: order.specialInstructions
               ? `${order.specialInstructions} | COMP: ${reason}`
               : `COMP: ${reason}`,
@@ -260,7 +266,7 @@ export async function compOrderItem(
     return {
       success: true,
       requiresManagerApproval: false,
-      adjustedAmount: Math.round(actualCompAmount * 100), // Return in cents
+      adjustedAmount: actualCompAmount,
       error: null,
     };
   } catch (err) {
@@ -329,7 +335,7 @@ export async function voidOrder(
       };
     }
 
-    const voidAmount = parseFloat(String(order.total));
+    const voidAmount = order.total || 0;
 
     // Delete all order items
     const orderItems = await context.db.OrderItem.findMany({
@@ -347,9 +353,9 @@ export async function voidOrder(
       where: { id: orderId },
       data: {
         status: "cancelled",
-        subtotal: "0.00",
-        tax: "0.00",
-        total: "0.00",
+        subtotal: 0,
+        tax: 0,
+        total: 0,
         specialInstructions: order.specialInstructions
           ? `${order.specialInstructions} | VOIDED: ${reason}`
           : `VOIDED: ${reason}`,
@@ -359,7 +365,7 @@ export async function voidOrder(
     return {
       success: true,
       requiresManagerApproval: false,
-      adjustedAmount: Math.round(voidAmount * 100), // Return in cents
+      adjustedAmount: voidAmount,
       error: null,
     };
   } catch (err) {

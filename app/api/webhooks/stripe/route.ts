@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     
     // Call the generic handlePaymentProviderWebhook mutation
     // This allows the logic to be centralized and use the adapter system
-    const result = await context.graphql.run({
+    const result = (await context.graphql.run({
       query: `
         mutation HandleWebhook($providerCode: String!, $event: JSON!, $headers: JSON!) {
           handlePaymentProviderWebhook(providerCode: $providerCode, event: $event, headers: $headers) {
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         event: body,
         headers: headers
       }
-    });
+    })) as any;
 
     if (result.handlePaymentProviderWebhook?.success) {
       return NextResponse.json({ received: true });

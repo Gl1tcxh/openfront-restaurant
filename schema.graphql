@@ -1098,6 +1098,7 @@ type RestaurantOrder {
   tip: Int
   discount: Int
   total: Int
+  currencyCode: String
   customerName: String
   customerEmail: String
   customerPhone: String
@@ -1152,6 +1153,7 @@ input RestaurantOrderWhereInput {
   tip: IntNullableFilter
   discount: IntNullableFilter
   total: IntNullableFilter
+  currencyCode: StringFilter
   customerName: StringFilter
   customerEmail: StringFilter
   customerPhone: StringFilter
@@ -1220,6 +1222,7 @@ input RestaurantOrderOrderByInput {
   tip: OrderDirection
   discount: OrderDirection
   total: OrderDirection
+  currencyCode: OrderDirection
   customerName: OrderDirection
   customerEmail: OrderDirection
   customerPhone: OrderDirection
@@ -1248,6 +1251,7 @@ input RestaurantOrderUpdateInput {
   tip: Int
   discount: Int
   total: Int
+  currencyCode: String
   customerName: String
   customerEmail: String
   customerPhone: String
@@ -1331,6 +1335,7 @@ input RestaurantOrderCreateInput {
   tip: Int
   discount: Int
   total: Int
+  currencyCode: String
   customerName: String
   customerEmail: String
   customerPhone: String
@@ -1950,6 +1955,7 @@ input TableRelateToOneForCreateInput {
 type Payment {
   id: ID!
   amount: Int
+  currencyCode: String
   status: String
   paymentMethod: String
   paymentProvider: PaymentProvider
@@ -1983,6 +1989,7 @@ input PaymentWhereInput {
   NOT: [PaymentWhereInput!]
   id: IDFilter
   amount: IntFilter
+  currencyCode: StringFilter
   status: StringFilter
   paymentMethod: StringNullableFilter
   paymentProvider: PaymentProviderWhereInput
@@ -2008,6 +2015,7 @@ input PaymentWhereInput {
 input PaymentOrderByInput {
   id: OrderDirection
   amount: OrderDirection
+  currencyCode: OrderDirection
   status: OrderDirection
   paymentMethod: OrderDirection
   providerPaymentId: OrderDirection
@@ -2029,6 +2037,7 @@ input PaymentOrderByInput {
 
 input PaymentUpdateInput {
   amount: Int
+  currencyCode: String
   status: String
   paymentMethod: String
   paymentProvider: PaymentProviderRelateToOneForUpdateInput
@@ -2064,6 +2073,7 @@ input PaymentUpdateArgs {
 
 input PaymentCreateInput {
   amount: Int
+  currencyCode: String
   status: String
   paymentMethod: String
   paymentProvider: PaymentProviderRelateToOneForCreateInput
@@ -3360,6 +3370,10 @@ type StoreSettings {
   address: String
   phone: String
   email: String
+  currencyCode: String
+  locale: String
+  timezone: String
+  countryCode: String
   hours: JSON
   deliveryFee: Decimal
   deliveryMinimum: Decimal
@@ -3388,6 +3402,10 @@ input StoreSettingsWhereInput {
   address: StringFilter
   phone: StringFilter
   email: StringFilter
+  currencyCode: StringFilter
+  locale: StringFilter
+  timezone: StringFilter
+  countryCode: StringFilter
   deliveryFee: DecimalNullableFilter
   deliveryMinimum: DecimalNullableFilter
   pickupDiscount: IntNullableFilter
@@ -3408,6 +3426,10 @@ input StoreSettingsOrderByInput {
   address: OrderDirection
   phone: OrderDirection
   email: OrderDirection
+  currencyCode: OrderDirection
+  locale: OrderDirection
+  timezone: OrderDirection
+  countryCode: OrderDirection
   deliveryFee: OrderDirection
   deliveryMinimum: OrderDirection
   pickupDiscount: OrderDirection
@@ -3427,6 +3449,10 @@ input StoreSettingsUpdateInput {
   address: String
   phone: String
   email: String
+  currencyCode: String
+  locale: String
+  timezone: String
+  countryCode: String
   hours: JSON
   deliveryFee: Decimal
   deliveryMinimum: Decimal
@@ -3452,6 +3478,10 @@ input StoreSettingsCreateInput {
   address: String
   phone: String
   email: String
+  currencyCode: String
+  locale: String
+  timezone: String
+  countryCode: String
   hours: JSON
   deliveryFee: Decimal
   deliveryMinimum: Decimal
@@ -4211,7 +4241,7 @@ type Mutation {
   voidOrderItem(orderItemId: String!, reason: String!, managerApproval: Boolean, managerId: String): VoidCompResult
   compOrderItem(orderItemId: String!, reason: String!, compAmount: Int, managerApproval: Boolean, managerId: String): VoidCompResult
   voidOrder(orderId: String!, reason: String!, managerApproval: Boolean, managerId: String): VoidCompResult
-  createStorefrontOrder(orderType: String!, customerInfo: CustomerInfoInput!, deliveryAddress: DeliveryAddressInput, items: [StorefrontOrderItemInput!]!, subtotal: Int!, tax: Int!, tip: Int!, total: Int!, specialInstructions: String): CreateStorefrontOrderResult
+  createStorefrontOrder(orderType: String!, customerInfo: CustomerInfoInput!, deliveryAddress: DeliveryAddressInput, items: [StorefrontOrderItemInput!]!, subtotal: Int!, tax: Int!, tip: Int!, total: Int!, currencyCode: String, specialInstructions: String): CreateStorefrontOrderResult
   completeStorefrontOrder(orderId: String!): CompleteStorefrontOrderResult
   transferTable(orderId: String!, fromTableId: String!, toTableId: String!): TableManagementResult
   combineTables(orderId: String!, tableIds: [String!]!): TableManagementResult

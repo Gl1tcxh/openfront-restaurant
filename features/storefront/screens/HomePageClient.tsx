@@ -153,7 +153,7 @@ function StorefrontContent({ categories, menuItems, featuredItems, storeInfo, us
                           {getDescriptionText(item.description)}
                         </p>
                         <div className="flex items-center gap-4 mt-4">
-                          <span className="text-lg">{formatCurrency(item.price)}</span>
+                          <span className="text-lg">{formatCurrency(item.price, { currencyCode: storeInfo.currencyCode, locale: storeInfo.locale })}</span>
                           {item.calories && <span className="text-sm opacity-70">{item.calories} cal</span>}
                         </div>
                       </div>
@@ -176,9 +176,10 @@ function StorefrontContent({ categories, menuItems, featuredItems, storeInfo, us
                 key={category.id}
                 ref={(el) => { sectionRefs.current[category.id] = el }}
                 title={category.name}
-                icon={category.icon || '🍽️'}
                 items={categoryItems}
                 onItemSelect={handleItemSelect}
+                currencyCode={storeInfo.currencyCode}
+                locale={storeInfo.locale}
               />
             )
           })}
@@ -186,7 +187,13 @@ function StorefrontContent({ categories, menuItems, featuredItems, storeInfo, us
       </main>
 
       {/* Modals and Sidebars */}
-      <ItemCustomizationModal item={selectedItem} isOpen={!!selectedItem} onClose={() => setSelectedItem(null)} />
+      <ItemCustomizationModal
+        item={selectedItem}
+        isOpen={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
+        currencyCode={storeInfo.currencyCode}
+        locale={storeInfo.locale}
+      />
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { BarChart3, TrendingUp, Users, ChefHat, Wallet, Clock, Activity, ArrowRight, PieChart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 

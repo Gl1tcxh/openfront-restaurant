@@ -35,6 +35,23 @@ export const Payment = list({
       },
     }),
 
+    currencyCode: text({
+      defaultValue: "USD",
+      ui: { description: "ISO 4217 currency code for this payment" },
+      hooks: {
+        resolveInput: async ({ operation, inputData, context }) => {
+          if (operation === "create" && !inputData.currencyCode) {
+            const settings = await context.sudo().query.StoreSettings.findOne({
+              where: { id: '1' },
+              query: 'currencyCode'
+            });
+            return settings?.currencyCode || "USD";
+          }
+          return inputData.currencyCode;
+        }
+      }
+    }),
+
     status: select({
       type: "string",
       options: [

@@ -19,6 +19,8 @@ interface MenuItemPerformanceData {
 interface MenuItemPerformanceProps {
   items: MenuItemPerformanceData[];
   totalRevenue: number;
+  currencyCode?: string;
+  locale?: string;
 }
 
 function getClassification(item: MenuItemPerformanceData): { label: string; color: string; icon: React.ReactNode } {
@@ -35,7 +37,8 @@ function getClassification(item: MenuItemPerformanceData): { label: string; colo
   return { label: "Dog", color: "bg-gray-100 text-gray-800 border-gray-300", icon: <TrendingDown className="w-3 h-3" /> };
 }
 
-export function MenuItemPerformance({ items, totalRevenue }: MenuItemPerformanceProps) {
+export function MenuItemPerformance({ items, totalRevenue, currencyCode = "USD", locale = "en-US" }: MenuItemPerformanceProps) {
+  const currencyConfig = { currencyCode, locale };
   const topItems = items.slice(0, 10);
   const bottomItems = items.slice(-5).reverse();
 
@@ -72,7 +75,7 @@ export function MenuItemPerformance({ items, totalRevenue }: MenuItemPerformance
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold">{formatCurrency(item.revenue)}</div>
+                    <div className="font-semibold">{formatCurrency(item.revenue, currencyConfig)}</div>
                     <div className="text-xs text-muted-foreground">
                       {formatPercentage(item.percentageOfSales)} of sales
                     </div>
@@ -112,7 +115,7 @@ export function MenuItemPerformance({ items, totalRevenue }: MenuItemPerformance
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold">{formatCurrency(item.revenue)}</div>
+                    <div className="font-semibold">{formatCurrency(item.revenue, currencyConfig)}</div>
                     <div className="text-xs text-muted-foreground">
                       {formatPercentage(item.percentageOfSales)} of sales
                     </div>

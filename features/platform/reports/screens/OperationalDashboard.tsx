@@ -1,5 +1,6 @@
 import { getOperationalMetrics, getSalesOverview } from "../actions";
 import { getDateRange, formatCurrency, formatNumber } from "../lib/reportHelpers";
+import { getStoreSettings } from "@/features/storefront/lib/data/menu";
 import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs";
 import { OperationalMetrics } from "../components/OperationalMetrics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +12,16 @@ import Link from "next/link";
 export async function OperationalDashboard() {
   try {
     const today = getDateRange("7d");
-    const [metricsResponse, salesResponse] = await Promise.all([
+    const [metricsResponse, salesResponse, storeSettings] = await Promise.all([
       getOperationalMetrics(),
       getSalesOverview(today.startDate, today.endDate),
+      getStoreSettings(),
     ]);
+
+    const currencyConfig = {
+      currencyCode: storeSettings?.currencyCode || "USD",
+      locale: storeSettings?.locale || "en-US",
+    };
 
     const metrics = metricsResponse.success ? metricsResponse.data : null;
     const salesData = salesResponse.success ? salesResponse.data : null;
@@ -72,7 +79,7 @@ export async function OperationalDashboard() {
               <Card className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 dark:from-emerald-500/10 dark:to-emerald-500/5 border-emerald-200 dark:border-emerald-800">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(todayRevenue)}</div>
+                    <div className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(todayRevenue, currencyConfig)}</div>
                     <div className="text-sm text-emerald-600 dark:text-emerald-500">Today's Revenue</div>
                   </div>
                 </CardContent>
@@ -113,6 +120,8 @@ export async function OperationalDashboard() {
               ordersReady={ordersReady}
               voidRate={voidRate}
               serverCount={3}
+              currencyCode={currencyConfig.currencyCode}
+              locale={currencyConfig.locale}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

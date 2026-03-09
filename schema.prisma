@@ -196,6 +196,7 @@ model RestaurantOrder {
   tip                            Int?                  @default(0)
   discount                       Int?                  @default(0)
   total                          Int?                  @default(0)
+  currencyCode                   String                @default("USD")
   customerName                   String                @default("")
   customerEmail                  String                @default("")
   customerPhone                  String                @default("")
@@ -348,6 +349,7 @@ model Reservation {
 model Payment {
   id                    String           @id @default(cuid())
   amount                Int
+  currencyCode          String           @default("USD")
   status                String           @default("pending")
   paymentMethod         String?          @default("credit_card")
   paymentProvider       PaymentProvider? @relation("Payment_paymentProvider", fields: [paymentProviderId], references: [id])
@@ -619,6 +621,10 @@ model StoreSettings {
   address           String   @default("")
   phone             String   @default("")
   email             String   @default("")
+  currencyCode      String   @default("USD")
+  locale            String   @default("en-US")
+  timezone          String   @default("America/New_York")
+  countryCode       String   @default("US")
   hours             Json?    @default("{\"monday\":\"11:00 AM - 10:00 PM\",\"tuesday\":\"11:00 AM - 10:00 PM\",\"wednesday\":\"11:00 AM - 10:00 PM\",\"thursday\":\"11:00 AM - 10:00 PM\",\"friday\":\"11:00 AM - 11:00 PM\",\"saturday\":\"10:00 AM - 11:00 PM\",\"sunday\":\"10:00 AM - 9:00 PM\"}")
   deliveryFee       Decimal? @default("4.99") @postgresql.Decimal(10, 2)
   deliveryMinimum   Decimal? @default("15.00") @postgresql.Decimal(10, 2)

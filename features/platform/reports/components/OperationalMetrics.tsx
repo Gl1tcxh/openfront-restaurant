@@ -17,6 +17,8 @@ interface OperationalMetricsProps {
   voidRate: number;
   serverCount: number;
   revenuePerLaborHour?: number;
+  currencyCode?: string;
+  locale?: string;
 }
 
 export function OperationalMetrics({
@@ -30,7 +32,10 @@ export function OperationalMetrics({
   voidRate,
   serverCount,
   revenuePerLaborHour,
+  currencyCode = "USD",
+  locale = "en-US",
 }: OperationalMetricsProps) {
+  const currencyConfig = { currencyCode, locale };
   const occupancyPercent = totalTables > 0 ? (tableOccupancy / totalTables) * 100 : 0;
   const ticketTimeStatus = averageTicketTime <= targetTicketTime ? "good" : "warning";
 
@@ -152,7 +157,7 @@ export function OperationalMetrics({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{formatCurrency(revenuePerLaborHour)}</div>
+            <div className="text-3xl font-bold">{formatCurrency(revenuePerLaborHour, currencyConfig)}</div>
             <div className="text-xs text-muted-foreground mt-1">
               Sales efficiency metric
             </div>

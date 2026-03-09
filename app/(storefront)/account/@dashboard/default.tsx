@@ -1,5 +1,3 @@
-import { AccountDashboardPage } from "@/features/storefront/screens/AccountPageLayout";
-
-export default async function Default() {
-  return <AccountDashboardPage />;
+export default function Default() {
+  return null;
 }
