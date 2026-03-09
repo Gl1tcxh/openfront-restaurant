@@ -2,7 +2,7 @@
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fopenshiporg%2Fopenfront-restaurant&env=SESSION_SECRET&products=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22group%22%3A%22postgres%22%7D%5D)
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/openfront-restaurant)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/openfront-restaurant)
 
 Openfront Restaurant is a specialized version of the Openfront platform designed specifically for the food and beverage industry. It provides a complete suite of tools for restaurant management, including Point of Sale (POS), Kitchen Display Systems (KDS), table management, menu engineering, and waitlist handling.
 
