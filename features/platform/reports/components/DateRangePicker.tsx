@@ -6,7 +6,6 @@ import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -19,10 +18,7 @@ interface DateRangePickerProps {
   onDateChange?: (range: DateRange | undefined) => void;
 }
 
-export function DateRangePicker({
-  className,
-  onDateChange,
-}: DateRangePickerProps) {
+export function DateRangePicker({ className, onDateChange }: DateRangePickerProps) {
   const [date, setDate] = React.useState<DateRange | undefined>();
 
   const handleSelect = (range: DateRange | undefined) => {
@@ -30,32 +26,27 @@ export function DateRangePicker({
     onDateChange?.(range);
   };
 
+  const label = date?.from
+    ? date.to
+      ? `${format(date.from, "MMM d")} – ${format(date.to, "MMM d, y")}`
+      : format(date.from, "MMM d, y")
+    : "Custom range";
+
   return (
-    <div className={cn("grid gap-2", className)}>
+    <div className={cn(className)}>
       <Popover>
         <PopoverTrigger asChild>
-          <Button
-            id="date"
-            variant={"outline"}
+          <button
             className={cn(
-              "w-[260px] justify-start text-left font-normal",
-              !date && "text-muted-foreground"
+              "flex items-center gap-1.5 border border-border rounded h-8 px-3 text-[10px] font-semibold uppercase tracking-wider transition-colors",
+              date?.from
+                ? "bg-foreground text-background border-foreground"
+                : "text-muted-foreground hover:bg-muted"
             )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {date?.from ? (
-              date.to ? (
-                <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
-                </>
-              ) : (
-                format(date.from, "LLL dd, y")
-              )
-            ) : (
-              <span>Pick a date range</span>
-            )}
-          </Button>
+            <CalendarIcon className="h-3 w-3 shrink-0" />
+            {label}
+          </button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="end">
           <Calendar
@@ -66,6 +57,16 @@ export function DateRangePicker({
             onSelect={handleSelect}
             numberOfMonths={2}
           />
+          {date?.from && (
+            <div className="border-t border-border px-4 py-2.5 flex justify-end">
+              <button
+                onClick={() => handleSelect(undefined)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear range
+              </button>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
     </div>

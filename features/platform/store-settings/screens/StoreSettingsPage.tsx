@@ -5,7 +5,6 @@ import { gql, request } from 'graphql-request'
 import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -13,8 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Globe2, Save, Store, CalendarClock, Sparkles } from 'lucide-react'
+import { Globe2, Save, Store, CalendarClock } from 'lucide-react'
 import {
   WeeklyHoursEditor,
   type DayKey,
@@ -171,28 +169,26 @@ const currencyOptions = ['USD', 'EUR', 'GBP', 'AED', 'PKR', 'INR', 'JPY', 'AUD',
 
 function Section({
   title,
-  subtitle,
   icon,
   children,
 }: {
   title: string
-  subtitle: string
   icon: ReactNode
   children: ReactNode
 }) {
   return (
-    <section className="rounded-2xl border border-border/70 bg-background/80 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
-      <div className="mb-5 flex items-start gap-3 border-b border-border/60 pb-4">
-        <div className="mt-0.5 text-muted-foreground">{icon}</div>
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground/90">{title}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-        </div>
+    <div className="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
+      <div className="px-5 py-3 flex items-center gap-2 bg-muted/20">
+        <span className="text-muted-foreground">{icon}</span>
+        <span className="text-[11px] uppercase tracking-wider font-semibold text-foreground">{title}</span>
       </div>
       {children}
-    </section>
+    </div>
   )
 }
+
+const fieldInput = "h-auto px-0 py-0 border-0 shadow-none bg-transparent text-sm font-semibold mt-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/40 placeholder:font-normal w-full"
+const fieldSelect = "h-auto px-0 py-0 border-0 shadow-none bg-transparent text-sm font-semibold mt-1.5 focus:ring-0 focus:ring-offset-0 [&>svg]:size-3.5 [&>svg]:opacity-40 [&>svg]:ml-1 gap-0 w-full"
 
 export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreSettingsData | null }) {
   const [isSaving, setIsSaving] = useState(false)
@@ -320,83 +316,211 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
   }
 
   return (
-    <div className="flex h-full flex-col bg-[radial-gradient(circle_at_top_right,rgba(100,116,139,0.08),transparent_45%)]">
+    <div className="flex h-full flex-col bg-background">
       <PageBreadcrumbs items={breadcrumbs} />
 
-      <div className="border-b border-border/60 px-6 py-6">
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <Badge variant="outline" className="mb-3 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.22em]">
-              <Sparkles className="mr-1.5 h-3 w-3" /> Platform configuration
-            </Badge>
-            <h1 className="text-3xl font-black tracking-tight">Store Settings</h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Clean, centralized controls for how your restaurant appears and operates.
-            </p>
-          </div>
+      {/* Header */}
+      <div className="px-4 md:px-6 py-4 border-b border-border flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Store Settings</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Centralized controls for how your restaurant appears and operates.
+          </p>
+        </div>
 
-          <div className="flex items-center gap-2">
-            {savedAt ? <Badge variant="secondary">Saved {savedAt}</Badge> : null}
-            <Button onClick={onSave} disabled={isSaving} className="h-11 rounded-xl px-5 font-semibold">
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? 'Saving…' : 'Save Changes'}
-            </Button>
-          </div>
+        <div className="flex items-center gap-2">
+          {savedAt ? (
+            <span className="text-xs text-muted-foreground">Saved {savedAt}</span>
+          ) : null}
+          <Button onClick={onSave} disabled={isSaving} className="h-8 text-xs px-4">
+            <Save className="mr-2 h-3.5 w-3.5" />
+            {isSaving ? 'Saving…' : 'Save Changes'}
+          </Button>
         </div>
       </div>
 
-      <div className="mx-auto grid w-full max-w-[1440px] grid-cols-1 gap-6 p-6 xl:grid-cols-[1.1fr_1fr]">
+      {/* Stat strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 divide-x border-b border-border">
+        <div className="px-5 py-3">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Open Days</p>
+          <p className="text-xl font-semibold mt-1">{openDaysCount}<span className="text-sm text-muted-foreground font-normal"> / 7</span></p>
+        </div>
+        <div className="px-5 py-3">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Today</p>
+          <p className="text-sm font-semibold mt-1 truncate">{todaySummary}</p>
+        </div>
+        <div className="px-5 py-3">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Currency</p>
+          <p className="text-sm font-semibold mt-1">{form.currencyCode} · {form.locale}</p>
+        </div>
+        <div className="px-5 py-3">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Timezone</p>
+          <p className="text-sm font-semibold mt-1 truncate">{form.timezone.split('/').pop()?.replace('_', ' ')}</p>
+        </div>
+      </div>
+
+      <div className="grid w-full grid-cols-1 gap-6 p-4 md:p-6 xl:grid-cols-[1.1fr_1fr] overflow-auto">
         <div className="space-y-6">
-          <Section title="Identity & Contact" subtitle="Core profile details shown in admin and storefront." icon={<Store className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div><Label>Store name</Label><Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
-              <div><Label>Tagline</Label><Input value={form.tagline} onChange={(e) => setForm((f) => ({ ...f, tagline: e.target.value }))} /></div>
+
+          {/* Identity & Contact */}
+          <Section title="Identity & Contact" icon={<Store size={13} />}>
+            {/* Row 1: Name + Tagline */}
+            <div className="grid grid-cols-2 divide-x divide-border">
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Store Name</p>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. The Great Kitchen"
+                  className={fieldInput}
+                />
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Tagline</p>
+                <Input
+                  value={form.tagline}
+                  onChange={(e) => setForm((f) => ({ ...f, tagline: e.target.value }))}
+                  placeholder="e.g. Best food in town"
+                  className={fieldInput}
+                />
+              </div>
             </div>
-            <div className="mt-4"><Label>Address</Label><Input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} /></div>
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} /></div>
-              <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></div>
-              <div><Label>Country code</Label><Input value={form.countryCode} onChange={(e) => setForm((f) => ({ ...f, countryCode: e.target.value.toUpperCase() }))} /></div>
+            {/* Row 2: Address */}
+            <div className="px-5 py-3">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Address</p>
+              <Input
+                value={form.address}
+                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                placeholder="123 Main St, City, State"
+                className={fieldInput}
+              />
+            </div>
+            {/* Row 3: Phone + Email + Country */}
+            <div className="grid grid-cols-3 divide-x divide-border">
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Phone</p>
+                <Input
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="(555) 000-0000"
+                  className={fieldInput}
+                />
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Email</p>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="info@restaurant.com"
+                  className={fieldInput}
+                />
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Country Code</p>
+                <Input
+                  value={form.countryCode}
+                  onChange={(e) => setForm((f) => ({ ...f, countryCode: e.target.value.toUpperCase() }))}
+                  placeholder="US"
+                  className={fieldInput}
+                />
+              </div>
+            </div>
+            {/* Row 4: Promo Banner */}
+            <div className="px-5 py-3">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Promo Banner</p>
+              <Input
+                value={form.promoBanner}
+                onChange={(e) => setForm((f) => ({ ...f, promoBanner: e.target.value }))}
+                placeholder="e.g. Free delivery on orders over $30"
+                className={fieldInput}
+              />
             </div>
           </Section>
 
-          <Section title="Localization" subtitle="Controls for currency, locale, and timezone formatting." icon={<Globe2 className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div>
-                <Label>Currency</Label>
+          {/* Localization */}
+          <Section title="Localization" icon={<Globe2 size={13} />}>
+            <div className="grid grid-cols-3 divide-x divide-border">
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Currency</p>
                 <Select value={form.currencyCode} onValueChange={(v) => setForm((f) => ({ ...f, currencyCode: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={fieldSelect}><SelectValue /></SelectTrigger>
                   <SelectContent>{currencyOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Locale</Label>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Locale</p>
                 <Select value={form.locale} onValueChange={(v) => setForm((f) => ({ ...f, locale: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={fieldSelect}><SelectValue /></SelectTrigger>
                   <SelectContent>{localeOptions.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Timezone</Label>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Timezone</p>
                 <Select value={form.timezone} onValueChange={(v) => setForm((f) => ({ ...f, timezone: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className={fieldSelect}><SelectValue /></SelectTrigger>
                   <SelectContent>{timezoneOptions.map((tz) => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
           </Section>
 
-          <Section title="Order Defaults" subtitle="Default settings for pickup and delivery estimations." icon={<CalendarClock className="h-4 w-4" />}>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div><Label>Delivery fee</Label><Input value={form.deliveryFee} onChange={(e) => setForm((f) => ({ ...f, deliveryFee: e.target.value }))} /></div>
-              <div><Label>Delivery minimum</Label><Input value={form.deliveryMinimum} onChange={(e) => setForm((f) => ({ ...f, deliveryMinimum: e.target.value }))} /></div>
+          {/* Order Defaults */}
+          <Section title="Order Defaults" icon={<CalendarClock size={13} />}>
+            {/* Row 1: Delivery fee + Minimum */}
+            <div className="grid grid-cols-2 divide-x divide-border">
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Delivery Fee</p>
+                <Input
+                  value={form.deliveryFee}
+                  onChange={(e) => setForm((f) => ({ ...f, deliveryFee: e.target.value }))}
+                  placeholder="4.99"
+                  className={fieldInput}
+                />
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Delivery Minimum</p>
+                <Input
+                  value={form.deliveryMinimum}
+                  onChange={(e) => setForm((f) => ({ ...f, deliveryMinimum: e.target.value }))}
+                  placeholder="15.00"
+                  className={fieldInput}
+                />
+              </div>
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div><Label>Pickup discount (%)</Label><Input type="number" value={form.pickupDiscount} onChange={(e) => setForm((f) => ({ ...f, pickupDiscount: Number(e.target.value) }))} /></div>
-              <div><Label>Estimated pickup</Label><Input value={form.estimatedPickup} onChange={(e) => setForm((f) => ({ ...f, estimatedPickup: e.target.value }))} /></div>
-              <div><Label>Estimated delivery</Label><Input value={form.estimatedDelivery} onChange={(e) => setForm((f) => ({ ...f, estimatedDelivery: e.target.value }))} /></div>
+            {/* Row 2: Pickup discount + est. pickup + est. delivery */}
+            <div className="grid grid-cols-3 divide-x divide-border">
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Pickup Discount %</p>
+                <Input
+                  type="number"
+                  value={form.pickupDiscount}
+                  onChange={(e) => setForm((f) => ({ ...f, pickupDiscount: Number(e.target.value) }))}
+                  placeholder="10"
+                  className={fieldInput}
+                />
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Est. Pickup</p>
+                <Input
+                  value={form.estimatedPickup}
+                  onChange={(e) => setForm((f) => ({ ...f, estimatedPickup: e.target.value }))}
+                  placeholder="15-20 min"
+                  className={fieldInput}
+                />
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Est. Delivery</p>
+                <Input
+                  value={form.estimatedDelivery}
+                  onChange={(e) => setForm((f) => ({ ...f, estimatedDelivery: e.target.value }))}
+                  placeholder="30-45 min"
+                  className={fieldInput}
+                />
+              </div>
             </div>
           </Section>
+
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-6 xl:h-fit">

@@ -9,20 +9,13 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   Plus,
-  Triangle,
-  Square,
-  Circle,
   Search,
   Ticket,
-  Filter,
-  ArrowUpDown,
   RefreshCw
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs"
-import { PageContainer } from '../../../dashboard/components/PageContainer'
 import { PlatformFilterBar } from '../../components/PlatformFilterBar'
 import { StatusTabs } from '../components/StatusTabs'
 import { DiscountDetailsComponent } from '../components/DiscountDetailsComponent'
@@ -36,7 +29,6 @@ import { useListItemsQuery } from '../../../dashboard/hooks/useListItems.query'
 import { buildOrderByClause } from '../../../dashboard/lib/buildOrderByClause'
 import { buildWhereClause } from '../../../dashboard/lib/buildWhereClause'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { cn } from '@/lib/utils'
 
 interface DiscountListPageClientProps {
   list: any
@@ -148,38 +140,32 @@ export function DiscountListPageClient({
     <div className="flex flex-col h-full bg-background">
       <PageBreadcrumbs items={breadcrumbs} />
 
-      {/* Header Section */}
-      <div className="px-6 py-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-br from-background via-muted/5 to-background">
+      {/* Header */}
+      <div className="px-4 md:px-6 py-4 border-b border-border flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Discounts & Promos</h1>
-          <p className="text-muted-foreground mt-1">Configure and manage active promotions across your platform</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Discounts & Promos</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Configure and manage active promotions.</p>
         </div>
-        <Button 
+        <Button
           onClick={() => setIsCreateDrawerOpen(true)}
-          className="h-12 px-6 rounded-2xl bg-primary text-primary-foreground font-black uppercase tracking-widest text-xs hover:scale-105 transition-transform active:scale-95"
+          size="sm"
+          className="h-8 text-xs"
         >
-          <Plus className="size-4 mr-2" />
+          <Plus className="size-3.5 mr-1.5" />
           Create Discount
         </Button>
       </div>
 
       {/* Stats/Tabs Section */}
       {statusCounts && (
-        <div className="px-6 py-4 border-b flex flex-wrap items-center justify-between gap-4 bg-muted/20">
+        <div className="border-b border-border">
           <StatusTabs statusCounts={statusCounts} />
-          
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-9 rounded-xl border-2 font-bold px-4" onClick={handleResetFilters}>
-              <RefreshCw className="size-3.5 mr-2" />
-              Reset
-            </Button>
-          </div>
         </div>
       )}
 
       {/* Filter/Search Bar */}
-      <div className="px-6 py-4 border-b">
-        <PlatformFilterBar 
+      <div className="px-4 md:px-6 py-2.5 border-b border-border">
+        <PlatformFilterBar
           list={list}
           showDisplayButton={true}
           selectedFields={selectedFields}
@@ -189,40 +175,41 @@ export function DiscountListPageClient({
 
       {/* Main Content */}
       <ScrollArea className="flex-1">
-        <div className="pb-12">
+        <div className="pb-8">
           {error ? (
-            <div className="p-6">
-              <Alert variant="destructive" className="rounded-2xl border-2">
+            <div className="p-4 md:p-6">
+              <Alert variant="destructive">
                 <AlertDescription>Failed to load discounts: {error}</AlertDescription>
               </Alert>
             </div>
           ) : isEmpty ? (
-            <div className="p-12 flex flex-col items-center justify-center text-center">
-              <div className="w-24 h-24 rounded-[2rem] bg-muted flex items-center justify-center mb-6">
-                <Ticket className="size-12 text-muted-foreground opacity-20" />
-              </div>
-              <h2 className="text-2xl font-black mb-2">No active promotions</h2>
-              <p className="text-muted-foreground max-w-sm mb-8">Start growing your sales by creating your first discount or coupon code.</p>
-              <Button onClick={() => setIsCreateDrawerOpen(true)} size="lg" className="rounded-2xl px-8 font-black uppercase tracking-widest text-xs">
-                Launch First Campaign
+            <div className="py-16 flex flex-col items-center justify-center text-center px-8">
+              <Ticket size={28} className="text-muted-foreground/20 mb-3" />
+              <p className="text-sm font-medium mb-1">No active promotions</p>
+              <p className="text-xs text-muted-foreground max-w-xs mb-4">
+                Start growing your sales by creating your first discount or coupon code.
+              </p>
+              <Button onClick={() => setIsCreateDrawerOpen(true)} size="sm" variant="outline" className="h-8 text-xs">
+                <Plus className="size-3 mr-1.5" /> Create First Discount
               </Button>
             </div>
           ) : data?.count === 0 ? (
-            <div className="p-12 text-center flex flex-col items-center">
-              <Search className="size-12 text-muted-foreground opacity-20 mb-4" />
-              <h3 className="text-lg font-bold">No results matching your filter</h3>
-              <Button variant="link" onClick={handleResetFilters}>Clear all filters</Button>
+            <div className="py-12 text-center flex flex-col items-center">
+              <Search className="size-8 text-muted-foreground/20 mb-3" />
+              <p className="text-sm text-muted-foreground">No results matching your filter.</p>
+              <button onClick={handleResetFilters} className="text-xs underline underline-offset-2 text-muted-foreground hover:text-foreground mt-2">
+                Clear filters
+              </button>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1">
+              <div className="divide-y">
                 {data?.items?.map((discount: any) => (
                   <DiscountDetailsComponent key={discount.id} discount={discount} list={list} />
                 ))}
               </div>
-              
               {data && data.count > pageSize && (
-                <div className="px-6 py-8">
+                <div className="px-4 md:px-6 py-6">
                   <Pagination
                     currentPage={currentPage}
                     total={data.count}
@@ -235,14 +222,12 @@ export function DiscountListPageClient({
           )}
         </div>
       </ScrollArea>
-      
+
       <CreateItemDrawerClientWrapper
         listKey="discounts"
         open={isCreateDrawerOpen}
         onClose={() => setIsCreateDrawerOpen(false)}
-        onCreate={() => {
-          window.location.reload();
-        }}
+        onCreate={() => { window.location.reload() }}
       />
     </div>
   )

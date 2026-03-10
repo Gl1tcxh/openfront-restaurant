@@ -7,7 +7,7 @@ import { notFound } from "next/navigation"
 
 export const metadata: Metadata = {
   title: "Profile",
-  description: "View and edit your store profile.",
+  description: "View and edit your profile.",
 }
 
 export default async function AccountProfilePage() {
@@ -18,15 +18,15 @@ export default async function AccountProfilePage() {
   }
 
   return (
-    <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col gap-y-2">
+    <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="pb-6 border-b border-border">
         <h1 className="text-3xl font-serif">Profile</h1>
-        <p className="text-muted-foreground">
-          View and update your profile information, including your name, email,
-          and phone number.
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage your name, email address, and phone number.
         </p>
       </div>
-      <div className="flex flex-col gap-y-6 w-full">
+
+      <div className="pt-6 space-y-0 divide-y divide-border rounded-lg border border-border overflow-hidden">
         <ProfileName customer={customer} />
         <ProfileEmail customer={customer} />
         <ProfilePhone customer={customer} />

@@ -1,19 +1,10 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatNumber, formatPercentage } from "../lib/reportHelpers";
 
 interface OrderTypeData {
-  ordersByType: {
-    dine_in: number;
-    takeout: number;
-    delivery: number;
-  };
-  revenueByType: {
-    dine_in: number;
-    takeout: number;
-    delivery: number;
-  };
+  ordersByType: { dine_in: number; takeout: number; delivery: number };
+  revenueByType: { dine_in: number; takeout: number; delivery: number };
 }
 
 interface OrderTypeChartProps {
@@ -22,10 +13,10 @@ interface OrderTypeChartProps {
   locale?: string;
 }
 
-const orderTypeLabels = {
-  dine_in: { label: "Dine-in", color: "bg-blue-500" },
-  takeout: { label: "Takeout", color: "bg-green-500" },
-  delivery: { label: "Delivery", color: "bg-amber-500" },
+const orderTypeConfig = {
+  dine_in:  { label: "Dine-in",  color: "bg-blue-500",  dot: "bg-blue-500" },
+  takeout:  { label: "Takeout",  color: "bg-emerald-500", dot: "bg-emerald-500" },
+  delivery: { label: "Delivery", color: "bg-amber-500", dot: "bg-amber-500" },
 };
 
 export function OrderTypeChart({ data, currencyCode = "USD", locale = "en-US" }: OrderTypeChartProps) {
@@ -33,53 +24,55 @@ export function OrderTypeChart({ data, currencyCode = "USD", locale = "en-US" }:
   const totalOrders = Object.values(data.ordersByType).reduce((sum, n) => sum + n, 0);
   const totalRevenue = Object.values(data.revenueByType).reduce((sum, n) => sum + n, 0);
 
-  const orderTypes = (Object.keys(data.ordersByType) as Array<keyof typeof data.ordersByType>).map((key) => ({
-    key,
-    orders: data.ordersByType[key],
-    revenue: data.revenueByType[key],
-    orderPercentage: totalOrders > 0 ? (data.ordersByType[key] / totalOrders) * 100 : 0,
-    revenuePercentage: totalRevenue > 0 ? (data.revenueByType[key] / totalRevenue) * 100 : 0,
-  })).sort((a, b) => b.revenue - a.revenue);
+  const orderTypes = (Object.keys(data.ordersByType) as Array<keyof typeof data.ordersByType>)
+    .map((key) => ({
+      key,
+      orders: data.ordersByType[key],
+      revenue: data.revenueByType[key],
+      orderPct: totalOrders > 0 ? (data.ordersByType[key] / totalOrders) * 100 : 0,
+      revenuePct: totalRevenue > 0 ? (data.revenueByType[key] / totalRevenue) * 100 : 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Sales by Order Type</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="px-5 py-3 border-b border-border bg-muted/20">
+        <p className="text-[11px] uppercase tracking-wider font-semibold text-foreground">Sales by Order Type</p>
+      </div>
+
+      {totalRevenue === 0 ? (
+        <div className="px-5 py-12 text-center">
+          <p className="text-xs text-muted-foreground">No data for this period</p>
+        </div>
+      ) : (
+        <div className="px-5 py-4 space-y-5">
           {orderTypes.map((type) => {
-            const info = orderTypeLabels[type.key];
+            const info = orderTypeConfig[type.key];
             return (
               <div key={type.key} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{info.label}</span>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${info.dot}`} />
+                    <span className="text-xs font-semibold">{info.label}</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold">{formatCurrency(type.revenue, currencyConfig)}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatNumber(type.orders)} orders ({formatPercentage(type.orderPercentage)})
-                    </div>
+                    <span className="text-xs font-semibold">{formatCurrency(type.revenue, currencyConfig)}</span>
+                    <span className="text-[11px] text-muted-foreground ml-2 tabular-nums">
+                      {formatNumber(type.orders)} orders ({formatPercentage(type.orderPct)})
+                    </span>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <span className="text-muted-foreground">Revenue Share</span>
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
-                      <div
-                        className={`h-full ${info.color} transition-all duration-500`}
-                        style={{ width: `${type.revenuePercentage}%` }}
-                      />
+                    <p className="text-[10px] text-muted-foreground mb-1">Revenue share</p>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className={`h-full ${info.color} rounded-full transition-all duration-500`} style={{ width: `${type.revenuePct}%` }} />
                     </div>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Order Share</span>
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
-                      <div
-                        className={`h-full ${info.color} opacity-60 transition-all duration-500`}
-                        style={{ width: `${type.orderPercentage}%` }}
-                      />
+                    <p className="text-[10px] text-muted-foreground mb-1">Order share</p>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className={`h-full ${info.color} opacity-50 rounded-full transition-all duration-500`} style={{ width: `${type.orderPct}%` }} />
                     </div>
                   </div>
                 </div>
@@ -87,7 +80,7 @@ export function OrderTypeChart({ data, currencyCode = "USD", locale = "en-US" }:
             );
           })}
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }

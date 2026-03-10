@@ -1,32 +1,29 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Plus, Minus, X, Send, ShoppingCart, Table as TableIcon, AlertCircle, RefreshCw, Check } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  Plus,
+  Minus,
+  X,
+  ShoppingCart,
+  AlertCircle,
+  RefreshCw,
+  Check,
+  Utensils,
+} from 'lucide-react'
 import { gql, request } from 'graphql-request'
 import { cn } from '@/lib/utils'
+import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
 
-// Types
 interface Table {
   id: string
   tableNumber: string
@@ -39,24 +36,29 @@ interface MenuCategory {
   name: string
 }
 
+interface MenuItemImage {
+  id: string
+  imagePath?: string
+  altText?: string
+}
+
 interface MenuItem {
   id: string
   name: string
   price: string
   available: boolean
   category: { id: string; name: string } | null
+  menuItemImages?: MenuItemImage[]
 }
 
 interface CartItem {
   menuItem: MenuItem
   quantity: number
-  specialInstructions: string
   courseNumber: number
 }
 
-// GraphQL queries
 const GET_DATA = gql`
-  query GetData {
+  query GetPOSData {
     tables(where: { status: { in: ["available", "occupied"] } }, orderBy: { tableNumber: asc }) {
       id tableNumber capacity status
     }
@@ -64,6 +66,7 @@ const GET_DATA = gql`
     menuItems(orderBy: { name: asc }) {
       id name price available
       category { id name }
+      menuItemImages(take: 1) { id imagePath altText }
     }
   }
 `
@@ -92,32 +95,31 @@ function generateOrderNumber(): string {
 }
 
 function formatMoney(cents: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((cents || 0) / 100)
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
+    (cents || 0) / 100
+  )
 }
 
-const orderTypeConfig = {
-  dine_in: {
-    label: 'Dine-in',
-    dotClass: 'bg-emerald-500 dark:bg-emerald-400 outline-3 -outline-offset-1 outline-emerald-100 dark:outline-emerald-900/50',
-  },
-  takeout: {
-    label: 'Takeout',
-    dotClass: 'bg-blue-500 dark:bg-blue-400 outline-3 -outline-offset-1 outline-blue-100 dark:outline-blue-900/50',
-  },
-}
+const courseColors = { 1: 'bg-amber-500', 2: 'bg-orange-500', 3: 'bg-rose-500' } as const
+const courseLabels = { 1: 'C1', 2: 'C2', 3: 'C3' } as const
 
-const courseConfig = {
-  1: { label: 'C1', dotClass: 'bg-amber-500 dark:bg-amber-400' },
-  2: { label: 'C2', dotClass: 'bg-orange-500 dark:bg-orange-400' },
-  3: { label: 'C3', dotClass: 'bg-rose-500 dark:bg-rose-400' },
-}
+const breadcrumbs = [
+  { type: 'link' as const, label: 'Dashboard', href: '/dashboard' },
+  { type: 'page' as const, label: 'Platform' },
+  { type: 'page' as const, label: 'Point of Sale' },
+]
 
 export function POSClient() {
-  const [data, setData] = useState({ tables: [], categories: [], items: [] })
-  const [selectedTables, setSelectedTables] = useState<string[]>([])
+  const [data, setData] = useState<{
+    tables: Table[]
+    categories: MenuCategory[]
+    items: MenuItem[]
+  }>({ tables: [], categories: [], items: [] })
+
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [orderType, setOrderType] = useState<'dine_in' | 'takeout'>('dine_in')
-  const [guestCount, setGuestCount] = useState<number>(1)
+  const [guestCount, setGuestCount] = useState(1)
+  const [selectedTables, setSelectedTables] = useState<string[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -128,21 +130,35 @@ export function POSClient() {
   const fetchData = async () => {
     try {
       const res: any = await request('/api/graphql', GET_DATA)
-      setData({ tables: res.tables || [], categories: res.menuCategories || [], items: res.menuItems || [] })
-    } catch (err) { console.error(err) } finally { setLoading(false) }
+      setData({
+        tables: res.tables || [],
+        categories: res.menuCategories || [],
+        items: res.menuItems || [],
+      })
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  useEffect(() => { fetchData(); const i = setInterval(fetchData, 30000); return () => clearInterval(i) }, [])
+  useEffect(() => {
+    fetchData()
+    const i = setInterval(fetchData, 30_000)
+    return () => clearInterval(i)
+  }, [])
 
   const addToCart = (menuItem: MenuItem) => {
     if (!menuItem.available) return
-    const existing = cart.findIndex(i => i.menuItem.id === menuItem.id && i.courseNumber === 1)
+    const existing = cart.findIndex(
+      (i) => i.menuItem.id === menuItem.id && i.courseNumber === 1
+    )
     if (existing >= 0) {
-      const newCart = [...cart]
-      newCart[existing].quantity += 1
-      setCart(newCart)
+      const next = [...cart]
+      next[existing].quantity += 1
+      setCart(next)
     } else {
-      setCart([...cart, { menuItem, quantity: 1, specialInstructions: '', courseNumber: 1 }])
+      setCart([...cart, { menuItem, quantity: 1, courseNumber: 1 }])
     }
   }
 
@@ -154,336 +170,464 @@ export function POSClient() {
       const tax = Math.round(subtotal * 0.08)
       const total = subtotal + tax
       const orderData: any = {
-        orderNumber: generateOrderNumber(), orderType, orderSource: 'pos', status: 'open', guestCount,
-        subtotal, tax, total,
-        isUrgent, specialInstructions: specialInstructions || null
+        orderNumber: generateOrderNumber(),
+        orderType,
+        orderSource: 'pos',
+        status: 'open',
+        guestCount,
+        subtotal,
+        tax,
+        total,
+        isUrgent,
+        specialInstructions: specialInstructions || null,
       }
-      if (orderType === 'dine_in') orderData.tables = { connect: selectedTables.map(id => ({ id })) }
+      if (orderType === 'dine_in') {
+        orderData.tables = { connect: selectedTables.map((id) => ({ id })) }
+      }
       const res: any = await request('/api/graphql', CREATE_ORDER, { data: orderData })
       const orderId = res.createRestaurantOrder.id
-      const courses = Array.from(new Set(cart.map(i => i.courseNumber)))
+      const courses = Array.from(new Set(cart.map((i) => i.courseNumber)))
       for (const num of courses) {
-        const cRes: any = await request('/api/graphql', CREATE_ORDER_COURSE, { data: { order: { connect: { id: orderId } }, courseNumber: num, courseType: num === 1 ? 'appetizers' : num === 2 ? 'mains' : 'desserts', status: 'pending' } })
-        const courseItems = cart.filter(i => i.courseNumber === num)
-        for (const i of courseItems) {
-          await request('/api/graphql', CREATE_ORDER_ITEM, { data: { order: { connect: { id: orderId } }, course: { connect: { id: cRes.createOrderCourse.id } }, menuItem: { connect: { id: i.menuItem.id } }, quantity: i.quantity, price: parseInt(i.menuItem.price), courseNumber: i.courseNumber } })
+        const cRes: any = await request('/api/graphql', CREATE_ORDER_COURSE, {
+          data: {
+            order: { connect: { id: orderId } },
+            courseNumber: num,
+            courseType: num === 1 ? 'appetizers' : num === 2 ? 'mains' : 'desserts',
+            status: 'pending',
+          },
+        })
+        for (const item of cart.filter((i) => i.courseNumber === num)) {
+          await request('/api/graphql', CREATE_ORDER_ITEM, {
+            data: {
+              order: { connect: { id: orderId } },
+              course: { connect: { id: cRes.createOrderCourse.id } },
+              menuItem: { connect: { id: item.menuItem.id } },
+              quantity: item.quantity,
+              price: parseInt(item.menuItem.price),
+              courseNumber: item.courseNumber,
+            },
+          })
         }
       }
-      setCart([]); setSelectedTables([]); setIsUrgent(false); setSpecialInstructions('')
+      setCart([])
+      setSelectedTables([])
+      setIsUrgent(false)
+      setSpecialInstructions('')
       alert('Order sent to kitchen!')
-    } catch (err) { alert('Error: ' + err) } finally { setSubmitting(false) }
+    } catch (err) {
+      alert('Error: ' + err)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const cartSubtotal = cart.reduce((s, i) => s + parseInt(i.menuItem.price) * i.quantity, 0)
   const cartTax = Math.round(cartSubtotal * 0.08)
   const cartTotal = cartSubtotal + cartTax
+  const cartItemCount = cart.reduce((s, i) => s + i.quantity, 0)
 
-  const selectedTableObjects: Table[] = selectedTables
-    .map(id => data.tables.find((t: any) => t.id === id))
-    .filter((t): t is any => Boolean(t))
+  const selectedTableObjects = selectedTables
+    .map((id) => data.tables.find((t) => t.id === id))
+    .filter((t): t is Table => Boolean(t))
 
-  if (loading) return <div className="flex justify-center p-8"><RefreshCw className="animate-spin" /></div>
+  const filteredItems =
+    selectedCategory === 'all'
+      ? data.items
+      : data.items.filter((i) => i.category?.id === selectedCategory)
+
+  const availableTables = data.tables.filter((t) => t.status === 'available').length
+
+  const canSend =
+    cart.length > 0 &&
+    !submitting &&
+    (orderType === 'takeout' || selectedTables.length > 0)
+
+  if (loading) {
+    return (
+      // h-screen + overflow-hidden = self-contained viewport lock, no parent chain dependency
+      <div className="flex flex-col bg-background overflow-hidden" style={{ height: '100svh' }}>
+        <PageBreadcrumbs items={breadcrumbs} />
+        <div className="flex items-center justify-center flex-1">
+          <RefreshCw className="animate-spin text-muted-foreground h-5 w-5" />
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex h-[calc(100vh-200px)] gap-6 px-4 md:px-6">
-      <div className="flex-1 flex flex-col gap-4">
-        <div className="flex gap-2 flex-wrap">
-          <Button
-            variant={selectedCategory === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setSelectedCategory('all')}
-            className="rounded-full"
-          >
-            All Items
-          </Button>
-          {data.categories.map((c: any) => (
-            <Button
-              key={c.id}
-              variant={selectedCategory === c.id ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedCategory(c.id)}
-              className="rounded-full"
-            >
-              {c.name}
-            </Button>
-          ))}
-        </div>
+    /*
+     * Layout contract:
+     * - Root is exactly 100svh, overflow-hidden → no page-level scroll ever
+     * - flex-col: breadcrumbs (shrink-0) → header (shrink-0) → 3-panel (flex-1 min-h-0)
+     * - 3-panel flex row: left sidebar (overflow-y-auto) | center (overflow-y-auto) | right (flex-col overflow-hidden)
+     * - Right cart: fixed header/config/table rows (shrink-0) + scrollable items (flex-1 min-h-0 overflow-y-auto) + fixed footer (shrink-0)
+     */
+    <div className="flex flex-col bg-background overflow-hidden" style={{ height: '100svh' }}>
+      <PageBreadcrumbs items={breadcrumbs} />
 
-        <ScrollArea className="flex-1">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pr-4">
-            {data.items.filter((i: any) => selectedCategory === 'all' || i.category?.id === selectedCategory).map((item: any) => (
-              <Card
-                key={item.id}
-                className={`cursor-pointer hover:bg-accent hover:border-primary/50 transition-all ${!item.available ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
-                onClick={() => addToCart(item)}
-              >
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="font-medium text-sm leading-tight">{item.name}</div>
-                    {!item.available && <Badge variant="destructive" className="text-[9px] h-4 px-1.5">86</Badge>}
-                  </div>
-                  <div className="text-sm font-semibold text-muted-foreground">{formatMoney(parseInt(item.price))}</div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </ScrollArea>
+      {/* Page header */}
+      <div className="px-4 md:px-6 py-4 border-b border-border flex items-start justify-between gap-4 shrink-0">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Point of Sale</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {data.items.filter((i) => i.available).length} items available
+            {' · '}
+            {availableTables} table{availableTables !== 1 ? 's' : ''} open
+          </p>
+        </div>
       </div>
 
-      <div className="w-96 flex flex-col gap-4">
-        <Card className="flex-1 flex flex-col">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <ShoppingCart className="h-5 w-5" />
-                Order Cart
-              </CardTitle>
+      {/* 3-panel body — flex-1 min-h-0 ensures it fills remaining height and can shrink */}
+      <div className="flex flex-1 min-h-0">
 
-              <div className="flex items-center gap-1.5">
+        {/* ── LEFT: Category sidebar ── */}
+        <div className="w-40 xl:w-48 shrink-0 border-r border-border overflow-y-auto flex flex-col">
+          <button
+            onClick={() => setSelectedCategory('all')}
+            className={cn(
+              'w-full text-left px-4 py-3 text-sm flex items-center justify-between border-b border-border transition-colors shrink-0',
+              selectedCategory === 'all'
+                ? 'bg-muted font-medium'
+                : 'hover:bg-muted/30 text-muted-foreground'
+            )}
+          >
+            <span>All Items</span>
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              {data.items.length}
+            </span>
+          </button>
+          {data.categories.map((cat) => {
+            const count = data.items.filter((i) => i.category?.id === cat.id).length
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={cn(
+                  'w-full text-left px-4 py-3 text-sm flex items-center justify-between border-b border-border transition-colors shrink-0',
+                  selectedCategory === cat.id
+                    ? 'bg-muted font-medium'
+                    : 'hover:bg-muted/30 text-muted-foreground'
+                )}
+              >
+                <span className="truncate">{cat.name}</span>
+                <span className="text-[11px] text-muted-foreground tabular-nums ml-2 shrink-0">
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* ── CENTER: Item grid — only this scrolls ── */}
+        <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
+          {filteredItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center px-8">
+              <Utensils size={28} className="text-muted-foreground/20 mb-3" />
+              <p className="text-sm text-muted-foreground">No items in this category.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 divide-x divide-y border-b border-border">
+              {filteredItems.map((item) => {
+                const imageSrc = item.menuItemImages?.[0]?.imagePath
+                const imageAlt = item.menuItemImages?.[0]?.altText || item.name
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => addToCart(item)}
+                    disabled={!item.available}
+                    className={cn(
+                      'flex flex-col text-left bg-card group',
+                      item.available
+                        ? 'cursor-pointer hover:bg-muted/20'
+                        : 'opacity-40 cursor-not-allowed'
+                    )}
+                  >
+                    <div className="aspect-video bg-muted overflow-hidden w-full">
+                      {imageSrc ? (
+                        <img
+                          src={imageSrc}
+                          alt={imageAlt}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Utensils size={20} className="text-muted-foreground/20" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 flex flex-col flex-1">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <p className="text-sm font-semibold leading-tight">{item.name}</p>
+                        <p className="text-sm font-semibold shrink-0">
+                          {formatMoney(parseInt(item.price))}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn('w-1.5 h-1.5 rounded-full', item.available ? 'bg-emerald-500' : 'bg-red-400')} />
+                        <span className="text-[11px] text-muted-foreground">
+                          {item.available ? 'Available' : "86'd"}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── RIGHT: Cart panel — flex-col + overflow-hidden locks it to available height ── */}
+        <div className="w-72 xl:w-80 shrink-0 flex flex-col border-l border-border bg-background overflow-hidden">
+
+          {/* Cart header — fixed */}
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <ShoppingCart size={14} className="text-muted-foreground" />
+              <span className="text-sm font-semibold">
+                Order{cartItemCount > 0 ? ` (${cartItemCount})` : ''}
+              </span>
+            </div>
+            {cart.length > 0 && (
+              <button
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setCart([])}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Order config strip — fixed */}
+          <div className="grid grid-cols-2 divide-x border-b border-border shrink-0">
+            <div className="px-4 py-3">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">Type</p>
+              <div className="flex items-center border border-border rounded overflow-hidden text-[10px]">
                 <button
                   onClick={() => setOrderType('dine_in')}
                   className={cn(
-                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all',
-                    orderType === 'dine_in'
-                      ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-200 dark:ring-emerald-800'
-                      : 'text-muted-foreground hover:bg-accent'
+                    'flex-1 py-1.5 font-semibold uppercase tracking-wider transition-colors',
+                    orderType === 'dine_in' ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted'
                   )}
                 >
-                  <span className={cn(
-                    'inline-block size-1.5 rounded-full outline',
-                    orderType === 'dine_in' ? orderTypeConfig.dine_in.dotClass : 'bg-muted-foreground/50'
-                  )} />
-                  {orderTypeConfig.dine_in.label}
+                  Dine-in
                 </button>
-
                 <button
                   onClick={() => setOrderType('takeout')}
                   className={cn(
-                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all',
-                    orderType === 'takeout'
-                      ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 ring-1 ring-blue-200 dark:ring-blue-800'
-                      : 'text-muted-foreground hover:bg-accent'
+                    'flex-1 py-1.5 font-semibold uppercase tracking-wider transition-colors border-l border-border',
+                    orderType === 'takeout' ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted'
                   )}
                 >
-                  <span className={cn(
-                    'inline-block size-1.5 rounded-full outline',
-                    orderType === 'takeout' ? orderTypeConfig.takeout.dotClass : 'bg-muted-foreground/50'
-                  )} />
-                  {orderTypeConfig.takeout.label}
+                  Takeout
                 </button>
               </div>
             </div>
+            <div className="px-4 py-3">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">Guests</p>
+              <div className="flex items-center gap-2">
+                <button
+                  className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                  onClick={() => setGuestCount((g) => Math.max(1, g - 1))}
+                >
+                  <Minus size={10} />
+                </button>
+                <span className="text-sm font-semibold w-6 text-center tabular-nums">{guestCount}</span>
+                <button
+                  className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                  onClick={() => setGuestCount((g) => g + 1)}
+                >
+                  <Plus size={10} />
+                </button>
+              </div>
+            </div>
+          </div>
 
-            {orderType === 'dine_in' && (
-              <div className="mt-3">
-                <Popover open={tablePopoverOpen} onOpenChange={setTablePopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full h-9 justify-start text-sm">
-                      {selectedTables.length > 0 ? (
-                        <span className="flex items-center gap-1.5">
-                          <TableIcon className="h-4 w-4" />
-                          {selectedTableObjects.map(t => `T${t.tableNumber}`).join(', ')}
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1.5 text-muted-foreground">
-                          <TableIcon className="h-4 w-4" />
-                          Select Table
-                        </span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-4" align="end">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm font-semibold">Choose Table(s)</div>
-                        {selectedTables.length > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedTables([])}
-                            className="h-7 text-xs"
-                          >
-                            Clear
-                          </Button>
-                        )}
+          {/* Table selector — fixed, dine-in only */}
+          {orderType === 'dine_in' && (
+            <div className="px-4 py-3 border-b border-border shrink-0">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1.5">Table</p>
+              <Popover open={tablePopoverOpen} onOpenChange={setTablePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button className="w-full text-left text-xs border border-border rounded px-3 py-2 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                    <span className={selectedTables.length > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}>
+                      {selectedTables.length > 0
+                        ? selectedTableObjects.map((t) => `T${t.tableNumber}`).join(', ')
+                        : 'Select table(s)…'}
+                    </span>
+                    <span className="text-muted-foreground text-[10px]">▾</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-3" align="end">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Tables</p>
+                  <div className="grid grid-cols-4 gap-1.5 mb-3">
+                    {data.tables.map((t) => {
+                      const sel = selectedTables.includes(t.id)
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() =>
+                            setSelectedTables((prev) =>
+                              prev.includes(t.id) ? prev.filter((id) => id !== t.id) : [...prev, t.id]
+                            )
+                          }
+                          className={cn(
+                            'relative border rounded py-2 text-xs font-semibold transition-colors',
+                            sel ? 'border-foreground bg-foreground text-background' : 'border-border hover:border-foreground/40'
+                          )}
+                        >
+                          {sel && <Check size={9} className="absolute top-0.5 right-0.5" />}
+                          T{t.tableNumber}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <Button size="sm" className="w-full h-8 text-xs" onClick={() => setTablePopoverOpen(false)}>
+                    Done
+                  </Button>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+
+          {/* Cart items — the ONLY scrollable section in the right panel */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-2 bg-muted/40">
+            {cart.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-8">
+                <ShoppingCart size={28} className="text-muted-foreground/20 mb-3" />
+                <p className="text-xs text-muted-foreground">Cart is empty</p>
+                <p className="text-xs text-muted-foreground/50 mt-0.5">Tap an item on the left to add</p>
+              </div>
+            ) : (
+              <div className="space-y-2 py-1">
+                {cart.map((item, idx) => (
+                  <div key={idx} className="rounded-lg border border-border bg-card p-3 space-y-2">
+                    {/* Name + remove */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded overflow-hidden bg-muted shrink-0">
+                          {item.menuItem.menuItemImages?.[0]?.imagePath ? (
+                            <img
+                              src={item.menuItem.menuItemImages[0].imagePath}
+                              alt={item.menuItem.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-muted" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold truncate">{item.menuItem.name}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {formatMoney(parseInt(item.menuItem.price))} each
+                          </p>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {data.tables.map((t: any) => {
-                          const isSelected = selectedTables.includes(t.id)
-                          return (
-                            <button
-                              key={t.id}
-                              className={cn(
-                                'relative p-3 border-2 rounded-lg text-center transition-all',
-                                isSelected
-                                  ? 'border-primary bg-primary text-primary-foreground'
-                                  : 'border-border hover:border-primary/50 hover:bg-accent'
-                              )}
-                              onClick={() => setSelectedTables(prev => prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id])}
-                            >
-                              {isSelected && <Check className="absolute top-1 right-1 h-3.5 w-3.5" />}
-                              <div className="text-sm font-bold">T{t.tableNumber}</div>
-                              <div className="text-[10px] opacity-80">Cap {t.capacity}</div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                      <Button
-                        onClick={() => setTablePopoverOpen(false)}
-                        className="w-full"
-                        size="sm"
+                      <button
+                        onClick={() => { const n = [...cart]; n.splice(idx, 1); setCart(n) }}
+                        className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
                       >
-                        Done
-                      </Button>
+                        <X size={13} />
+                      </button>
                     </div>
-                  </PopoverContent>
-                </Popover>
+
+                    {/* Qty + course + total */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <button
+                          className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                          onClick={() => { const n = [...cart]; n[idx].quantity = Math.max(1, n[idx].quantity - 1); setCart(n) }}
+                        >
+                          <Minus size={10} />
+                        </button>
+                        <span className="text-xs font-semibold w-6 text-center tabular-nums">{item.quantity}</span>
+                        <button
+                          className="w-6 h-6 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                          onClick={() => { const n = [...cart]; n[idx].quantity += 1; setCart(n) }}
+                        >
+                          <Plus size={10} />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        {([1, 2, 3] as const).map((c) => (
+                          <button
+                            key={c}
+                            onClick={() => { const n = [...cart]; n[idx].courseNumber = c; setCart(n) }}
+                            className={cn(
+                              'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors border',
+                              item.courseNumber === c
+                                ? 'border-foreground/30 bg-muted text-foreground'
+                                : 'border-transparent text-muted-foreground hover:border-border'
+                            )}
+                          >
+                            <span className={cn('w-1.5 h-1.5 rounded-full', courseColors[c])} />
+                            {courseLabels[c]}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-xs font-semibold tabular-nums">
+                        {formatMoney(parseInt(item.menuItem.price) * item.quantity)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col gap-4">
-            <ScrollArea className="flex-1 -mr-4 pr-4">
-              {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-                  <ShoppingCart className="h-12 w-12 mb-3 opacity-30" />
-                  <p className="text-sm">Cart is empty</p>
-                  <p className="text-xs mt-1">Tap menu items to add</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {cart.map((i, idx) => (
-                    <div key={idx} className="rounded-lg border bg-accent/30 p-3 space-y-2">
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex-1">
-                          <div className="text-sm font-semibold">{i.menuItem.name}</div>
-                          <div className="text-xs text-muted-foreground">{formatMoney(parseInt(i.menuItem.price))} each</div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 -mt-1 -mr-1"
-                          onClick={() => {
-                            const n = [...cart]
-                            n.splice(idx, 1)
-                            setCart(n)
-                          }}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+          </div>
 
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => {
-                              const n = [...cart]
-                              n[idx].quantity = Math.max(1, n[idx].quantity - 1)
-                              setCart(n)
-                            }}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="text-sm w-8 text-center font-medium">{i.quantity}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => {
-                              const n = [...cart]
-                              n[idx].quantity += 1
-                              setCart(n)
-                            }}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          {[1, 2, 3].map(courseNum => (
-                            <button
-                              key={courseNum}
-                              onClick={() => {
-                                const n = [...cart]
-                                n[idx].courseNumber = courseNum
-                                setCart(n)
-                              }}
-                              className={cn(
-                                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all',
-                                i.courseNumber === courseNum
-                                  ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 ring-1 ring-amber-200 dark:ring-amber-800'
-                                  : 'text-muted-foreground hover:bg-accent'
-                              )}
-                            >
-                              <span className={cn(
-                                'inline-block size-1 rounded-full',
-                                i.courseNumber === courseNum ? courseConfig[courseNum as keyof typeof courseConfig].dotClass : 'bg-muted-foreground/50'
-                              )} />
-                              {courseConfig[courseNum as keyof typeof courseConfig].label}
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="text-sm font-semibold">{formatMoney(parseInt(i.menuItem.price) * i.quantity)}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-
-            <div className="space-y-3">
-              <Separator />
-
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="urgent"
-                  checked={isUrgent}
-                  onCheckedChange={(v: any) => setIsUrgent(v)}
-                />
-                <Label htmlFor="urgent" className="text-sm font-medium inline-flex items-center gap-1.5 cursor-pointer">
-                  <AlertCircle className="h-4 w-4 text-orange-600" />
-                  <span className="text-orange-600">Mark as URGENT</span>
-                </Label>
-              </div>
-
-              <Textarea
-                placeholder="Special instructions (allergies, modifications, etc.)"
-                value={specialInstructions}
-                onChange={e => setSpecialInstructions(e.target.value)}
-                className="h-20 text-sm resize-none"
+          {/* Order footer — always pinned at bottom */}
+          <div className="border-t border-border px-4 py-4 space-y-3 shrink-0 bg-background">
+            {/* Urgent */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                id="pos-urgent"
+                checked={isUrgent}
+                onCheckedChange={(v: any) => setIsUrgent(v)}
               />
+              <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <AlertCircle size={12} className={isUrgent ? 'text-orange-500' : ''} />
+                <span className={isUrgent ? 'text-orange-600 font-semibold' : ''}>Mark as urgent</span>
+              </span>
+            </label>
 
-              <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span>{formatMoney(cartSubtotal)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Tax</span>
-                  <span>{formatMoney(cartTax)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-semibold text-base">
-                  <span>Total</span>
-                  <span>{formatMoney(cartTotal)}</span>
-                </div>
+            {/* Special instructions */}
+            <Textarea
+              placeholder="Special instructions…"
+              value={specialInstructions}
+              onChange={(e) => setSpecialInstructions(e.target.value)}
+              className="h-14 text-xs resize-none"
+            />
+
+            {/* Totals */}
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Subtotal</span>
+                <span className="tabular-nums">{formatMoney(cartSubtotal)}</span>
               </div>
-
-              <Button
-                className="w-full h-11"
-                size="lg"
-                onClick={submitOrder}
-                disabled={cart.length === 0 || submitting || (orderType === 'dine_in' && selectedTables.length === 0)}
-              >
-                <Send className="mr-2 h-4 w-4" />
-                {submitting ? 'Sending...' : 'Send to Kitchen'}
-              </Button>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Tax (8%)</span>
+                <span className="tabular-nums">{formatMoney(cartTax)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-sm border-t border-border pt-1.5 mt-1.5">
+                <span>Total</span>
+                <span className="tabular-nums">{formatMoney(cartTotal)}</span>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Send to Kitchen — styled to match the Type toggle */}
+            <button
+              onClick={submitOrder}
+              disabled={!canSend}
+              className={cn(
+                'w-full border border-border rounded overflow-hidden py-2.5 text-[11px] font-semibold uppercase tracking-wider transition-all',
+                canSend
+                  ? 'bg-foreground text-background hover:opacity-90 cursor-pointer'
+                  : 'bg-muted text-muted-foreground cursor-not-allowed'
+              )}
+            >
+              {submitting ? 'Sending…' : 'Send to Kitchen'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

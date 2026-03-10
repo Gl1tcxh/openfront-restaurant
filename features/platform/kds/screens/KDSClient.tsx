@@ -158,7 +158,7 @@ function KDSHeader({
             <div className="font-mono text-3xl font-bold tracking-tight">
               {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">System Time</p>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground mt-1">System Time</p>
           </div>
         </div>
 

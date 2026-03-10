@@ -20,12 +20,10 @@ import {
   PauseCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/features/storefront/lib/currency'
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
@@ -38,6 +36,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
+import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
 
 interface Table {
   id: string
@@ -80,12 +79,8 @@ interface MenuItem {
 const GET_SERVICE_FLOOR = gql`
   query GetServiceFloor {
     tables(orderBy: { tableNumber: asc }) {
-      id
-      tableNumber
-      capacity
-      status
+      id tableNumber capacity status
     }
-
     restaurantOrders(
       where: {
         orderType: { equals: "dine_in" }
@@ -93,73 +88,33 @@ const GET_SERVICE_FLOOR = gql`
       }
       orderBy: { createdAt: desc }
     ) {
-      id
-      orderNumber
-      status
-      total
-      guestCount
-      createdAt
-      tables {
-        id
-        tableNumber
-      }
-      courses(orderBy: { courseNumber: asc }) {
-        id
-        courseType
-        courseNumber
-        status
-        onHold
-      }
-      orderItems {
-        id
-        quantity
-        price
-        seatNumber
-        menuItem {
-          id
-          name
-        }
-      }
+      id orderNumber status total guestCount createdAt
+      tables { id tableNumber }
+      courses(orderBy: { courseNumber: asc }) { id courseType courseNumber status onHold }
+      orderItems { id quantity price seatNumber menuItem { id name } }
     }
-
     menuItems(where: { available: { equals: true } }, orderBy: { name: asc }) {
-      id
-      name
-      price
-      available
+      id name price available
     }
-
-    storeSettings {
-      currencyCode
-      locale
-    }
+    storeSettings { currencyCode locale }
   }
 `
 
 const UPDATE_TABLE_STATUS = gql`
   mutation UpdateTableStatus($id: ID!, $status: String!) {
-    updateTable(where: { id: $id }, data: { status: $status }) {
-      id
-      status
-    }
+    updateTable(where: { id: $id }, data: { status: $status }) { id status }
   }
 `
 
 const CREATE_ORDER = gql`
   mutation CreateOrder($data: RestaurantOrderCreateInput!) {
-    createRestaurantOrder(data: $data) {
-      id
-      orderNumber
-      status
-    }
+    createRestaurantOrder(data: $data) { id orderNumber status }
   }
 `
 
 const CREATE_ORDER_ITEM = gql`
   mutation CreateOrderItem($data: OrderItemCreateInput!) {
-    createOrderItem(data: $data) {
-      id
-    }
+    createOrderItem(data: $data) { id }
   }
 `
 
@@ -167,78 +122,50 @@ const GET_ORDER_ITEMS = gql`
   query GetOrderItems($id: ID!) {
     restaurantOrder(where: { id: $id }) {
       id
-      orderItems {
-        id
-        quantity
-        price
-      }
+      orderItems { id quantity price }
     }
   }
 `
 
 const UPDATE_ORDER_TOTALS = gql`
   mutation UpdateOrderTotals($id: ID!, $data: RestaurantOrderUpdateInput!) {
-    updateRestaurantOrder(where: { id: $id }, data: $data) {
-      id
-      total
-      status
-    }
+    updateRestaurantOrder(where: { id: $id }, data: $data) { id total status }
   }
 `
 
 const UPDATE_ORDER_STATUS = gql`
   mutation UpdateOrderStatus($id: ID!, $data: RestaurantOrderUpdateInput!) {
-    updateRestaurantOrder(where: { id: $id }, data: $data) {
-      id
-      status
-    }
+    updateRestaurantOrder(where: { id: $id }, data: $data) { id status }
   }
 `
 
 const SPLIT_CHECK_BY_GUEST = gql`
   mutation SplitCheckByGuest($orderId: String!, $guestCount: Int!) {
-    splitCheckByGuest(orderId: $orderId, guestCount: $guestCount) {
-      success
-      newOrderIds
-      error
-    }
+    splitCheckByGuest(orderId: $orderId, guestCount: $guestCount) { success newOrderIds error }
   }
 `
 
 const SPLIT_CHECK_BY_ITEM = gql`
   mutation SplitCheckByItem($orderId: String!, $itemIds: [String!]!) {
-    splitCheckByItem(orderId: $orderId, itemIds: $itemIds) {
-      success
-      newOrderIds
-      error
-    }
+    splitCheckByItem(orderId: $orderId, itemIds: $itemIds) { success newOrderIds error }
   }
 `
 
 const COMBINE_TABLES = gql`
   mutation CombineTables($orderId: String!, $tableIds: [String!]!) {
-    combineTables(orderId: $orderId, tableIds: $tableIds) {
-      success
-      error
-    }
+    combineTables(orderId: $orderId, tableIds: $tableIds) { success error }
   }
 `
 
 const FIRE_COURSE = gql`
   mutation FireCourse($courseId: String!) {
-    fireCourse(courseId: $courseId) {
-      success
-      error
-    }
+    fireCourse(courseId: $courseId) { success error }
   }
 `
 
 const RECALL_COURSE = gql`
   mutation RecallCourse($courseId: String!) {
-    recallCourse(courseId: $courseId) {
-      success
-      error
-    }
+    recallCourse(courseId: $courseId) { success error }
   }
 `
 
@@ -251,20 +178,28 @@ const statusLabel: Record<Table['status'], string> = {
   cleaning: 'Cleaning',
 }
 
-const statusTone: Record<Table['status'], string> = {
-  available: 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30',
-  occupied: 'border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/30',
-  reserved: 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30',
-  cleaning: 'border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/30',
+// Left border colors for status lanes
+const statusBorderLeft: Record<Table['status'], string> = {
+  available: 'border-l-emerald-500',
+  occupied: 'border-l-rose-500',
+  reserved: 'border-l-amber-500',
+  cleaning: 'border-l-zinc-400',
+}
+
+// Dot colors for status indicators
+const statusDot: Record<Table['status'], string> = {
+  available: 'bg-emerald-500',
+  occupied: 'bg-rose-500',
+  reserved: 'bg-amber-500',
+  cleaning: 'bg-zinc-400',
 }
 
 function generateOrderNumber() {
-  const now = Date.now().toString(36).toUpperCase()
-  return `DIN-${now}`
+  return `DIN-${Date.now().toString(36).toUpperCase()}`
 }
 
 function formatCourseLabel(courseType: string, courseNumber: number) {
-  return `${courseType.charAt(0).toUpperCase() + courseType.slice(1)} • C${courseNumber}`
+  return `${courseType.charAt(0).toUpperCase() + courseType.slice(1)} · C${courseNumber}`
 }
 
 function formatStatusLabel(value: string) {
@@ -304,7 +239,7 @@ export function ServiceFloorClient() {
       if (res.storeSettings) {
         setCurrencyConfig({
           currencyCode: res.storeSettings.currencyCode || 'USD',
-          locale: res.storeSettings.locale || 'en-US'
+          locale: res.storeSettings.locale || 'en-US',
         })
       }
     } catch (err) {
@@ -322,22 +257,16 @@ export function ServiceFloorClient() {
 
   const orderByTable = useMemo(() => {
     const map: Record<string, ActiveOrder> = {}
-    orders.forEach((o) => {
-      o.tables?.forEach((t) => {
-        map[t.id] = o
-      })
-    })
+    orders.forEach(o => { o.tables?.forEach(t => { map[t.id] = o }) })
     return map
   }, [orders])
 
-  const counts = useMemo(() => {
-    return {
-      total: tables.length,
-      available: tables.filter((t) => t.status === 'available').length,
-      occupied: tables.filter((t) => t.status === 'occupied').length,
-      activeChecks: orders.length,
-    }
-  }, [tables, orders])
+  const counts = useMemo(() => ({
+    total: tables.length,
+    available: tables.filter(t => t.status === 'available').length,
+    occupied: tables.filter(t => t.status === 'occupied').length,
+    activeChecks: orders.length,
+  }), [tables, orders])
 
   const selectedOrder = selectedTable ? orderByTable[selectedTable.id] : null
 
@@ -350,25 +279,22 @@ export function ServiceFloorClient() {
 
   const mergeCandidates = useMemo(() => {
     if (!selectedOrder) return []
-    const selectedTableIds = new Set((selectedOrder.tables || []).map((t) => t.id))
-    return tables.filter((t) => !selectedTableIds.has(t.id) && ['occupied', 'reserved'].includes(t.status))
+    const selectedTableIds = new Set((selectedOrder.tables || []).map(t => t.id))
+    return tables.filter(t => !selectedTableIds.has(t.id) && ['occupied', 'reserved'].includes(t.status))
   }, [tables, selectedOrder])
 
   const pendingCourses = useMemo(
-    () => (selectedOrder?.courses || []).filter((c) => c.status === 'pending').sort((a, b) => a.courseNumber - b.courseNumber),
+    () => (selectedOrder?.courses || []).filter(c => c.status === 'pending').sort((a, b) => a.courseNumber - b.courseNumber),
     [selectedOrder]
   )
-
   const firedCourses = useMemo(
-    () => (selectedOrder?.courses || []).filter((c) => c.status === 'fired').sort((a, b) => a.courseNumber - b.courseNumber),
+    () => (selectedOrder?.courses || []).filter(c => c.status === 'fired').sort((a, b) => a.courseNumber - b.courseNumber),
     [selectedOrder]
   )
 
   const menuItemMap = useMemo(() => {
     const map: Record<string, MenuItem> = {}
-    menuItems.forEach((m) => {
-      map[m.id] = m
-    })
+    menuItems.forEach(m => { map[m.id] = m })
     return map
   }, [menuItems])
 
@@ -396,7 +322,7 @@ export function ServiceFloorClient() {
 
   const onDropToStatus = async (nextStatus: Table['status']) => {
     if (!dragTableId) return
-    const table = tables.find((t) => t.id === dragTableId)
+    const table = tables.find(t => t.id === dragTableId)
     if (!table || table.status === nextStatus) return
     await updateTableStatus(dragTableId, nextStatus)
     setDragTableId(null)
@@ -407,69 +333,49 @@ export function ServiceFloorClient() {
     const items = res?.restaurantOrder?.orderItems || []
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.quantity || 0) * (item.price || 0), 0)
     const tax = Math.round(subtotal * 0.08)
-    const total = subtotal + tax
-
-    await request('/api/graphql', UPDATE_ORDER_TOTALS, {
-      id: orderId,
-      data: { subtotal, tax, total },
-    })
+    await request('/api/graphql', UPDATE_ORDER_TOTALS, { id: orderId, data: { subtotal, tax, total: subtotal + tax } })
   }
 
   const addItemToTable = async () => {
     if (!selectedTable || !selectedMenuItemId || quantity < 1) return
-
     await withAction('add-item', async () => {
       setAddingItem(true)
       const menuItem = menuItemMap[selectedMenuItemId]
       if (!menuItem) throw new Error('Select a valid menu item')
 
       let orderId = selectedOrder?.id
-
       if (!orderId) {
-        const orderData = {
-          orderNumber: generateOrderNumber(),
-          orderType: 'dine_in',
-          orderSource: 'pos',
-          status: 'open',
-          guestCount: 1,
-          subtotal: 0,
-          tax: 0,
-          total: 0,
-          tables: { connect: [{ id: selectedTable.id }] },
-        }
-
-        const orderRes: any = await request('/api/graphql', CREATE_ORDER, { data: orderData })
+        const orderRes: any = await request('/api/graphql', CREATE_ORDER, {
+          data: {
+            orderNumber: generateOrderNumber(),
+            orderType: 'dine_in', orderSource: 'pos', status: 'open',
+            guestCount: 1, subtotal: 0, tax: 0, total: 0,
+            tables: { connect: [{ id: selectedTable.id }] },
+          },
+        })
         orderId = orderRes?.createRestaurantOrder?.id
       }
-
       if (!orderId) throw new Error('Unable to create or find active order for this table')
 
       await request('/api/graphql', CREATE_ORDER_ITEM, {
         data: {
           order: { connect: { id: orderId } },
           menuItem: { connect: { id: selectedMenuItemId } },
-          quantity,
-          price: menuItem.price,
-          specialInstructions: '',
+          quantity, price: menuItem.price, specialInstructions: '',
         },
       })
-
       await recalcAndPersistOrderTotals(orderId)
       await fetchData()
       setQuantity(1)
       setSelectedMenuItemId('')
       setSheetSuccess('Item added to check')
     })
-
     setAddingItem(false)
   }
 
   const sendOrderToKitchen = async (orderId: string) => {
     await withAction('send-kitchen', async () => {
-      await request('/api/graphql', UPDATE_ORDER_STATUS, {
-        id: orderId,
-        data: { status: 'sent_to_kitchen' },
-      })
+      await request('/api/graphql', UPDATE_ORDER_STATUS, { id: orderId, data: { status: 'sent_to_kitchen' } })
       await fetchData()
       setSheetSuccess('Order sent to kitchen')
     })
@@ -479,11 +385,9 @@ export function ServiceFloorClient() {
     if (!selectedOrder) return
     await withAction('split-guests', async () => {
       const res: any = await request('/api/graphql', SPLIT_CHECK_BY_GUEST, {
-        orderId: selectedOrder.id,
-        guestCount: Math.max(2, splitGuests),
+        orderId: selectedOrder.id, guestCount: Math.max(2, splitGuests),
       })
-      const result = res?.splitCheckByGuest
-      if (!result?.success) throw new Error(result?.error || 'Failed to split check by guests')
+      if (!res?.splitCheckByGuest?.success) throw new Error(res?.splitCheckByGuest?.error || 'Failed to split by guests')
       await fetchData()
       setSheetSuccess(`Check split into ${Math.max(2, splitGuests)} guests`)
     })
@@ -493,11 +397,9 @@ export function ServiceFloorClient() {
     if (!selectedOrder || selectedSplitItemIds.length === 0) return
     await withAction('split-items', async () => {
       const res: any = await request('/api/graphql', SPLIT_CHECK_BY_ITEM, {
-        orderId: selectedOrder.id,
-        itemIds: selectedSplitItemIds,
+        orderId: selectedOrder.id, itemIds: selectedSplitItemIds,
       })
-      const result = res?.splitCheckByItem
-      if (!result?.success) throw new Error(result?.error || 'Failed to split selected items')
+      if (!res?.splitCheckByItem?.success) throw new Error(res?.splitCheckByItem?.error || 'Failed to split items')
       await fetchData()
       setSelectedSplitItemIds([])
       setSheetSuccess('Selected items moved to a new check')
@@ -508,14 +410,12 @@ export function ServiceFloorClient() {
     if (!selectedOrder || selectedMergeTableIds.length === 0) return
     await withAction('merge-tables', async () => {
       const res: any = await request('/api/graphql', COMBINE_TABLES, {
-        orderId: selectedOrder.id,
-        tableIds: selectedMergeTableIds,
+        orderId: selectedOrder.id, tableIds: selectedMergeTableIds,
       })
-      const result = res?.combineTables
-      if (!result?.success) throw new Error(result?.error || 'Failed to combine tables')
+      if (!res?.combineTables?.success) throw new Error(res?.combineTables?.error || 'Failed to combine tables')
       await fetchData()
       setSelectedMergeTableIds([])
-      setSheetSuccess('Tables merged into current check')
+      setSheetSuccess('Tables merged')
     })
   }
 
@@ -537,243 +437,310 @@ export function ServiceFloorClient() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <RefreshCw className="animate-spin" />
+        <RefreshCw className="animate-spin text-muted-foreground" />
       </div>
     )
   }
 
   return (
     <>
-      <div className="space-y-6 px-4 md:px-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card className="rounded-xl border"><CardContent className="p-4"><p className="text-[11px] text-muted-foreground uppercase tracking-wider">Tables</p><p className="text-2xl font-semibold mt-1">{counts.total}</p></CardContent></Card>
-          <Card className="rounded-xl border-emerald-200 bg-emerald-50/40 dark:border-emerald-800 dark:bg-emerald-950/20"><CardContent className="p-4"><p className="text-[11px] text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Available</p><p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-400 mt-1">{counts.available}</p></CardContent></Card>
-          <Card className="rounded-xl border-rose-200 bg-rose-50/40 dark:border-rose-800 dark:bg-rose-950/20"><CardContent className="p-4"><p className="text-[11px] text-rose-700 dark:text-rose-400 uppercase tracking-wider">Occupied</p><p className="text-2xl font-semibold text-rose-700 dark:text-rose-400 mt-1">{counts.occupied}</p></CardContent></Card>
-          <Card className="rounded-xl border"><CardContent className="p-4"><p className="text-[11px] text-muted-foreground uppercase tracking-wider">Active Checks</p><p className="text-2xl font-semibold mt-1">{counts.activeChecks}</p></CardContent></Card>
+      <PageBreadcrumbs
+        items={[
+          { type: 'link', label: 'Dashboard', href: '/dashboard' },
+          { type: 'page', label: 'Platform' },
+          { type: 'page', label: 'Service Floor' },
+        ]}
+      />
+
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="px-4 md:px-6 py-4 border-b border-border flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Service Floor</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Drag tables between lanes to update status. Click any table to manage its check.</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={fetchData} className="h-8 text-xs">
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm" asChild className="h-8 text-xs">
+              <Link href="/dashboard/platform/pos/tables">Floor map</Link>
+            </Button>
+          </div>
         </div>
 
-        <Card className="rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Service Floor</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={fetchData}><RefreshCw className="h-4 w-4 mr-1" />Refresh</Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/dashboard/platform/pos/tables">Advanced floor map</Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-              {statusOrder.map((laneStatus) => {
-                const laneTables = tables.filter((t) => t.status === laneStatus)
-                return (
-                  <div
-                    key={laneStatus}
-                    className="rounded-xl border bg-card"
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => onDropToStatus(laneStatus)}
-                  >
-                    <div className="px-3 py-2 border-b bg-muted/30 flex items-center justify-between">
-                      <div className="text-xs uppercase tracking-wider font-semibold">{statusLabel[laneStatus]}</div>
-                      <div className="inline-flex items-center justify-center rounded-full border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">{laneTables.length}</div>
+        {/* Stat strip */}
+        <div className="grid grid-cols-4 divide-x border-b border-border">
+          <div className="px-5 py-3">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Tables</p>
+            <p className="text-xl font-semibold mt-0.5">{counts.total}</p>
+          </div>
+          <div className="px-5 py-3">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Available</p>
+            <p className="text-xl font-semibold mt-0.5 text-emerald-600 dark:text-emerald-400">{counts.available}</p>
+          </div>
+          <div className="px-5 py-3">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Occupied</p>
+            <p className="text-xl font-semibold mt-0.5 text-rose-600 dark:text-rose-400">{counts.occupied}</p>
+          </div>
+          <div className="px-5 py-3">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Active Checks</p>
+            <p className="text-xl font-semibold mt-0.5">{counts.activeChecks}</p>
+          </div>
+        </div>
+
+        {/* Kanban */}
+        <div className="flex-1 overflow-auto p-4 md:p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 h-full min-h-[400px]">
+            {statusOrder.map(laneStatus => {
+              const laneTables = tables.filter(t => t.status === laneStatus)
+              return (
+                <div
+                  key={laneStatus}
+                  className="rounded-lg border border-border bg-muted/20 overflow-hidden flex flex-col"
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={() => onDropToStatus(laneStatus)}
+                >
+                  {/* Lane header */}
+                  <div className="px-3 py-2.5 border-b border-border bg-background flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${statusDot[laneStatus]}`} />
+                      <span className="text-[11px] uppercase tracking-wider font-semibold text-foreground">
+                        {statusLabel[laneStatus]}
+                      </span>
                     </div>
-
-                    <div className="p-2 space-y-2 min-h-[180px]">
-                      {laneTables.map((table) => {
-                        const activeOrder = orderByTable[table.id]
-                        const ageMins = activeOrder
-                          ? Math.max(0, Math.floor((Date.now() - new Date(activeOrder.createdAt).getTime()) / 60000))
-                          : 0
-
-                        return (
-                          <div
-                            key={table.id}
-                            draggable
-                            onDragStart={() => setDragTableId(table.id)}
-                            className={`rounded-lg border p-2.5 cursor-pointer transition-all hover:shadow-sm ${statusTone[table.status]}`}
-                            onClick={() => {
-                              setSelectedTable(table)
-                              setOpenSheet(true)
-                            }}
-                          >
-                            <div className="flex items-start justify-between mb-1">
-                              <div>
-                                <div className="text-sm font-semibold">Table {table.tableNumber}</div>
-                                <div className="text-[11px] text-muted-foreground inline-flex items-center gap-1"><Users className="h-3 w-3" />{table.capacity} seats</div>
-                              </div>
-                              <div className="text-muted-foreground"><GripVertical className="h-3.5 w-3.5" /></div>
-                            </div>
-
-                            {activeOrder ? (
-                              <div className="rounded-md border bg-background/85 dark:bg-background/50 p-2 space-y-1.5">
-                                <div className="text-xs font-medium">#{activeOrder.orderNumber}</div>
-                                <div className="text-[11px] text-muted-foreground flex items-center justify-between">
-                                  <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{ageMins}m</span>
-                                  <span className="uppercase">{formatStatusLabel(activeOrder.status)}</span>
-                                </div>
-                                <div className="text-[11px] text-muted-foreground flex items-center justify-between">
-                                  <span>{activeOrder.guestCount || 1} guests</span>
-                                  <span className="font-medium text-foreground">{formatCurrency(activeOrder.total || 0, currencyConfig)}</span>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="text-[11px] text-muted-foreground">No active check</div>
-                            )}
-
-                            {updatingTable === table.id && (
-                              <div className="text-[11px] mt-1 text-muted-foreground">Updating…</div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
+                    <span className="text-[11px] text-muted-foreground">{laneTables.length}</span>
                   </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
+
+                  {/* Table cards */}
+                  <div className="p-2 space-y-2 flex-1 overflow-y-auto">
+                    {laneTables.map(table => {
+                      const activeOrder = orderByTable[table.id]
+                      const ageMins = activeOrder
+                        ? Math.max(0, Math.floor((Date.now() - new Date(activeOrder.createdAt).getTime()) / 60000))
+                        : 0
+
+                      return (
+                        <div
+                          key={table.id}
+                          draggable
+                          onDragStart={() => setDragTableId(table.id)}
+                          className={`rounded-md border border-border bg-card border-l-2 ${statusBorderLeft[laneStatus]} cursor-pointer hover:shadow-sm transition-shadow p-3`}
+                          onClick={() => {
+                            setSelectedTable(table)
+                            setOpenSheet(true)
+                          }}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <p className="text-sm font-semibold">Table {table.tableNumber}</p>
+                              <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <Users size={10} />
+                                {table.capacity} seats
+                              </p>
+                            </div>
+                            <GripVertical size={13} className="text-muted-foreground/40 mt-0.5" />
+                          </div>
+
+                          {activeOrder ? (
+                            <div className="rounded border border-border bg-background/70 p-2 space-y-1">
+                              <p className="text-xs font-medium">#{activeOrder.orderNumber}</p>
+                              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Clock3 size={9} />{ageMins}m
+                                </span>
+                                <span className="uppercase text-[10px] tracking-wider">{formatStatusLabel(activeOrder.status)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                <span>{activeOrder.guestCount || 1} guests</span>
+                                <span className="font-medium text-foreground">{formatCurrency(activeOrder.total || 0, currencyConfig)}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-muted-foreground">No active check</p>
+                          )}
+
+                          {updatingTable === table.id && (
+                            <p className="text-[11px] text-muted-foreground mt-1">Updating…</p>
+                          )}
+                        </div>
+                      )
+                    })}
+
+                    {laneTables.length === 0 && (
+                      <div className="text-center py-8 text-[11px] text-muted-foreground/50 uppercase tracking-wider">
+                        Drop here
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
+      {/* Table sheet */}
       <Sheet open={openSheet} onOpenChange={setOpenSheet}>
-        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{selectedTable ? `Table ${selectedTable.tableNumber}` : 'Table'}</SheetTitle>
-            <SheetDescription>
-              Waiter control panel: quick add, split checks, merge tables, and course fire/hold.
-            </SheetDescription>
+            <SheetTitle className="text-base font-semibold">
+              {selectedTable ? `Table ${selectedTable.tableNumber}` : 'Table'}
+            </SheetTitle>
           </SheetHeader>
 
           {selectedTable && (
-            <div className="mt-6 space-y-5 pb-8">
+            <div className="mt-5 space-y-5 pb-8">
+              {/* Active check summary */}
               {selectedOrder ? (
-                <div className="rounded-lg border p-3 bg-muted/30">
+                <div className="rounded-lg border border-border bg-card p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold">Active Check #{selectedOrder.orderNumber}</div>
-                      <div className="text-xs text-muted-foreground mt-1 uppercase">{formatStatusLabel(selectedOrder.status)}</div>
+                      <p className="text-sm font-semibold">Check #{selectedOrder.orderNumber}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 uppercase tracking-wider">{formatStatusLabel(selectedOrder.status)}</p>
                     </div>
                     <div className="text-right">
-                      <div className="text-[11px] text-muted-foreground uppercase">Total</div>
-                      <div className="text-sm font-semibold">{formatCurrency(selectedOrder.total || 0, currencyConfig)}</div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</p>
+                      <p className="text-sm font-semibold">{formatCurrency(selectedOrder.total || 0, currencyConfig)}</p>
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-2">
-                    {(selectedOrder.orderItems || []).slice(0, 3).map((i) => `${i.quantity}x ${i.menuItem?.name || 'Item'}`).join(', ')}
-                    {(selectedOrder.orderItems || []).length > 3 ? ' …' : ''}
-                  </div>
+                  {(selectedOrder.orderItems || []).length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2 truncate">
+                      {(selectedOrder.orderItems || []).slice(0, 3).map(i => `${i.quantity}× ${i.menuItem?.name || 'Item'}`).join(', ')}
+                      {(selectedOrder.orderItems || []).length > 3 ? ' …' : ''}
+                    </p>
+                  )}
                 </div>
               ) : (
-                <div className="rounded-lg border p-3 bg-muted/20 text-sm text-muted-foreground">No active check. Adding an item creates a new dine-in order.</div>
+                <div className="rounded-lg border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+                  No active check. Adding an item creates a new dine-in order.
+                </div>
               )}
 
-              {sheetError && <div className="rounded-md border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30 p-2 text-xs text-red-700 dark:text-red-400">{sheetError}</div>}
-              {sheetSuccess && <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 p-2 text-xs text-emerald-700 dark:text-emerald-400">{sheetSuccess}</div>}
+              {/* Feedback messages */}
+              {sheetError && (
+                <div className="rounded-md border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30 px-3 py-2 text-xs text-red-700 dark:text-red-400">
+                  {sheetError}
+                </div>
+              )}
+              {sheetSuccess && (
+                <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+                  {sheetSuccess}
+                </div>
+              )}
 
-              <div className="space-y-3 rounded-lg border p-3 bg-card">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Quick add item</div>
+              {/* Quick add item */}
+              <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Quick Add Item</p>
                 <Select value={selectedMenuItemId} onValueChange={setSelectedMenuItemId}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Select menu item" />
                   </SelectTrigger>
                   <SelectContent>
-                    {menuItems.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.name} • {formatCurrency(item.price, currencyConfig)}
+                    {menuItems.map(item => (
+                      <SelectItem key={item.id} value={item.id} className="text-xs">
+                        {item.name} · {formatCurrency(item.price, currencyConfig)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
                     min={1}
                     value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value || '1', 10)))}
-                    className="w-24"
+                    onChange={e => setQuantity(Math.max(1, parseInt(e.target.value || '1', 10)))}
+                    className="w-20 h-8 text-xs"
                   />
-                  <Button onClick={addItemToTable} disabled={!selectedMenuItemId || addingItem}>
-                    <Plus className="h-4 w-4 mr-1" />
+                  <Button
+                    size="sm"
+                    onClick={addItemToTable}
+                    disabled={!selectedMenuItemId || addingItem}
+                    className="h-8 text-xs"
+                  >
+                    <Plus size={12} className="mr-1" />
                     {addingItem ? 'Adding…' : 'Add'}
                   </Button>
                 </div>
               </div>
 
+              {/* Course control */}
               {selectedOrder && (
-                <div className="space-y-3 rounded-lg border p-3 bg-card">
+                <div className="rounded-lg border border-border bg-card p-3 space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1">
-                      <Flame className="h-3.5 w-3.5" /> Course control
-                    </div>
-                    <div className="text-xs text-muted-foreground">{selectedOrder.courses?.length || 0} courses</div>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Flame size={12} /> Course Control
+                    </p>
+                    <span className="text-[11px] text-muted-foreground">{selectedOrder.courses?.length || 0} courses</span>
                   </div>
-
                   {(selectedOrder.courses || []).length === 0 ? (
-                    <div className="text-xs text-muted-foreground">No courses configured on this check yet.</div>
+                    <p className="text-xs text-muted-foreground">No courses on this check yet.</p>
                   ) : (
-                    <div className="space-y-2">
-                      {selectedOrder.courses.map((course) => {
+                    <div className="space-y-1.5">
+                      {selectedOrder.courses.map(course => {
                         const canFire = course.status === 'pending'
-                        const btnLabel = canFire ? 'Fire' : 'Hold'
-                        const btnIcon = canFire ? <Flame className="h-3.5 w-3.5 mr-1" /> : <PauseCircle className="h-3.5 w-3.5 mr-1" />
                         return (
-                          <div key={course.id} className="rounded-md border p-2 flex items-center justify-between bg-background">
+                          <div key={course.id} className="flex items-center justify-between rounded border border-border bg-background px-3 py-2">
                             <div>
-                              <div className="text-sm font-medium">{formatCourseLabel(course.courseType, course.courseNumber)}</div>
-                              <div className="text-[11px] uppercase text-muted-foreground">{course.status}</div>
+                              <p className="text-xs font-medium">{formatCourseLabel(course.courseType, course.courseNumber)}</p>
+                              <p className="text-[10px] uppercase text-muted-foreground">{course.status}</p>
                             </div>
                             <Button
                               size="sm"
                               variant={canFire ? 'default' : 'outline'}
                               onClick={() => toggleCourseFireHold(course.id, course.status)}
                               disabled={processingAction === `course:${course.id}` || !['pending', 'fired'].includes(course.status)}
+                              className="h-7 text-xs"
                             >
-                              {btnIcon}{btnLabel}
+                              {canFire ? <Flame size={11} className="mr-1" /> : <PauseCircle size={11} className="mr-1" />}
+                              {canFire ? 'Fire' : 'Hold'}
                             </Button>
                           </div>
                         )
                       })}
                     </div>
                   )}
-
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       variant="outline"
                       size="sm"
+                      className="h-7 text-xs"
                       disabled={!pendingCourses.length || processingAction === 'course:bulk-fire'}
                       onClick={() => pendingCourses[0] && toggleCourseFireHold(pendingCourses[0].id, 'pending')}
                     >
-                      <Flame className="h-3.5 w-3.5 mr-1" /> Fire Next
+                      <Flame size={11} className="mr-1" /> Fire Next
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
+                      className="h-7 text-xs"
                       disabled={!firedCourses.length || processingAction === 'course:bulk-hold'}
                       onClick={() => firedCourses[0] && toggleCourseFireHold(firedCourses[0].id, 'fired')}
                     >
-                      <PauseCircle className="h-3.5 w-3.5 mr-1" /> Hold Last Fired
+                      <PauseCircle size={11} className="mr-1" /> Hold Last
                     </Button>
                   </div>
                 </div>
               )}
 
+              {/* Merge tables */}
               {selectedOrder && (
-                <div className="space-y-3 rounded-lg border p-3 bg-card">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1">
-                    <Layers className="h-3.5 w-3.5" /> Merge tables into this check
-                  </div>
+                <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Layers size={12} /> Merge Tables
+                  </p>
                   {mergeCandidates.length === 0 ? (
-                    <div className="text-xs text-muted-foreground">No merge candidates right now.</div>
+                    <p className="text-xs text-muted-foreground">No merge candidates available.</p>
                   ) : (
-                    <div className="space-y-2">
-                      {mergeCandidates.map((table) => (
-                        <label key={table.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <div className="space-y-1.5">
+                      {mergeCandidates.map(table => (
+                        <label key={table.id} className="flex items-center gap-2 text-xs cursor-pointer">
                           <Checkbox
                             checked={selectedMergeTableIds.includes(table.id)}
-                            onCheckedChange={(checked) => {
-                              setSelectedMergeTableIds((prev) =>
-                                checked ? [...prev, table.id] : prev.filter((id) => id !== table.id)
+                            onCheckedChange={checked => {
+                              setSelectedMergeTableIds(prev =>
+                                checked ? [...prev, table.id] : prev.filter(id => id !== table.id)
                               )
                             }}
                           />
@@ -782,85 +749,117 @@ export function ServiceFloorClient() {
                       ))}
                     </div>
                   )}
-                  <Button size="sm" onClick={mergeTablesIntoCheck} disabled={selectedMergeTableIds.length === 0 || processingAction === 'merge-tables'}>
-                    <Layers className="h-3.5 w-3.5 mr-1" /> Merge Selected Tables
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={mergeTablesIntoCheck}
+                    disabled={selectedMergeTableIds.length === 0 || processingAction === 'merge-tables'}
+                  >
+                    <Layers size={11} className="mr-1" /> Merge Selected
                   </Button>
                 </div>
               )}
 
+              {/* Split check */}
               {selectedOrder && (
-                <div className="space-y-3 rounded-lg border p-3 bg-card">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1">
-                    <Split className="h-3.5 w-3.5" /> Split check
-                  </div>
-
-                  <div className="grid grid-cols-[120px_1fr] gap-2 items-center">
+                <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Split size={12} /> Split Check
+                  </p>
+                  <div className="flex items-center gap-2">
                     <Input
                       type="number"
                       min={2}
                       value={splitGuests}
-                      onChange={(e) => setSplitGuests(Math.max(2, parseInt(e.target.value || '2', 10)))}
+                      onChange={e => setSplitGuests(Math.max(2, parseInt(e.target.value || '2', 10)))}
+                      className="w-20 h-8 text-xs"
                     />
-                    <Button size="sm" variant="outline" onClick={splitByGuests} disabled={processingAction === 'split-guests'}>
-                      Split by Guests
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs"
+                      onClick={splitByGuests}
+                      disabled={processingAction === 'split-guests'}
+                    >
+                      By Guests
                     </Button>
                   </div>
-
-                  <div className="space-y-2 max-h-40 overflow-y-auto rounded-md border p-2 bg-background">
-                    {(selectedOrder.orderItems || []).map((item) => (
-                      <label key={item.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto rounded border border-border p-2 bg-background">
+                    {(selectedOrder.orderItems || []).map(item => (
+                      <label key={item.id} className="flex items-center gap-2 text-xs cursor-pointer">
                         <Checkbox
                           checked={selectedSplitItemIds.includes(item.id)}
-                          onCheckedChange={(checked) => {
-                            setSelectedSplitItemIds((prev) =>
-                              checked ? [...prev, item.id] : prev.filter((id) => id !== item.id)
+                          onCheckedChange={checked => {
+                            setSelectedSplitItemIds(prev =>
+                              checked ? [...prev, item.id] : prev.filter(id => id !== item.id)
                             )
                           }}
                         />
-                        <span>{item.quantity}x {item.menuItem?.name || 'Item'}</span>
+                        {item.quantity}× {item.menuItem?.name || 'Item'}
                       </label>
                     ))}
                   </div>
-
-                  <Button size="sm" onClick={splitByItems} disabled={selectedSplitItemIds.length === 0 || processingAction === 'split-items'}>
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={splitByItems}
+                    disabled={selectedSplitItemIds.length === 0 || processingAction === 'split-items'}
+                  >
                     Split Selected Items
                   </Button>
                 </div>
               )}
 
+              {/* Actions */}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 {selectedOrder ? (
-                  <Button className="h-10" onClick={() => sendOrderToKitchen(selectedOrder.id)} disabled={!['open', 'sent_to_kitchen'].includes(selectedOrder.status) || processingAction === 'send-kitchen'}>
-                    <Send className="h-4 w-4 mr-1" />
+                  <Button
+                    className="h-9 text-xs"
+                    onClick={() => sendOrderToKitchen(selectedOrder.id)}
+                    disabled={!['open', 'sent_to_kitchen'].includes(selectedOrder.status) || processingAction === 'send-kitchen'}
+                  >
+                    <Send size={12} className="mr-1.5" />
                     {selectedOrder.status === 'open' ? 'Send to Kitchen' : 'Re-send'}
                   </Button>
                 ) : (
-                  <Button className="h-10" disabled>
-                    <Send className="h-4 w-4 mr-1" /> Send to Kitchen
+                  <Button className="h-9 text-xs" disabled>
+                    <Send size={12} className="mr-1.5" /> Send to Kitchen
                   </Button>
                 )}
 
                 {selectedOrder ? (
-                  <Button className="h-10" variant="secondary" onClick={() => router.push(`/dashboard/platform/pos/${selectedOrder.id}/payment`)}>
-                    <CreditCard className="h-4 w-4 mr-1" /> Request Bill
+                  <Button
+                    className="h-9 text-xs"
+                    variant="secondary"
+                    onClick={() => router.push(`/dashboard/platform/pos/${selectedOrder.id}/payment`)}
+                  >
+                    <CreditCard size={12} className="mr-1.5" /> Request Bill
                   </Button>
                 ) : (
-                  <Button className="h-10" variant="secondary" disabled>
-                    <CreditCard className="h-4 w-4 mr-1" /> Request Bill
+                  <Button className="h-9 text-xs" variant="secondary" disabled>
+                    <CreditCard size={12} className="mr-1.5" /> Request Bill
                   </Button>
                 )}
 
-                <Button className="h-10" variant="outline" onClick={() => router.push(`/dashboard/platform/pos?tableId=${selectedTable.id}`)}>
-                  <UtensilsCrossed className="h-4 w-4 mr-1" /> Open POS
+                <Button
+                  className="h-9 text-xs"
+                  variant="outline"
+                  onClick={() => router.push(`/dashboard/platform/pos?tableId=${selectedTable.id}`)}
+                >
+                  <UtensilsCrossed size={12} className="mr-1.5" /> Open POS
                 </Button>
 
                 {selectedOrder ? (
-                  <Button className="h-10" variant="outline" onClick={() => router.push(`/dashboard/platform/orders/${selectedOrder.id}`)}>
-                    <ChefHat className="h-4 w-4 mr-1" /> Open Order
+                  <Button
+                    className="h-9 text-xs"
+                    variant="outline"
+                    onClick={() => router.push(`/dashboard/platform/orders/${selectedOrder.id}`)}
+                  >
+                    <ChefHat size={12} className="mr-1.5" /> Open Order
                   </Button>
                 ) : (
-                  <Button className="h-10" variant="outline" disabled>
-                    <ChefHat className="h-4 w-4 mr-1" /> Open Order
+                  <Button className="h-9 text-xs" variant="outline" disabled>
+                    <ChefHat size={12} className="mr-1.5" /> Open Order
                   </Button>
                 )}
               </div>

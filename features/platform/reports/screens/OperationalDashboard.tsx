@@ -3,8 +3,6 @@ import { getDateRange, formatCurrency, formatNumber } from "../lib/reportHelpers
 import { getStoreSettings } from "@/features/storefront/lib/data/menu";
 import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs";
 import { OperationalMetrics } from "../components/OperationalMetrics";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Receipt, ChefHat, ListOrdered, BarChart3 } from "lucide-react";
 import Link from "next/link";
@@ -42,11 +40,16 @@ export async function OperationalDashboard() {
     }
 
     const todayOrders = salesData?.restaurantOrders || [];
-    const completedToday = todayOrders.filter((o: any) => o.status === 'completed');
+    const completedToday = todayOrders.filter((o: any) => o.status === "completed");
     const todayRevenue = completedToday.reduce((sum: number, o: any) => sum + parseFloat(o.total || 0), 0);
 
+    const kitchenLoad = ordersInKitchen > 10 ? "High" : ordersInKitchen > 5 ? "Moderate" : "Normal";
+    const kitchenLoadColor = ordersInKitchen > 10 ? "text-red-600" : ordersInKitchen > 5 ? "text-amber-600" : "text-emerald-600";
+    const serviceQuality = voidRate > 5 ? "Needs Attention" : "Good";
+    const serviceQualityColor = voidRate > 5 ? "text-red-600" : "text-emerald-600";
+
     return (
-      <section aria-label="Operational Dashboard" className="overflow-hidden flex flex-col">
+      <section aria-label="Operational Dashboard" className="flex flex-col h-full">
         <PageBreadcrumbs
           items={[
             { type: "link", label: "Dashboard", href: "/dashboard" },
@@ -54,138 +57,125 @@ export async function OperationalDashboard() {
           ]}
         />
 
-        <div className="flex flex-col flex-1 min-h-0">
-          <div className="px-4 md:px-6 pt-4 md:pt-6 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b">
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-                Operational Dashboard
-                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">
-                  Live
-                </Badge>
-              </h1>
-              <p className="text-muted-foreground">
-                Real-time restaurant operations monitoring
-              </p>
+        {/* Header */}
+        <div className="px-4 md:px-6 py-4 border-b border-border flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight">Operations</h1>
+              <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wider text-emerald-600 border border-emerald-200 dark:border-emerald-800 rounded-full px-2 py-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live
+              </span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <RefreshCw className="w-4 h-4" />
-              Auto-refreshes every 30 seconds
-            </div>
+            <p className="text-sm text-muted-foreground mt-0.5">Real-time restaurant operations.</p>
           </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Auto-refreshes every 30s
+          </div>
+        </div>
 
-          <div className="px-4 md:px-6 py-6 space-y-6">
-            {/* Key Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 dark:from-emerald-500/10 dark:to-emerald-500/5 border-emerald-200 dark:border-emerald-800">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(todayRevenue, currencyConfig)}</div>
-                    <div className="text-sm text-emerald-600 dark:text-emerald-500">Today's Revenue</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-blue-500/5 to-blue-500/10 dark:from-blue-500/10 dark:to-blue-500/5 border-blue-200 dark:border-blue-800">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-700 dark:text-blue-400">{formatNumber(completedToday.length)}</div>
-                    <div className="text-sm text-blue-600 dark:text-blue-500">Orders Today</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-amber-500/5 to-amber-500/10 dark:from-amber-500/10 dark:to-amber-500/5 border-amber-200 dark:border-amber-800">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-amber-700 dark:text-amber-400">{currentOrders}</div>
-                    <div className="text-sm text-amber-600 dark:text-amber-500">Active Orders</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-gradient-to-br from-purple-500/5 to-purple-500/10 dark:from-purple-500/10 dark:to-purple-500/5 border-purple-200 dark:border-purple-800">
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-purple-700 dark:text-purple-400">{occupiedTables}/{totalTables}</div>
-                    <div className="text-sm text-purple-600 dark:text-purple-500">Tables Occupied</div>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Key Metric Strip */}
+        <div className="grid grid-cols-2 md:grid-cols-4 divide-x border-b border-border">
+          <div className="px-5 py-4">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Today's Revenue</p>
+            <p className="text-xl font-semibold mt-1">{formatCurrency(todayRevenue, currencyConfig)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{completedToday.length} completed orders</p>
+          </div>
+          <div className="px-5 py-4">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Active Orders</p>
+            <p className="text-xl font-semibold mt-1">{currentOrders}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{ordersReady} ready to serve</p>
+          </div>
+          <div className="px-5 py-4">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Kitchen Queue</p>
+            <p className={`text-xl font-semibold mt-1 ${kitchenLoadColor}`}>{ordersInKitchen}</p>
+            <p className={`text-xs mt-0.5 ${kitchenLoadColor}`}>{kitchenLoad}</p>
+          </div>
+          <div className="px-5 py-4">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Tables</p>
+            <p className="text-xl font-semibold mt-1">{occupiedTables}/{totalTables}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {totalTables > 0 ? Math.round((occupiedTables / totalTables) * 100) : 0}% occupied
+            </p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-auto px-4 md:px-6 py-6 space-y-6">
+          {/* Operational metrics component */}
+          <OperationalMetrics
+            currentOrders={currentOrders}
+            tableOccupancy={occupiedTables}
+            totalTables={totalTables}
+            averageTicketTime={averageTicketTime}
+            targetTicketTime={18}
+            ordersInKitchen={ordersInKitchen}
+            ordersReady={ordersReady}
+            voidRate={voidRate}
+            serverCount={3}
+            currencyCode={currencyConfig.currencyCode}
+            locale={currencyConfig.locale}
+          />
+
+          {/* Status + Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Current Status */}
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              <div className="px-4 py-3 border-b border-border">
+                <h2 className="text-sm font-semibold">Current Status</h2>
+              </div>
+              <div className="divide-y">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-sm text-muted-foreground">Kitchen Load</span>
+                  <span className={`text-sm font-medium ${kitchenLoadColor}`}>{kitchenLoad}</span>
+                </div>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-sm text-muted-foreground">Table Turnover</span>
+                  <span className="text-sm font-medium text-emerald-600">On Track</span>
+                </div>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-sm text-muted-foreground">Service Quality</span>
+                  <span className={`text-sm font-medium ${serviceQualityColor}`}>{serviceQuality}</span>
+                </div>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-sm text-muted-foreground">Void Rate</span>
+                  <span className="text-sm font-medium">{voidRate.toFixed(1)}%</span>
+                </div>
+              </div>
             </div>
 
-            <OperationalMetrics
-              currentOrders={currentOrders}
-              tableOccupancy={occupiedTables}
-              totalTables={totalTables}
-              averageTicketTime={averageTicketTime}
-              targetTicketTime={18}
-              ordersInKitchen={ordersInKitchen}
-              ordersReady={ordersReady}
-              voidRate={voidRate}
-              serverCount={3}
-              currencyCode={currencyConfig.currencyCode}
-              locale={currencyConfig.locale}
-            />
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Current Status</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <span className="font-medium">Kitchen Load</span>
-                      <Badge variant={ordersInKitchen > 10 ? "destructive" : ordersInKitchen > 5 ? "default" : "secondary"}>
-                        {ordersInKitchen > 10 ? "High" : ordersInKitchen > 5 ? "Moderate" : "Normal"}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <span className="font-medium">Table Turnover</span>
-                      <Badge variant="secondary">
-                        On Track
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <span className="font-medium">Service Quality</span>
-                      <Badge variant={voidRate > 5 ? "destructive" : "secondary"}>
-                        {voidRate > 5 ? "Needs Attention" : "Good"}
-                      </Badge>
-                    </div>
+            {/* Quick Actions */}
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              <div className="px-4 py-3 border-b border-border">
+                <h2 className="text-sm font-semibold">Quick Actions</h2>
+              </div>
+              <div className="p-4 grid grid-cols-2 gap-3">
+                <Link href="/dashboard/platform/pos">
+                  <div className="rounded-md border border-border hover:border-foreground/30 bg-background hover:bg-muted/30 p-4 flex flex-col items-center gap-2 cursor-pointer transition-colors text-center">
+                    <Receipt className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-xs font-medium">New Order</span>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Link href="/dashboard/platform/pos">
-                      <Button variant="outline" className="w-full h-auto flex flex-col items-center gap-2 py-4">
-                        <Receipt className="h-5 w-5" />
-                        <span className="text-sm font-medium">New Order</span>
-                      </Button>
-                    </Link>
-                    <Link href="/dashboard/platform/kds">
-                      <Button variant="outline" className="w-full h-auto flex flex-col items-center gap-2 py-4">
-                        <ChefHat className="h-5 w-5" />
-                        <span className="text-sm font-medium">Kitchen Display</span>
-                      </Button>
-                    </Link>
-                    <Link href="/dashboard/platform/orders">
-                      <Button variant="outline" className="w-full h-auto flex flex-col items-center gap-2 py-4">
-                        <ListOrdered className="h-5 w-5" />
-                        <span className="text-sm font-medium">All Orders</span>
-                      </Button>
-                    </Link>
-                    <Link href="/dashboard/platform/reports/sales">
-                      <Button variant="outline" className="w-full h-auto flex flex-col items-center gap-2 py-4">
-                        <BarChart3 className="h-5 w-5" />
-                        <span className="text-sm font-medium">Reports</span>
-                      </Button>
-                    </Link>
+                </Link>
+                <Link href="/dashboard/platform/kds">
+                  <div className="rounded-md border border-border hover:border-foreground/30 bg-background hover:bg-muted/30 p-4 flex flex-col items-center gap-2 cursor-pointer transition-colors text-center">
+                    <ChefHat className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-xs font-medium">Kitchen Display</span>
                   </div>
-                </CardContent>
-              </Card>
+                </Link>
+                <Link href="/dashboard/platform/orders">
+                  <div className="rounded-md border border-border hover:border-foreground/30 bg-background hover:bg-muted/30 p-4 flex flex-col items-center gap-2 cursor-pointer transition-colors text-center">
+                    <ListOrdered className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-xs font-medium">All Orders</span>
+                  </div>
+                </Link>
+                <Link href="/dashboard/platform/reports/sales">
+                  <div className="rounded-md border border-border hover:border-foreground/30 bg-background hover:bg-muted/30 p-4 flex flex-col items-center gap-2 cursor-pointer transition-colors text-center">
+                    <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-xs font-medium">Reports</span>
+                  </div>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -194,9 +184,9 @@ export async function OperationalDashboard() {
   } catch (error) {
     console.error("Error loading operational dashboard:", error);
     return (
-      <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold tracking-tight text-destructive">Dashboard Error</h1>
-        <p className="mt-2 text-muted-foreground">Failed to load operational data. Please try again later.</p>
+      <div className="px-4 md:px-6 py-8">
+        <h1 className="text-xl font-semibold text-destructive">Dashboard Error</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Failed to load operational data. Please try again.</p>
       </div>
     );
   }

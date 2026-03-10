@@ -91,14 +91,14 @@ export function OrderDetailsComponent({
 
               <Badge
                 variant="secondary"
-                className="text-[10px] py-0.5 px-2.5 tracking-wide font-semibold rounded-full uppercase"
+                className="text-xs py-0.5 px-2.5 tracking-wide font-semibold rounded-full uppercase"
               >
                 {order.orderSource || "online"}
               </Badge>
 
               <Badge
                 variant="outline"
-                className="text-[10px] py-0.5 px-2.5 tracking-wide font-semibold rounded-full uppercase"
+                className="text-xs py-0.5 px-2.5 tracking-wide font-semibold rounded-full uppercase"
               >
                 {order.orderType?.replace("_", " ")}
               </Badge>
@@ -181,7 +181,7 @@ export function OrderDetailsComponent({
         <AccordionContent className="bg-muted/20 border-t">
           <div className="p-4 md:px-8 grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-              <h4 className="text-[10px] uppercase tracking-[0.2em] font-semibold text-muted-foreground mb-4">
+              <h4 className="text-xs uppercase tracking-[0.2em] font-semibold text-muted-foreground mb-4">
                 Items
               </h4>
               <div className="space-y-3">
@@ -200,7 +200,7 @@ export function OrderDetailsComponent({
             </div>
 
             <div className="md:border-l md:pl-8">
-              <h4 className="text-[10px] uppercase tracking-[0.2em] font-semibold text-muted-foreground mb-4">
+              <h4 className="text-xs uppercase tracking-[0.2em] font-semibold text-muted-foreground mb-4">
                 Service Info
               </h4>
               <div className="space-y-2 text-sm">

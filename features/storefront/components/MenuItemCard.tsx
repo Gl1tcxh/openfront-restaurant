@@ -42,7 +42,7 @@ export function MenuItemCard({ item, onSelect, currencyCode = "USD", locale = "e
   return (
     <article className="group cursor-pointer" onClick={() => onSelect(item)}>
       {/* Image */}
-      <div className="relative aspect-[4/3] overflow-hidden mb-4 bg-muted">
+      <div className="relative aspect-[4/3] overflow-hidden mb-4 bg-muted rounded-xl ring-1 ring-inset ring-foreground/10">
         <Image
           src={getImageUrl(item)}
           alt={item.name}
@@ -55,7 +55,7 @@ export function MenuItemCard({ item, onSelect, currencyCode = "USD", locale = "e
           </span>
         )}
         <button
-          className="absolute bottom-3 right-3 h-10 w-10 rounded-full bg-background text-foreground shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary hover:text-primary-foreground"
+          className="absolute bottom-3 right-3 h-10 w-10 rounded-full bg-background text-foreground shadow-md ring-1 ring-foreground/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-primary hover:text-primary-foreground"
           onClick={(e) => {
             e.stopPropagation()
             onSelect(item)

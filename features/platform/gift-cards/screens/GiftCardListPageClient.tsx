@@ -9,19 +9,13 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { 
   Plus,
-  Triangle,
-  Square,
-  Circle,
   Search,
   CreditCard,
-  RefreshCw,
-  Wallet
+  RefreshCw
 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs"
-import { PageContainer } from '../../../dashboard/components/PageContainer'
 import { PlatformFilterBar } from '../../components/PlatformFilterBar'
 import { StatusTabs } from '../components/StatusTabs'
 import { GiftCardDetailsComponent } from '../components/GiftCardDetailsComponent'
@@ -151,38 +145,32 @@ export function GiftCardListPageClient({
     <div className="flex flex-col h-full bg-background">
       <PageBreadcrumbs items={breadcrumbs} />
 
-      {/* Header Section */}
-      <div className="px-6 py-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-br from-background via-emerald-500/5 to-background">
+      {/* Header */}
+      <div className="px-4 md:px-6 py-4 border-b border-border flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Gift Cards</h1>
-          <p className="text-muted-foreground mt-1">Issue and track stored value cards for your customers</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Gift Cards</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Issue and track stored value cards for your customers.</p>
         </div>
-        <Button 
+        <Button
           onClick={() => setIsCreateDrawerOpen(true)}
-          className="h-12 px-6 rounded-2xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-black uppercase tracking-widest text-xs hover:scale-105 transition-all active:scale-95 shadow-xl shadow-zinc-200 dark:shadow-none"
+          size="sm"
+          className="h-8 text-xs"
         >
-          <Plus className="size-4 mr-2" />
+          <Plus className="size-3.5 mr-1.5" />
           Issue New Card
         </Button>
       </div>
 
       {/* Stats/Tabs Section */}
       {statusCounts && (
-        <div className="px-6 py-4 border-b flex flex-wrap items-center justify-between gap-4 bg-muted/20">
+        <div className="border-b border-border">
           <StatusTabs statusCounts={statusCounts} />
-          
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-9 rounded-xl border-2 font-bold px-4" onClick={handleResetFilters}>
-              <RefreshCw className="size-3.5 mr-2" />
-              Sync
-            </Button>
-          </div>
         </div>
       )}
 
-      {/* Filter Bar */}
-      <div className="px-6 py-4 border-b">
-        <PlatformFilterBar 
+      {/* Filter/Search Bar */}
+      <div className="px-4 md:px-6 py-2.5 border-b border-border">
+        <PlatformFilterBar
           list={list}
           showDisplayButton={true}
           selectedFields={selectedFields}
@@ -192,36 +180,35 @@ export function GiftCardListPageClient({
 
       {/* Main Content */}
       <ScrollArea className="flex-1">
-        <div className="pb-12">
+        <div className="pb-8">
           {error ? (
-            <div className="p-6">
-              <Alert variant="destructive" className="rounded-2xl border-2">
+            <div className="p-4 md:p-6">
+              <Alert variant="destructive">
                 <AlertDescription>Failed to load gift cards: {error}</AlertDescription>
               </Alert>
             </div>
           ) : isEmpty ? (
-            <div className="p-24 flex flex-col items-center justify-center text-center">
-              <div className="w-32 h-20 rounded-2xl bg-muted border-2 border-dashed border-muted-foreground/30 flex items-center justify-center mb-6 relative">
-                <CreditCard className="size-10 text-muted-foreground opacity-20" />
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white">
-                   <Plus className="size-4" />
-                </div>
-              </div>
-              <h2 className="text-2xl font-black mb-2 tracking-tight">Zero Cards Issued</h2>
-              <p className="text-muted-foreground max-w-sm mb-8">Gift cards are a great way to increase customer loyalty and upfront cash flow.</p>
-              <Button onClick={() => setIsCreateDrawerOpen(true)} size="lg" className="rounded-2xl px-8 font-black uppercase tracking-widest text-xs">
-                Issue First Gift Card
+            <div className="py-16 flex flex-col items-center justify-center text-center px-8">
+              <CreditCard size={28} className="text-muted-foreground/20 mb-3" />
+              <p className="text-sm font-medium mb-1">No gift cards issued</p>
+              <p className="text-xs text-muted-foreground max-w-xs mb-4">
+                Gift cards are a great way to increase customer loyalty and upfront cash flow.
+              </p>
+              <Button onClick={() => setIsCreateDrawerOpen(true)} size="sm" variant="outline" className="h-8 text-xs">
+                <Plus className="size-3 mr-1.5" /> Issue First Card
               </Button>
             </div>
           ) : data?.count === 0 ? (
-            <div className="p-12 text-center flex flex-col items-center">
-              <Search className="size-12 text-muted-foreground opacity-20 mb-4" />
-              <h3 className="text-lg font-bold uppercase tracking-widest">No matching cards found</h3>
-              <Button variant="link" onClick={handleResetFilters}>Clear search criteria</Button>
+            <div className="py-12 text-center flex flex-col items-center">
+              <Search className="size-8 text-muted-foreground/20 mb-3" />
+              <p className="text-sm text-muted-foreground">No gift cards match your search.</p>
+              <button onClick={handleResetFilters} className="text-xs underline underline-offset-2 text-muted-foreground hover:text-foreground mt-2">
+                Clear filters
+              </button>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1">
+              <div className="divide-y">
                 {data?.items?.map((giftcard: any) => (
                   <GiftCardDetailsComponent
                     key={giftcard.id}
@@ -232,9 +219,8 @@ export function GiftCardListPageClient({
                   />
                 ))}
               </div>
-              
               {data && data.count > pageSize && (
-                <div className="px-6 py-8">
+                <div className="px-4 md:px-6 py-6">
                   <Pagination
                     currentPage={currentPage}
                     total={data.count}
@@ -247,14 +233,12 @@ export function GiftCardListPageClient({
           )}
         </div>
       </ScrollArea>
-      
+
       <CreateItemDrawerClientWrapper
         listKey="gift-cards"
         open={isCreateDrawerOpen}
         onClose={() => setIsCreateDrawerOpen(false)}
-        onCreate={() => {
-          window.location.reload();
-        }}
+        onCreate={() => { window.location.reload() }}
       />
     </div>
   )

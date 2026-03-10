@@ -1,11 +1,5 @@
-import { ListPage } from "@/features/dashboard/screens/ListPage";
+import { ReservationsPage } from "@/features/platform/reservations/screens/ReservationsPage";
 
-export default async function Page(props: any) {
-  const searchParams = await props.searchParams;
-  return (
-    <ListPage 
-      params={Promise.resolve({ listKey: "reservations" })} 
-      searchParams={Promise.resolve(searchParams)} 
-    />
-  );
+export default async function Page() {
+  return <ReservationsPage />;
 }

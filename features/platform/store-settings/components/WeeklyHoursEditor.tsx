@@ -1,15 +1,11 @@
+'use client'
+
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { AlertCircle } from 'lucide-react'
-import {
-  PlatformMetaStrip,
-  PlatformSubcard,
-  PlatformSurface,
-  PlatformSurfaceBody,
-  PlatformSurfaceHeader,
-} from '@/features/platform/components/platform-surface'
+import { AlertCircle, CalendarClock, Plus, Trash2, Copy } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export type DayKey =
   | 'monday'
@@ -41,7 +37,7 @@ export interface HoursState {
 }
 
 interface WeeklyHoursEditorProps {
-  days: Array<{ key: DayKey; label: string }>
+  days: Array<{ key: DayKey; label: string; short: string }>
   hours: HoursState
   openDaysCount: number
   todaySummary: string
@@ -69,8 +65,6 @@ function to12Hour(time24: string, locale = 'en-US', timezone = 'UTC') {
 export function WeeklyHoursEditor({
   days,
   hours,
-  openDaysCount,
-  todaySummary,
   locale,
   timezone,
   error,
@@ -80,126 +74,172 @@ export function WeeklyHoursEditor({
   onRemoveRange,
   onCopyDayToAll,
 }: WeeklyHoursEditorProps) {
+  const [activeDay, setActiveDay] = useState<DayKey>(days[0].key)
+
+  const s = hours[activeDay]
+  const activeDayData = days.find((d) => d.key === activeDay)!
+
+  // Which key corresponds to today
+  const jsDay = new Date().getDay() // 0 = Sunday
+  const todayKey = days[jsDay === 0 ? 6 : jsDay - 1].key
+
   return (
-    <PlatformSurface>
-      <PlatformSurfaceHeader
-        eyebrow="Operations"
-        title="Weekly hours"
-        description="A quieter operator layout inspired by workflow tooling, adapted for restaurant configuration."
-      />
+    <div className="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
 
-      <PlatformSurfaceBody className="space-y-3">
-        <PlatformMetaStrip
-          items={[
-            { label: 'Open days', value: `${openDaysCount} / 7` },
-            { label: 'Today', value: `${todaySummary} · ${timezone}` },
-          ]}
-        />
+      {/* Section header */}
+      <div className="px-5 py-3 flex items-center gap-2 bg-muted/20">
+        <CalendarClock size={13} className="text-muted-foreground" />
+        <span className="text-[11px] uppercase tracking-wider font-semibold text-foreground">
+          Operations
+        </span>
+      </div>
 
-        <div className="space-y-2.5">
-          {days.map((day) => {
-            const dayState = hours[day.key]
-
-            return (
-              <PlatformSubcard key={day.key} className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{day.label}</h3>
-                    <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                      {dayState.enabled ? `${dayState.ranges.length} service ${dayState.ranges.length === 1 ? 'window' : 'windows'}` : 'No service windows'}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 dark:border-white/10 dark:bg-white/5">
-                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                      {dayState.enabled ? 'Open' : 'Closed'}
-                    </span>
-                    <Switch checked={dayState.enabled} onCheckedChange={(v) => onSetDayEnabled(day.key, v)} />
-                  </div>
-                </div>
-
-                {dayState.enabled ? (
-                  <>
-                    <div className="space-y-2">
-                      {dayState.ranges.map((range, idx) => (
-                        <div
-                          key={`${day.key}-${idx}`}
-                          className="grid grid-cols-1 gap-2 rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end dark:border-white/10 dark:bg-white/[0.03]"
-                        >
-                          <div className="min-w-0">
-                            <Label className="mb-1.5 block text-[11px] uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
-                              Open
-                            </Label>
-                            <Input
-                              type="time"
-                              step={1800}
-                              value={range.open}
-                              onChange={(e) => onSetRangeValue(day.key, idx, 'open', e.target.value)}
-                              className="h-11 min-w-0 w-full max-w-full rounded-xl border-zinc-200 bg-white text-zinc-900 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100"
-                            />
-                          </div>
-
-                          <div className="min-w-0">
-                            <Label className="mb-1.5 block text-[11px] uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
-                              Close
-                            </Label>
-                            <Input
-                              type="time"
-                              step={1800}
-                              value={range.close}
-                              onChange={(e) => onSetRangeValue(day.key, idx, 'close', e.target.value)}
-                              className="h-11 min-w-0 w-full max-w-full rounded-xl border-zinc-200 bg-white text-zinc-900 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100"
-                            />
-                          </div>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-11 rounded-xl border border-zinc-200 px-3 text-zinc-600 hover:bg-zinc-100 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/10"
-                            onClick={() => onRemoveRange(day.key, idx)}
-                            disabled={dayState.ranges.length <= 1}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-10 rounded-xl border-zinc-200 bg-white px-3.5 text-zinc-900 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100 dark:hover:bg-white/10"
-                        onClick={() => onAddRange(day.key)}
-                      >
-                        Add range
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-10 rounded-xl px-3.5 text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
-                        onClick={() => onCopyDayToAll(day.key)}
-                      >
-                        Copy to all days
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/70 px-3 py-3 text-sm text-zinc-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-400">
-                    Closed all day.
-                  </div>
+      {/* 7-day tab strip */}
+      <div className="grid grid-cols-7 divide-x divide-border">
+        {days.map((day) => {
+          const ds = hours[day.key]
+          const isActive = activeDay === day.key
+          const isToday = day.key === todayKey
+          return (
+            <button
+              key={day.key}
+              onClick={() => setActiveDay(day.key)}
+              className={cn(
+                'flex flex-col items-center py-3 px-1 transition-colors',
+                isActive ? 'bg-muted' : 'hover:bg-muted/30'
+              )}
+            >
+              <p
+                className={cn(
+                  'text-[10px] uppercase tracking-wider font-semibold',
+                  isActive ? 'text-foreground' : 'text-muted-foreground'
                 )}
-              </PlatformSubcard>
-            )
-          })}
-        </div>
+              >
+                {day.short}
+              </p>
+              <span
+                className={cn(
+                  'w-1.5 h-1.5 rounded-full mt-1.5',
+                  ds.enabled
+                    ? 'bg-emerald-500'
+                    : 'bg-zinc-300 dark:bg-zinc-600'
+                )}
+              />
+              {isToday && (
+                <span className="mt-0.5 text-[8px] uppercase tracking-wider font-semibold text-blue-500">
+                  Today
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
 
-        {error ? (
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
-            <p className="inline-flex items-center gap-2"><AlertCircle className="h-4 w-4" /> {error}</p>
+      {/* Active day — status row */}
+      <div className="px-5 py-3 flex items-center justify-between">
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            {activeDayData.label}
+          </p>
+          <p className="text-sm font-semibold mt-0.5">
+            {s.enabled
+              ? s.ranges.length > 0
+                ? `${s.ranges.length} service window${s.ranges.length !== 1 ? 's' : ''}`
+                : 'No windows set'
+              : 'Closed all day'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs text-muted-foreground">
+            {s.enabled ? 'Open' : 'Closed'}
+          </span>
+          <Switch
+            checked={s.enabled}
+            onCheckedChange={(v) => onSetDayEnabled(activeDay, v)}
+          />
+        </div>
+      </div>
+
+      {/* Time ranges */}
+      {s.enabled ? (
+        <>
+          {s.ranges.map((range, idx) => (
+            <div
+              key={`${activeDay}-${idx}`}
+              className="grid divide-x divide-border"
+              style={{ gridTemplateColumns: '1fr 1fr auto' }}
+            >
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Open</p>
+                <Input
+                  type="time"
+                  step={1800}
+                  value={range.open}
+                  onChange={(e) =>
+                    onSetRangeValue(activeDay, idx, 'open', e.target.value)
+                  }
+                  className="mt-1.5 h-8 text-sm font-semibold"
+                />
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Close</p>
+                <Input
+                  type="time"
+                  step={1800}
+                  value={range.close}
+                  onChange={(e) =>
+                    onSetRangeValue(activeDay, idx, 'close', e.target.value)
+                  }
+                  className="mt-1.5 h-8 text-sm font-semibold"
+                />
+              </div>
+              <div className="px-4 flex items-end pb-4">
+                <button
+                  className="text-muted-foreground hover:text-red-600 transition-colors disabled:opacity-25 disabled:pointer-events-none"
+                  onClick={() => onRemoveRange(activeDay, idx)}
+                  disabled={s.ranges.length <= 1}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {/* Actions */}
+          <div className="px-5 py-3 flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs px-2.5"
+              onClick={() => onAddRange(activeDay)}
+            >
+              <Plus size={11} className="mr-1" />
+              Split shift
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs px-2.5 text-muted-foreground"
+              onClick={() => onCopyDayToAll(activeDay)}
+            >
+              <Copy size={11} className="mr-1" />
+              Copy to all days
+            </Button>
           </div>
-        ) : null}
-      </PlatformSurfaceBody>
-    </PlatformSurface>
+        </>
+      ) : (
+        <div className="px-5 py-4 text-xs text-muted-foreground italic">
+          Toggle open to add service windows for {activeDayData.label}.
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="px-5 py-3 flex items-center gap-2 text-xs text-destructive">
+          <AlertCircle size={12} />
+          {error}
+        </div>
+      )}
+    </div>
   )
 }

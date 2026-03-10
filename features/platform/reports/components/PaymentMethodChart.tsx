@@ -1,13 +1,9 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatNumber, formatPercentage } from "../lib/reportHelpers";
 
 interface PaymentMethodData {
-  [method: string]: {
-    count: number;
-    total: number;
-  };
+  [method: string]: { count: number; total: number };
 }
 
 interface PaymentMethodChartProps {
@@ -16,14 +12,14 @@ interface PaymentMethodChartProps {
   locale?: string;
 }
 
-const methodLabels: Record<string, { label: string; color: string }> = {
+const methodConfig: Record<string, { label: string; color: string }> = {
   credit_card: { label: "Credit Card", color: "bg-blue-500" },
-  debit_card: { label: "Debit Card", color: "bg-cyan-500" },
-  cash: { label: "Cash", color: "bg-green-500" },
-  gift_card: { label: "Gift Card", color: "bg-purple-500" },
-  apple_pay: { label: "Apple Pay", color: "bg-gray-800" },
-  google_pay: { label: "Google Pay", color: "bg-red-500" },
-  unknown: { label: "Other", color: "bg-gray-500" },
+  debit_card:  { label: "Debit Card",  color: "bg-cyan-500" },
+  cash:        { label: "Cash",        color: "bg-emerald-500" },
+  gift_card:   { label: "Gift Card",   color: "bg-purple-500" },
+  apple_pay:   { label: "Apple Pay",   color: "bg-zinc-800 dark:bg-zinc-300" },
+  google_pay:  { label: "Google Pay",  color: "bg-red-500" },
+  unknown:     { label: "Other",       color: "bg-zinc-400" },
 };
 
 export function PaymentMethodChart({ data, currencyCode = "USD", locale = "en-US" }: PaymentMethodChartProps) {
@@ -39,56 +35,50 @@ export function PaymentMethodChart({ data, currencyCode = "USD", locale = "en-US
     }))
     .sort((a, b) => b.total - a.total);
 
-  if (methods.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment Methods</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-sm">No payment data available</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Payment Methods</CardTitle>
-          <span className="text-sm text-muted-foreground">
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="px-5 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
+        <p className="text-[11px] uppercase tracking-wider font-semibold text-foreground">Payment Methods</p>
+        {totalTransactions > 0 && (
+          <p className="text-[11px] text-muted-foreground tabular-nums">
             {formatNumber(totalTransactions)} transactions
-          </span>
+          </p>
+        )}
+      </div>
+
+      {methods.length === 0 ? (
+        <div className="px-5 py-12 text-center">
+          <p className="text-xs text-muted-foreground">No payment data for this period</p>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      ) : (
+        <div className="px-5 py-4 space-y-3.5">
           {methods.map((method) => {
-            const info = methodLabels[method.method] || methodLabels.unknown;
+            const info = methodConfig[method.method] || methodConfig.unknown;
             return (
-              <div key={method.method} className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium truncate">{info.label}</span>
-                    <span className="font-semibold ml-2">{formatCurrency(method.total, currencyConfig)}</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${info.color} transition-all duration-500`}
-                      style={{ width: `${method.percentage}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>{formatNumber(method.count)} transactions</span>
-                    <span>{formatPercentage(method.percentage)}</span>
+              <div key={method.method} className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold">{info.label}</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xs font-semibold">{formatCurrency(method.total, currencyConfig)}</span>
+                    <span className="text-[11px] text-muted-foreground tabular-nums">
+                      {formatPercentage(method.percentage)}
+                    </span>
                   </div>
                 </div>
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${info.color} rounded-full transition-all duration-500`}
+                    style={{ width: `${method.percentage}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground tabular-nums">
+                  {formatNumber(method.count)} transactions
+                </p>
               </div>
             );
           })}
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }

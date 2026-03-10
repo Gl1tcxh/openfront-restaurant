@@ -44,7 +44,7 @@ export default function AccountNav({ user }: AccountNavProps) {
                 className={clsx(
                   "flex items-center gap-x-2 text-sm font-medium p-2 rounded-md transition-colors",
                   isActive 
-                    ? "bg-primary/10 text-primary" 
+                    ? "bg-muted/50 text-foreground ring-1 ring-border shadow-sm" 
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >

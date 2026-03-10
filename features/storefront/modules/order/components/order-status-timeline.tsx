@@ -74,7 +74,7 @@ export function OrderStatusTimeline({ status, orderType }: OrderStatusTimelinePr
 
   if (isCancelled) {
     return (
-      <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+      <div className="rounded-xl border border-destructive/20 ring-1 ring-destructive/10 bg-destructive/5 p-4 shadow-sm">
         <div className="flex items-center gap-2 text-destructive">
           <CheckCircle className="h-5 w-5" />
           <span className="font-medium">Order Cancelled</span>
@@ -96,7 +96,7 @@ export function OrderStatusTimeline({ status, orderType }: OrderStatusTimelinePr
             return (
               <div key={step.status} className="relative flex items-center gap-4">
                 <div
-                  className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 ${
+                  className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full border shadow-sm border-transparent ring-1 ring-foreground/5 ${
                     isCompleted
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-muted bg-background text-muted-foreground"

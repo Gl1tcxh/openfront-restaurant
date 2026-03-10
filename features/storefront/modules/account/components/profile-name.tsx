@@ -5,7 +5,6 @@ import { updateCustomerName } from "@/features/storefront/lib/data/user"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Loader2, Check } from "lucide-react"
 
 export default function ProfileName({ customer }: { customer: any }) {
@@ -22,42 +21,48 @@ export default function ProfileName({ customer }: { customer: any }) {
 
   return (
     <form action={action}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Display Name</CardTitle>
-          <CardDescription>Update your first and last name.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input 
-                id="firstName" 
-                name="firstName" 
-                defaultValue={customer.firstName || customer.name?.split(' ')[0]} 
-                required 
-              />
+      <div className="px-5 py-5 bg-card">
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3">Display Name</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="firstName" className="text-xs text-muted-foreground">First name</Label>
+                <Input
+                  id="firstName"
+                  name="firstName"
+                  defaultValue={customer.firstName || customer.name?.split(" ")[0]}
+                  required
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="lastName" className="text-xs text-muted-foreground">Last name</Label>
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  defaultValue={customer.lastName || customer.name?.split(" ").slice(1).join(" ")}
+                  required
+                  className="h-9"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input 
-                id="lastName" 
-                name="lastName" 
-                defaultValue={customer.lastName || customer.name?.split(' ').slice(1).join(' ')} 
-                required 
-              />
-            </div>
+            {state?.error && (
+              <p className="text-xs text-destructive mt-2">{state.error}</p>
+            )}
           </div>
-          {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
-        </CardContent>
-        <CardFooter className="bg-muted/30 flex justify-between items-center py-3">
-          <p className="text-xs text-muted-foreground">Please use your real name for order pickup.</p>
-          <Button type="submit" size="sm" disabled={isPending}>
-            {isPending ? <Loader2 size={14} className="animate-spin mr-2" /> : success ? <Check size={14} className="mr-2" /> : null}
-            {success ? "Saved" : "Save Changes"}
-          </Button>
-        </CardFooter>
-      </Card>
+          <div className="pt-6 shrink-0">
+            <Button type="submit" size="sm" variant="outline" disabled={isPending} className="h-9">
+              {isPending ? (
+                <Loader2 size={13} className="animate-spin mr-1.5" />
+              ) : success ? (
+                <Check size={13} className="mr-1.5 text-emerald-600" />
+              ) : null}
+              {success ? "Saved" : "Save"}
+            </Button>
+          </div>
+        </div>
+      </div>
     </form>
   )
 }

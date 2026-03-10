@@ -140,114 +140,110 @@ export async function SalesReportPage({ searchParams }: PageProps) {
     ];
 
     return (
-      <section
-        aria-label="Sales Report"
-        className="overflow-hidden flex flex-col"
-      >
+      <div className="flex flex-col h-full bg-background">
         <PageBreadcrumbs
           items={[
-            {
-              type: "link",
-              label: "Dashboard",
-              href: "/dashboard",
-            },
-            {
-              type: "page",
-              label: "Reports",
-            },
-            {
-              type: "page",
-              label: "Sales",
-            },
+            { type: "link", label: "Dashboard", href: "/dashboard" },
+            { type: "link", label: "Reports", href: "/dashboard/platform/reports" },
+            { type: "page", label: "Sales" },
           ]}
         />
 
-        <div className="flex flex-col flex-1 min-h-0">
-          <div className="px-4 md:px-6 pt-4 md:pt-6 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b">
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground">
-                Sales Report
-              </h1>
-              <p className="text-muted-foreground">
-                Track your restaurant's sales performance and key metrics
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <PeriodSelector />
-              <DateRangePickerWrapper />
-            </div>
+        {/* Header */}
+        <div className="px-4 md:px-6 py-4 border-b border-border flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Sales Report</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Revenue performance and key transaction metrics.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <PeriodSelector />
+            <DateRangePickerWrapper />
+          </div>
+        </div>
+
+        {/* Stat strip */}
+        <StatsCards data={statsData} />
+
+        {/* Charts */}
+        <div className="flex-1 overflow-auto px-4 md:px-6 py-6 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <RevenueChart
+              timeSeriesData={timeSeriesData}
+              totalRevenue={salesMetrics.totalRevenue}
+              totalOrders={salesMetrics.completedOrders}
+              totalGuests={salesMetrics.totalGuests}
+              currencyCode={currencyConfig.currencyCode}
+              locale={currencyConfig.locale}
+            />
+            <DaypartChart
+              data={daypartMetrics}
+              currencyCode={currencyConfig.currencyCode}
+              locale={currencyConfig.locale}
+            />
           </div>
 
-          <div className="px-4 md:px-6 py-6 space-y-6">
-            <StatsCards data={statsData} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <OrderTypeChart
+              data={{
+                ordersByType: salesMetrics.ordersByType,
+                revenueByType: salesMetrics.revenueByType,
+              }}
+              currencyCode={currencyConfig.currencyCode}
+              locale={currencyConfig.locale}
+            />
+            <PaymentMethodChart
+              data={paymentBreakdown}
+              currencyCode={currencyConfig.currencyCode}
+              locale={currencyConfig.locale}
+            />
+          </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RevenueChart
-                timeSeriesData={timeSeriesData}
-                totalRevenue={salesMetrics.totalRevenue}
-                totalOrders={salesMetrics.completedOrders}
-                totalGuests={salesMetrics.totalGuests}
-                currencyCode={currencyConfig.currencyCode}
-                locale={currencyConfig.locale}
-              />
-              <DaypartChart
-                data={daypartMetrics}
-                currencyCode={currencyConfig.currencyCode}
-                locale={currencyConfig.locale}
-              />
+          {/* Additional metrics — cell grid */}
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="px-5 py-3 border-b border-border bg-muted/20">
+              <p className="text-[11px] uppercase tracking-wider font-semibold text-foreground">
+                Additional Metrics
+              </p>
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <OrderTypeChart
-                data={{
-                  ordersByType: salesMetrics.ordersByType,
-                  revenueByType: salesMetrics.revenueByType,
-                }}
-                currencyCode={currencyConfig.currencyCode}
-                locale={currencyConfig.locale}
-              />
-              <PaymentMethodChart
-                data={paymentBreakdown}
-                currencyCode={currencyConfig.currencyCode}
-                locale={currencyConfig.locale}
-              />
-            </div>
-
-            <div className="bg-card rounded-lg p-4 border">
-              <h3 className="font-semibold mb-3">Additional Metrics</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Total Tax</span>
-                  <div className="font-semibold">{formatCurrency(salesMetrics.totalTax, currencyConfig)}</div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Total Tips</span>
-                  <div className="font-semibold">{formatCurrency(salesMetrics.totalTips, currencyConfig)}</div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Total Discounts</span>
-                  <div className="font-semibold">{formatCurrency(salesMetrics.totalDiscounts, currencyConfig)}</div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Revenue per Guest</span>
-                  <div className="font-semibold">{formatCurrency(salesMetrics.revenuePerGuest, currencyConfig)}</div>
-                </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Tax</p>
+                <p className="text-sm font-semibold mt-1">{formatCurrency(salesMetrics.totalTax, currencyConfig)}</p>
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Tips</p>
+                <p className="text-sm font-semibold mt-1 text-emerald-600 dark:text-emerald-400">{formatCurrency(salesMetrics.totalTips, currencyConfig)}</p>
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Discounts</p>
+                <p className="text-sm font-semibold mt-1 text-amber-600 dark:text-amber-400">{formatCurrency(salesMetrics.totalDiscounts, currencyConfig)}</p>
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Revenue / Guest</p>
+                <p className="text-sm font-semibold mt-1">{formatCurrency(salesMetrics.revenuePerGuest, currencyConfig)}</p>
               </div>
             </div>
           </div>
         </div>
-      </section>
+      </div>
     );
   } catch (error) {
     console.error("Error loading sales report:", error);
     return (
-      <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold tracking-tight text-red-600">
-          Report Error
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          Failed to load sales report data. Please try again later.
-        </p>
+      <div className="flex flex-col h-full bg-background">
+        <PageBreadcrumbs
+          items={[
+            { type: "link", label: "Dashboard", href: "/dashboard" },
+            { type: "link", label: "Reports", href: "/dashboard/platform/reports" },
+            { type: "page", label: "Sales" },
+          ]}
+        />
+        <div className="px-4 md:px-6 py-8">
+          <p className="text-sm text-red-600 font-medium">Failed to load sales report data.</p>
+          <p className="text-xs text-muted-foreground mt-1">Try selecting a different date range.</p>
+        </div>
       </div>
     );
   }

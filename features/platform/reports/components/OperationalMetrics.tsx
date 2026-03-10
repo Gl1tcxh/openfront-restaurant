@@ -1,10 +1,8 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { formatNumber, formatPercentage, formatCurrency } from "../lib/reportHelpers";
-import { Clock, Users, Table2, ChefHat, AlertTriangle, CheckCircle } from "lucide-react";
+import { formatNumber, formatPercentage } from "../lib/reportHelpers";
+import { Clock, Users, Table2, ChefHat, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface OperationalMetricsProps {
   currentOrders: number;
@@ -22,7 +20,6 @@ interface OperationalMetricsProps {
 }
 
 export function OperationalMetrics({
-  currentOrders,
   tableOccupancy,
   totalTables,
   averageTicketTime,
@@ -31,139 +28,96 @@ export function OperationalMetrics({
   ordersReady,
   voidRate,
   serverCount,
-  revenuePerLaborHour,
-  currencyCode = "USD",
-  locale = "en-US",
 }: OperationalMetricsProps) {
-  const currencyConfig = { currencyCode, locale };
   const occupancyPercent = totalTables > 0 ? (tableOccupancy / totalTables) * 100 : 0;
-  const ticketTimeStatus = averageTicketTime <= targetTicketTime ? "good" : "warning";
+  const ticketOk = averageTicketTime <= targetTicketTime;
+  const voidOk = voidRate <= 2;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Table2 className="w-4 h-4 text-blue-600" />
-            Table Occupancy
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold">{tableOccupancy}/{totalTables}</div>
-          <Progress value={occupancyPercent} className="mt-2" />
-          <div className="text-xs text-muted-foreground mt-1">
-            {formatPercentage(occupancyPercent)} occupied
-          </div>
-        </CardContent>
-      </Card>
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="px-4 py-3 border-b border-border">
+        <h2 className="text-sm font-semibold">Operational Metrics</h2>
+      </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Clock className="w-4 h-4 text-orange-600" />
-            Avg Ticket Time
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold">{formatNumber(averageTicketTime)}</span>
-            <span className="text-muted-foreground">min</span>
-            {ticketTimeStatus === "good" ? (
-              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                <CheckCircle className="w-3 h-3 mr-1" />
-                On Target
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                <AlertTriangle className="w-3 h-3 mr-1" />
-                Slow
-              </Badge>
-            )}
+      <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 border-b border-border">
+        {/* Table occupancy */}
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
+            <Table2 size={13} />
+            <p className="text-[11px] uppercase tracking-wider">Tables</p>
           </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Target: {targetTicketTime} min
+          <p className="text-xl font-semibold">
+            {tableOccupancy}/{totalTables}
+          </p>
+          {/* Progress bar */}
+          <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all",
+                occupancyPercent > 80 ? "bg-emerald-500" : occupancyPercent > 50 ? "bg-amber-400" : "bg-zinc-400"
+              )}
+              style={{ width: `${occupancyPercent}%` }}
+            />
           </div>
-        </CardContent>
-      </Card>
+          <p className="text-xs text-muted-foreground mt-1">{formatPercentage(occupancyPercent)} occupied</p>
+        </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <ChefHat className="w-4 h-4 text-red-600" />
-            Kitchen Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+        {/* Avg ticket time */}
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
+            <Clock size={13} />
+            <p className="text-[11px] uppercase tracking-wider">Avg Ticket Time</p>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <p className={cn("text-xl font-semibold", ticketOk ? "" : "text-amber-600")}>{formatNumber(averageTicketTime)}</p>
+            <p className="text-xs text-muted-foreground">min</p>
+          </div>
+          <p className={cn("text-xs mt-1 font-medium", ticketOk ? "text-emerald-600" : "text-amber-600")}>
+            {ticketOk ? "On target" : "Slow"} · target {targetTicketTime}m
+          </p>
+        </div>
+
+        {/* Kitchen */}
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
+            <ChefHat size={13} />
+            <p className="text-[11px] uppercase tracking-wider">Kitchen</p>
+          </div>
           <div className="flex items-center gap-4">
             <div>
-              <div className="text-2xl font-bold text-amber-600">{ordersInKitchen}</div>
-              <div className="text-xs text-muted-foreground">In Progress</div>
+              <p className="text-xl font-semibold text-amber-600">{ordersInKitchen}</p>
+              <p className="text-xs text-muted-foreground">In progress</p>
             </div>
             <div className="h-8 w-px bg-border" />
             <div>
-              <div className="text-2xl font-bold text-green-600">{ordersReady}</div>
-              <div className="text-xs text-muted-foreground">Ready</div>
+              <p className="text-xl font-semibold text-emerald-600">{ordersReady}</p>
+              <p className="text-xs text-muted-foreground">Ready</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Users className="w-4 h-4 text-purple-600" />
-            Active Staff
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold">{serverCount}</div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Servers on floor
+        {/* Void rate + staff */}
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
+            <AlertTriangle size={13} />
+            <p className="text-[11px] uppercase tracking-wider">Void Rate</p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex items-baseline gap-1.5">
+            <p className={cn("text-xl font-semibold", voidOk ? "" : "text-red-600")}>{formatPercentage(voidRate, 1)}</p>
+          </div>
+          <p className={cn("text-xs mt-1 font-medium", voidOk ? "text-emerald-600" : "text-red-600")}>
+            {voidOk ? "Normal" : "High"} · target &lt;2%
+          </p>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-600" />
-            Void Rate
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold">{formatPercentage(voidRate, 2)}</span>
-            {voidRate <= 2 ? (
-              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                Normal
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                High
-              </Badge>
-            )}
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            Target: Under 2%
-          </div>
-        </CardContent>
-      </Card>
-
-      {revenuePerLaborHour !== undefined && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Revenue per Labor Hour
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{formatCurrency(revenuePerLaborHour, currencyConfig)}</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Sales efficiency metric
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Staff row */}
+      <div className="px-5 py-3 flex items-center gap-3">
+        <Users size={13} className="text-muted-foreground" />
+        <span className="text-xs text-muted-foreground uppercase tracking-wider">Active Staff</span>
+        <span className="text-sm font-semibold ml-2">{serverCount}</span>
+        <span className="text-xs text-muted-foreground">servers on floor</span>
+      </div>
     </div>
   );
 }

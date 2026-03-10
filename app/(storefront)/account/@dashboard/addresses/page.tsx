@@ -16,14 +16,14 @@ export default async function AccountAddressesPage() {
   }
 
   return (
-    <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col gap-y-2">
-        <h1 className="text-3xl font-serif text-3xl">Saved Addresses</h1>
-        <p className="text-muted-foreground">
-          Manage your saved delivery addresses for a faster checkout experience.
+    <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="pb-6 border-b border-border">
+        <h1 className="text-3xl font-serif">Saved Addresses</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage your delivery addresses for a faster checkout experience.
         </p>
       </div>
-      <div className="w-full">
+      <div className="pt-6">
         <AddressBook addresses={user.addresses || []} />
       </div>
     </div>

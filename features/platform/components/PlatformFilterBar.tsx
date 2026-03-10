@@ -2,187 +2,125 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Search,
-  SlidersHorizontal,
-  ArrowUpDown,
-  Columns3,
-  CirclePlus,
-} from "lucide-react"
+import { Search, SlidersHorizontal, ArrowUpDown, Columns3, X } from "lucide-react"
 import { FilterAdd } from "../../dashboard/components/FilterAdd"
-import { FilterList } from "../../dashboard/components/FilterList"
 import { SortSelection } from "../../dashboard/components/SortSelection"
 import { FieldSelection } from "../../dashboard/components/FieldSelection"
 import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
-import Link from "next/link"
-import { useDashboard } from '../../dashboard/context/DashboardProvider'
 import { enhanceFields } from '../../dashboard/utils/enhanceFields'
 
 interface PlatformFilterBarProps {
   list: any
+  showDisplayButton?: boolean
+  selectedFields?: Set<string>
+  // Legacy props — kept for API compat, no longer rendered
   customCreateButton?: React.ReactNode
   createMode?: 'button' | 'dropdown'
   onCreateClick?: (mode?: 'scratch' | 'popular') => void
   createLabel?: string
-  showDisplayButton?: boolean
-  selectedFields?: Set<string>
 }
 
-export function PlatformFilterBar({ 
-  list, 
-  customCreateButton, 
-  createMode = 'button',
-  onCreateClick,
-  createLabel,
+export function PlatformFilterBar({
+  list,
   showDisplayButton = false,
-  selectedFields = new Set()
+  selectedFields = new Set(),
 }: PlatformFilterBarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { basePath } = useDashboard()
 
-  const [searchString, setSearchString] = useState(
-    searchParams?.get("search") || ""
-  )
+  const [searchString, setSearchString] = useState(searchParams?.get("search") || "")
 
-  // Get enhanced fields using dashboard's pattern
-  const enhancedFields = useMemo(() => {
-    return enhanceFields(list.fields, list.key)
-  }, [list.fields, list.key])
+  const enhancedFields = useMemo(() => enhanceFields(list.fields, list.key), [list.fields, list.key])
 
-  // Create a new URLSearchParams instance to manipulate
-  const createQueryString = (
-    params: Record<string, string | number | null | undefined>
-  ) => {
-    const newSearchParams = new URLSearchParams(searchParams?.toString() || "")
-
-    // Update or delete parameters based on the provided object
+  const createQueryString = (params: Record<string, string | number | null | undefined>) => {
+    const next = new URLSearchParams(searchParams?.toString() || "")
     Object.entries(params).forEach(([key, value]) => {
-      if (value === null || value === undefined || value === "") {
-        newSearchParams.delete(key)
-      } else {
-        newSearchParams.set(key, String(value))
-      }
+      if (value === null || value === undefined || value === "") next.delete(key)
+      else next.set(key, String(value))
     })
-
-    return newSearchParams.toString()
+    return next.toString()
   }
 
-  // Handle search submission
   const updateSearch = (value: string) => {
-    const query = createQueryString({
-      search: value.trim() || null,
-      page: 1, // Reset to first page when search changes
-    })
-    router.push(`${pathname}?${query}`)
+    router.push(`${pathname}?${createQueryString({ search: value.trim() || null, page: 1 })}`)
   }
 
-  // Update search string when URL changes
   useEffect(() => {
     setSearchString(searchParams?.get("search") || "")
   }, [searchParams])
 
-  // Get searchable field labels for placeholder
-  const searchableFields = Object.values(enhancedFields).filter((field: any) => 
-    field.controller?.filter && Object.keys(field.controller.filter.types || {}).length > 0
+  const searchableFields = Object.values(enhancedFields).filter(
+    (field: any) => field.controller?.filter && Object.keys(field.controller.filter.types || {}).length > 0
   )
-  const searchLabels = searchableFields.map((field: any) => field.label)
+  const placeholder = searchableFields.length
+    ? `Search by ${searchableFields.map((f: any) => f.label).join(", ").toLowerCase()}…`
+    : "Search…"
 
   return (
-    <div>
-      {/* Controls Row */}
-      <div className="flex flex-wrap items-center gap-2 mb-6">
-        {/* Search */}
-        <div className="relative flex-1 min-w-56">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              updateSearch(searchString)
-            }}
+    <div className="flex items-center gap-3">
+      {/* Borderless search — takes all remaining space */}
+      <form
+        className="flex items-center gap-2 flex-1 min-w-0"
+        onSubmit={(e) => { e.preventDefault(); updateSearch(searchString) }}
+      >
+        <Search size={14} className="text-muted-foreground shrink-0" />
+        <input
+          type="search"
+          value={searchString}
+          onChange={(e) => setSearchString(e.target.value)}
+          onBlur={() => updateSearch(searchString)}
+          placeholder={placeholder}
+          className="flex-1 min-w-0 bg-transparent border-0 outline-none text-sm placeholder:text-muted-foreground/50 focus:ring-0 h-9"
+        />
+        {searchString && (
+          <button
+            type="button"
+            onClick={() => { setSearchString(''); updateSearch('') }}
+            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
           >
-            <Input
-              type="search"
-              className="pl-9 w-full h-10 rounded-lg placeholder:text-muted-foreground/80"
-              value={searchString}
-              onChange={(e) => setSearchString(e.target.value)}
-              placeholder={`Search by ${
-                searchLabels.length
-                  ? searchLabels.join(", ").toLowerCase()
-                  : "ID"
-              }`}
-            />
-          </form>
-        </div>
+            <X size={13} />
+          </button>
+        )}
+      </form>
 
-        {/* Right Side Controls */}
-        <div className="flex items-center gap-2">
-          <FilterAdd list={list}>
-            <Button
-              variant="outline"
-              size="icon"
-              className="lg:px-4 lg:py-2 lg:w-auto rounded-lg"
+      {/* Segmented Filter / Sort / Display — sharp connected buttons */}
+      <div className="flex items-center border border-border rounded overflow-hidden text-[10px] shrink-0">
+        <FilterAdd list={list}>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 px-3 h-8 border-r border-border font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted transition-colors"
+          >
+            <SlidersHorizontal size={11} />
+            <span className="hidden sm:inline">Filter</span>
+          </button>
+        </FilterAdd>
+
+        <SortSelection listMeta={list}>
+          <button
+            type="button"
+            className={cn(
+              "flex items-center gap-1.5 px-3 h-8 font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted transition-colors",
+              showDisplayButton && "border-r border-border"
+            )}
+          >
+            <ArrowUpDown size={11} />
+            <span className="hidden sm:inline">Sort</span>
+          </button>
+        </SortSelection>
+
+        {showDisplayButton && (
+          <FieldSelection listMeta={list} selectedFields={selectedFields}>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 px-3 h-8 font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted transition-colors"
             >
-              <SlidersHorizontal className="stroke-muted-foreground" />
-              <span className="hidden lg:inline">Filter</span>
-            </Button>
-          </FilterAdd>
-
-          <SortSelection listMeta={list}>
-            <Button
-              variant="outline"
-              size="icon"
-              className="lg:px-4 lg:py-2 lg:w-auto rounded-lg"
-            >
-              <ArrowUpDown className="stroke-muted-foreground" />
-              <span className="hidden lg:inline">Sort</span>
-            </Button>
-          </SortSelection>
-
-          {showDisplayButton && (
-            <FieldSelection listMeta={list} selectedFields={selectedFields}>
-              <Button
-                variant="outline"
-                size="icon"
-                className="lg:px-4 lg:py-2 lg:w-auto rounded-lg"
-              >
-                <Columns3 className="stroke-muted-foreground" />
-                <span className="hidden lg:inline">Display</span>
-              </Button>
-            </FieldSelection>
-          )}
-
-          {!list.hideCreate && (
-            customCreateButton || (
-              (createMode === 'dropdown' && onCreateClick) ? (
-                <Button
-                  onClick={() => onCreateClick?.()}
-                  className="lg:px-4 lg:py-2 lg:w-auto rounded-lg"
-                >
-                  <CirclePlus />
-                  <span className="hidden lg:inline">{createLabel || `Create ${list.singular}`}</span>
-                </Button>
-              ) : (
-                <Link
-                  href={`${basePath}/platform/${list.path}/create`}
-                  className={cn(
-                    buttonVariants({ size: "icon" }),
-                    "lg:px-4 lg:py-2 lg:w-auto rounded-lg"
-                  )}
-                >
-                  <CirclePlus />
-                  <span className="hidden lg:inline">Create {list.singular}</span>
-                </Link>
-              )
-            )
-          )}
-        </div>
+              <Columns3 size={11} />
+              <span className="hidden sm:inline">Display</span>
+            </button>
+          </FieldSelection>
+        )}
       </div>
-
     </div>
   )
 }

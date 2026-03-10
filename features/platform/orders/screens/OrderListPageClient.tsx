@@ -56,7 +56,7 @@ export function OrderListPageClient({
   const header = (
     <div className="space-y-3">
       <div>
-        <h1 className="text-2xl md:text-3xl font-black tracking-tight">Service Order Board</h1>
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Service Order Board</h1>
         <p className="text-muted-foreground text-sm">
           A clean command center for online + in-house order orchestration.
         </p>

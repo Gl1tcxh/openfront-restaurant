@@ -1,0 +1,610 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { gql, request } from 'graphql-request'
+import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { RefreshCw, Plus, Calendar, Users, Phone, Mail, Trash2, Edit2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+interface Reservation {
+  id: string
+  customerName: string | null
+  customerPhone: string | null
+  customerEmail: string | null
+  reservationDate: string | null
+  partySize: number | null
+  duration: number | null
+  status: string | null
+  specialRequests: string | null
+  assignedTable: { id: string; tableNumber: string } | null
+  createdAt: string
+}
+
+interface Table {
+  id: string
+  tableNumber: string
+  capacity: number
+}
+
+const GET_RESERVATIONS = gql`
+  query GetReservations($where: ReservationWhereInput!) {
+    reservations(where: $where, orderBy: { reservationDate: asc }) {
+      id customerName customerPhone customerEmail
+      reservationDate partySize duration status specialRequests
+      assignedTable { id tableNumber }
+      createdAt
+    }
+    tables(orderBy: { tableNumber: asc }) { id tableNumber capacity }
+  }
+`
+
+const CREATE_RESERVATION = gql`
+  mutation CreateReservation($data: ReservationCreateInput!) {
+    createReservation(data: $data) { id }
+  }
+`
+
+const UPDATE_RESERVATION = gql`
+  mutation UpdateReservation($id: ID!, $data: ReservationUpdateInput!) {
+    updateReservation(where: { id: $id }, data: $data) { id status }
+  }
+`
+
+const DELETE_RESERVATION = gql`
+  mutation DeleteReservation($id: ID!) {
+    deleteReservation(where: { id: $id }) { id }
+  }
+`
+
+const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string }> = {
+  confirmed: { label: 'Confirmed', dot: 'bg-emerald-500', text: 'text-emerald-600' },
+  pending: { label: 'Pending', dot: 'bg-amber-500', text: 'text-amber-600' },
+  cancelled: { label: 'Cancelled', dot: 'bg-red-400', text: 'text-red-500' },
+  completed: { label: 'Completed', dot: 'bg-zinc-400', text: 'text-zinc-500' },
+  no_show: { label: 'No Show', dot: 'bg-orange-500', text: 'text-orange-600' },
+}
+
+function formatTime(dateStr: string | null) {
+  if (!dateStr) return '—'
+  return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return '—'
+  return new Date(dateStr).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function toDateInputValue(d: Date) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function startOfDay(d: Date) {
+  const r = new Date(d)
+  r.setHours(0, 0, 0, 0)
+  return r
+}
+
+function endOfDay(d: Date) {
+  const r = new Date(d)
+  r.setHours(23, 59, 59, 999)
+  return r
+}
+
+const emptyForm = {
+  customerName: '',
+  customerPhone: '',
+  customerEmail: '',
+  reservationDate: '',
+  reservationTime: '19:00',
+  partySize: '2',
+  duration: '90',
+  status: 'confirmed',
+  specialRequests: '',
+  assignedTableId: '',
+}
+
+export function ReservationsPage() {
+  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [reservations, setReservations] = useState<Reservation[]>([])
+  const [tables, setTables] = useState<Table[]>([])
+  const [loading, setLoading] = useState(true)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState({ ...emptyForm })
+  const [saving, setSaving] = useState(false)
+  const [activeStatusFilter, setActiveStatusFilter] = useState('all')
+
+  const fetchData = useCallback(async () => {
+    try {
+      const dayStart = startOfDay(selectedDate).toISOString()
+      const dayEnd = endOfDay(selectedDate).toISOString()
+      const res: any = await request('/api/graphql', GET_RESERVATIONS, {
+        where: {
+          reservationDate: { gte: dayStart, lte: dayEnd },
+        },
+      })
+      setReservations(res.reservations || [])
+      setTables(res.tables || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedDate])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  const openCreate = () => {
+    setEditingId(null)
+    setForm({
+      ...emptyForm,
+      reservationDate: toDateInputValue(selectedDate),
+    })
+    setDialogOpen(true)
+  }
+
+  const openEdit = (r: Reservation) => {
+    const d = r.reservationDate ? new Date(r.reservationDate) : new Date()
+    setEditingId(r.id)
+    setForm({
+      customerName: r.customerName || '',
+      customerPhone: r.customerPhone || '',
+      customerEmail: r.customerEmail || '',
+      reservationDate: toDateInputValue(d),
+      reservationTime: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+      partySize: String(r.partySize || 2),
+      duration: String(r.duration || 90),
+      status: r.status || 'confirmed',
+      specialRequests: r.specialRequests || '',
+      assignedTableId: r.assignedTable?.id || '',
+    })
+    setDialogOpen(true)
+  }
+
+  const handleSave = async () => {
+    if (!form.customerName || !form.reservationDate) return
+    setSaving(true)
+    try {
+      const [year, month, day] = form.reservationDate.split('-').map(Number)
+      const [hour, minute] = form.reservationTime.split(':').map(Number)
+      const dt = new Date(year, month - 1, day, hour, minute, 0)
+
+      const data: any = {
+        customerName: form.customerName,
+        customerPhone: form.customerPhone || null,
+        customerEmail: form.customerEmail || null,
+        reservationDate: dt.toISOString(),
+        partySize: parseInt(form.partySize) || 2,
+        duration: parseInt(form.duration) || 90,
+        status: form.status,
+        specialRequests: form.specialRequests || null,
+      }
+      if (form.assignedTableId) {
+        data.assignedTable = { connect: { id: form.assignedTableId } }
+      }
+
+      if (editingId) {
+        await request('/api/graphql', UPDATE_RESERVATION, { id: editingId, data })
+      } else {
+        await request('/api/graphql', CREATE_RESERVATION, { data })
+      }
+
+      setDialogOpen(false)
+      fetchData()
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this reservation?')) return
+    await request('/api/graphql', DELETE_RESERVATION, { id })
+    fetchData()
+  }
+
+  const handleStatusChange = async (id: string, status: string) => {
+    await request('/api/graphql', UPDATE_RESERVATION, { id, data: { status } })
+    fetchData()
+  }
+
+  const navigateDay = (delta: number) => {
+    setSelectedDate(d => {
+      const n = new Date(d)
+      n.setDate(n.getDate() + delta)
+      return n
+    })
+  }
+
+  const filteredReservations = reservations.filter(r =>
+    activeStatusFilter === 'all' || r.status === activeStatusFilter
+  )
+
+  const statusCounts = Object.keys(STATUS_CONFIG).reduce((acc, s) => {
+    acc[s] = reservations.filter(r => r.status === s).length
+    return acc
+  }, {} as Record<string, number>)
+
+  const isToday = toDateInputValue(selectedDate) === toDateInputValue(new Date())
+
+  return (
+    <>
+      <PageBreadcrumbs
+        items={[
+          { type: 'link', label: 'Dashboard', href: '/dashboard' },
+          { type: 'page', label: 'Platform' },
+          { type: 'page', label: 'Reservations' },
+        ]}
+      />
+
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="px-4 md:px-6 py-4 border-b border-border flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Reservations</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {reservations.length} reservation{reservations.length !== 1 ? 's' : ''} for {isToday ? 'today' : formatDate(selectedDate.toISOString())}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={fetchData} className="h-8 text-xs">
+              <RefreshCw size={13} className="mr-1.5" /> Refresh
+            </Button>
+            <Button size="sm" onClick={openCreate} className="h-8 text-xs">
+              <Plus size={13} className="mr-1.5" /> New Reservation
+            </Button>
+          </div>
+        </div>
+
+        {/* Date navigator + stat strip */}
+        <div className="border-b border-border">
+          {/* Date nav */}
+          <div className="px-4 md:px-6 flex items-center gap-2 h-11 border-b border-border">
+            <button
+              onClick={() => navigateDay(-1)}
+              className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+            >
+              <ChevronLeft size={13} />
+            </button>
+
+            {/* Date pill */}
+            <div className="flex items-center gap-2 border border-border rounded px-3 h-8 bg-background">
+              <Calendar size={12} className="text-muted-foreground shrink-0" />
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider shrink-0">
+                {selectedDate.toLocaleDateString('en-US', { weekday: 'short' })}
+              </span>
+              <input
+                type="date"
+                value={toDateInputValue(selectedDate)}
+                onChange={e => e.target.value && setSelectedDate(new Date(e.target.value + 'T12:00:00'))}
+                className="text-xs font-semibold border-0 bg-transparent outline-none cursor-pointer w-28 tabular-nums"
+              />
+            </div>
+
+            {!isToday && (
+              <button
+                onClick={() => setSelectedDate(new Date())}
+                className="text-[10px] uppercase tracking-wider font-semibold border border-border rounded px-2.5 h-8 text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Today
+              </button>
+            )}
+
+            <button
+              onClick={() => navigateDay(1)}
+              className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+            >
+              <ChevronRight size={13} />
+            </button>
+
+            <span className="ml-auto text-[11px] text-muted-foreground tabular-nums">
+              {reservations.length} reservation{reservations.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-5 divide-x">
+            <button
+              onClick={() => setActiveStatusFilter('all')}
+              className={cn(
+                'px-4 py-2.5 text-left transition-colors',
+                activeStatusFilter === 'all' ? 'bg-muted/40' : 'hover:bg-muted/20'
+              )}
+            >
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">All</p>
+              <p className="text-lg font-semibold mt-0.5">{reservations.length}</p>
+            </button>
+            {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+              <button
+                key={key}
+                onClick={() => setActiveStatusFilter(activeStatusFilter === key ? 'all' : key)}
+                className={cn(
+                  'px-4 py-2.5 text-left transition-colors',
+                  key === 'no_show' && 'border-t border-border',
+                  activeStatusFilter === key ? 'bg-muted/40' : 'hover:bg-muted/20'
+                )}
+              >
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{cfg.label}</p>
+                <p className={cn('text-lg font-semibold mt-0.5', cfg.text)}>{statusCounts[key] || 0}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Reservation list */}
+        <div className="flex-1 overflow-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <RefreshCw size={18} className="animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredReservations.length === 0 ? (
+            <div className="py-16 text-center">
+              <Calendar size={32} className="text-muted-foreground/20 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">
+                {reservations.length === 0
+                  ? 'No reservations for this day.'
+                  : 'No reservations match the selected filter.'}
+              </p>
+              {reservations.length === 0 && (
+                <button
+                  onClick={openCreate}
+                  className="mt-3 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                >
+                  Add the first reservation
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="divide-y">
+              {filteredReservations.map(r => {
+                const statusCfg = STATUS_CONFIG[r.status || 'pending'] || STATUS_CONFIG.pending
+                return (
+                  <div key={r.id} className="px-4 md:px-6 py-4 hover:bg-muted/20 transition-colors flex items-start gap-4 group">
+                    {/* Time column */}
+                    <div className="w-16 shrink-0 text-right pt-0.5">
+                      <p className="text-sm font-semibold tabular-nums">{formatTime(r.reservationDate)}</p>
+                      {r.duration && (
+                        <p className="text-[11px] text-muted-foreground">{r.duration}m</p>
+                      )}
+                    </div>
+
+                    {/* Status dot */}
+                    <div className="pt-1.5 shrink-0">
+                      <span className={cn('w-2.5 h-2.5 rounded-full inline-block', statusCfg.dot)} />
+                    </div>
+
+                    {/* Main info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <div>
+                          <p className="text-sm font-semibold">{r.customerName || 'Guest'}</p>
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Users size={11} /> {r.partySize || '—'} guests
+                            </span>
+                            {r.customerPhone && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Phone size={11} /> {r.customerPhone}
+                              </span>
+                            )}
+                            {r.customerEmail && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1 hidden sm:flex">
+                                <Mail size={11} /> {r.customerEmail}
+                              </span>
+                            )}
+                            {r.assignedTable && (
+                              <span className="text-xs text-muted-foreground">
+                                Table {r.assignedTable.tableNumber}
+                              </span>
+                            )}
+                          </div>
+                          {r.specialRequests && (
+                            <p className="text-xs text-muted-foreground mt-1 italic">"{r.specialRequests}"</p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Status selector */}
+                          <select
+                            value={r.status || 'pending'}
+                            onChange={e => handleStatusChange(r.id, e.target.value)}
+                            className={cn(
+                              'text-[11px] uppercase tracking-wider font-semibold border border-border rounded-full px-2.5 py-1 bg-background cursor-pointer outline-none',
+                              statusCfg.text
+                            )}
+                          >
+                            {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                              <option key={k} value={k}>{v.label}</option>
+                            ))}
+                          </select>
+
+                          <button
+                            onClick={() => openEdit(r)}
+                            className="w-7 h-7 rounded border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted"
+                          >
+                            <Edit2 size={12} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(r.id)}
+                            className="w-7 h-7 rounded border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 hover:border-red-200 hover:text-red-600 dark:hover:bg-red-950/30"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold">
+              {editingId ? 'Edit Reservation' : 'New Reservation'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Customer Name *</Label>
+                <Input
+                  value={form.customerName}
+                  onChange={e => setForm(f => ({ ...f, customerName: e.target.value }))}
+                  placeholder="Jane Smith"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Phone</Label>
+                <Input
+                  value={form.customerPhone}
+                  onChange={e => setForm(f => ({ ...f, customerPhone: e.target.value }))}
+                  placeholder="(555) 000-0000"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Email</Label>
+                <Input
+                  value={form.customerEmail}
+                  onChange={e => setForm(f => ({ ...f, customerEmail: e.target.value }))}
+                  placeholder="jane@example.com"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Date *</Label>
+                <Input
+                  type="date"
+                  value={form.reservationDate}
+                  onChange={e => setForm(f => ({ ...f, reservationDate: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Time</Label>
+                <Input
+                  type="time"
+                  value={form.reservationTime}
+                  onChange={e => setForm(f => ({ ...f, reservationTime: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Party Size</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={form.partySize}
+                  onChange={e => setForm(f => ({ ...f, partySize: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Duration (min)</Label>
+                <Input
+                  type="number"
+                  min={15}
+                  step={15}
+                  value={form.duration}
+                  onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                      <SelectItem key={k} value={k} className="text-sm">{v.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Assigned Table</Label>
+                <Select
+                  value={form.assignedTableId || 'none'}
+                  onValueChange={v => setForm(f => ({ ...f, assignedTableId: v === 'none' ? '' : v }))}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-sm">None</SelectItem>
+                    {tables.map(t => (
+                      <SelectItem key={t.id} value={t.id} className="text-sm">
+                        Table {t.tableNumber} (cap. {t.capacity})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Special Requests</Label>
+                <Textarea
+                  value={form.specialRequests}
+                  onChange={e => setForm(f => ({ ...f, specialRequests: e.target.value }))}
+                  placeholder="Allergies, birthday cake, high chair…"
+                  className="text-sm resize-none h-16"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 h-9"
+                onClick={() => setDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 h-9"
+                onClick={handleSave}
+                disabled={saving || !form.customerName || !form.reservationDate}
+              >
+                {saving ? 'Saving…' : editingId ? 'Save Changes' : 'Create'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}

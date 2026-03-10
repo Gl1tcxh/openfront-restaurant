@@ -2,11 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { gql, request } from "graphql-request";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Edit2, Utensils, BookOpen, Layers, Zap, Info, Search, Trash2, ArrowUpRight } from "lucide-react";
+import { Plus, Edit2, Layers, ChevronRight, Utensils } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs";
 import { formatCurrency } from "@/features/storefront/lib/currency";
@@ -16,29 +13,15 @@ import { CreateItemDrawerClientWrapper } from "@/features/platform/components/Cr
 const GET_MENU_DATA = gql`
   query GetMenuData {
     menuCategories(orderBy: { sortOrder: asc }) {
-      id
-      name
-      icon
-      description
+      id name icon description
     }
     menuItems(orderBy: { name: asc }) {
-      id
-      name
-      price
-      available
-      popular
-      kitchenStation
+      id name price available popular kitchenStation
       category { id }
-      modifiers {
-        id
-        name
-        priceAdjustment
-      }
+      menuItemImages(take: 1) { id imagePath altText }
+      modifiers { id name priceAdjustment }
     }
-    storeSettings {
-      currencyCode
-      locale
-    }
+    storeSettings { currencyCode locale }
   }
 `;
 
@@ -61,16 +44,12 @@ export function MenuArchitectPage() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  const currencyConfig = useMemo(() => {
-    return {
-      currencyCode: data?.storeSettings?.currencyCode || "USD",
-      locale: data?.storeSettings?.locale || "en-US",
-    };
-  }, [data]);
+  const currencyConfig = useMemo(() => ({
+    currencyCode: data?.storeSettings?.currencyCode || "USD",
+    locale: data?.storeSettings?.locale || "en-US",
+  }), [data]);
 
   const filteredItems = useMemo(() => {
     if (!data?.menuItems) return [];
@@ -78,154 +57,211 @@ export function MenuArchitectPage() {
     return data.menuItems.filter((item: any) => item.category?.id === activeCategoryId);
   }, [data, activeCategoryId]);
 
-  if (loading) return <div className="flex items-center justify-center p-20">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12 text-sm text-muted-foreground">
+        Loading menu data…
+      </div>
+    );
+  }
 
   const breadcrumbs = [
     { type: "link" as const, label: "Dashboard", href: "/dashboard" },
     { type: "page" as const, label: "Platform" },
-    { type: "page" as const, label: "Menu Architect" },
+    { type: "page" as const, label: "Menu" },
   ];
+
+  const categories = data?.menuCategories || [];
+  const totalItems = data?.menuItems?.length || 0;
+  const availableItems = data?.menuItems?.filter((i: any) => i.available).length || 0;
 
   return (
     <div className="flex flex-col h-full bg-background">
       <PageBreadcrumbs items={breadcrumbs} />
 
-      <div className="px-6 py-8 border-b bg-gradient-to-br from-emerald-500/5 via-background to-amber-500/5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight mb-2 flex items-center gap-3">
-              <BookOpen className="size-8 text-primary" />
-              Menu Architect
-            </h1>
-            <p className="text-muted-foreground max-w-2xl font-medium">
-              Unified design center for your culinary offerings. Manage categories, items, and modifiers in a single visual workspace.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Button 
-              variant="outline"
-              className="rounded-2xl border-2 font-black uppercase tracking-widest text-[10px] h-12 px-6"
-              onClick={() => {
-                setCreateListKey("menu-categories");
-                setIsCreateOpen(true);
-              }}
-            >
-              New Category
-            </Button>
-            <Button 
-              className="rounded-2xl font-black uppercase tracking-widest text-[10px] h-12 px-6 shadow-xl shadow-primary/20"
-              onClick={() => {
-                setCreateListKey("menu-items");
-                setIsCreateOpen(true);
-              }}
-            >
-              <Plus className="size-4 mr-2" />
-              New Item
-            </Button>
-          </div>
+      {/* Header */}
+      <div className="px-4 md:px-6 py-4 border-b border-border flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Menu</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {totalItems} items · {availableItems} available
+          </p>
         </div>
-
-        <div className="mt-8 flex flex-wrap gap-2 items-center bg-muted/30 p-2 rounded-3xl border border-dashed border-muted-foreground/20">
+        <div className="flex items-center gap-2">
           <Button
-            variant={activeCategoryId === "all" ? "default" : "ghost"}
+            variant="outline"
             size="sm"
-            onClick={() => setActiveCategoryId("all")}
-            className="rounded-2xl font-black uppercase tracking-widest text-[10px] h-10 px-5"
+            className="h-8 text-xs"
+            onClick={() => {
+              setCreateListKey("menu-categories");
+              setIsCreateOpen(true);
+            }}
           >
-            All Items
+            New Category
           </Button>
-          <div className="h-4 w-px bg-muted mx-1" />
-          {data?.menuCategories?.map((cat: any) => (
-            <Button
-              key={cat.id}
-              variant={activeCategoryId === cat.id ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setActiveCategoryId(cat.id)}
-              className="rounded-2xl font-black uppercase tracking-widest text-[10px] h-10 px-5"
-            >
-              {cat.name}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="p-6 pb-20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredItems.map((item: any) => (
-            <Card key={item.id} className={cn(
-              "group border-2 rounded-[2rem] overflow-hidden transition-all duration-300 hover:border-primary/40 hover:shadow-2xl hover:-translate-y-1 bg-card flex flex-col",
-              !item.available && "opacity-60 grayscale"
-            )}>
-              <CardContent className="p-6 flex flex-col flex-1">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-3 rounded-2xl bg-primary/5 text-primary">
-                    <Utensils className="size-6" />
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <div className="font-black text-lg tracking-tighter">{formatCurrency(parseInt(item.price), currencyConfig)}</div>
-                    {!item.available && <Badge variant="destructive" className="rounded-md font-bold text-[8px] uppercase tracking-widest px-1.5 py-0">Unavailable</Badge>}
-                    {item.popular && <Badge variant="secondary" className="rounded-md font-bold text-[8px] uppercase tracking-widest px-1.5 py-0 bg-amber-500/10 text-amber-600 border-amber-500/20">Star Item</Badge>}
-                  </div>
-                </div>
-
-                <div className="flex-1 space-y-4">
-                   <div>
-                      <h3 className="font-black text-xl leading-tight group-hover:text-primary transition-colors">{item.name}</h3>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">Station: {item.kitchenStation || "Kitchen"}</p>
-                   </div>
-
-                   {item.modifiers?.length > 0 && (
-                     <div className="space-y-2">
-                        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                           <Layers className="size-3" />
-                           Active Modifiers
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {item.modifiers.map((mod: any) => (
-                            <Badge key={mod.id} variant="outline" className="rounded-lg font-bold text-[9px] bg-muted/30 border-muted group-hover:border-primary/20">
-                              {mod.name}
-                            </Badge>
-                          ))}
-                        </div>
-                     </div>
-                   )}
-                </div>
-
-                <div className="pt-6 mt-6 border-t flex items-center justify-between">
-                   <Button 
-                    variant="ghost" 
-                    className="h-9 px-0 font-black uppercase tracking-widest text-[10px] hover:bg-transparent hover:text-primary"
-                    onClick={() => setEditingItemId(item.id)}
-                   >
-                     Configure <Edit2 className="size-3 ml-2" />
-                   </Button>
-                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="size-8 rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-50">
-                         <Trash2 className="size-4" />
-                      </Button>
-                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-          
-          <button 
-            className="border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center p-12 hover:bg-muted/50 hover:border-primary/30 transition-all gap-4 group/add"
+          <Button
+            size="sm"
+            className="h-8 text-xs"
             onClick={() => {
               setCreateListKey("menu-items");
               setIsCreateOpen(true);
             }}
           >
-            <div className="size-16 rounded-[1.5rem] bg-muted flex items-center justify-center group-hover/add:bg-primary/10 transition-colors">
-              <Plus className="size-8 text-muted-foreground group-hover/add:text-primary" />
-            </div>
-            <div className="text-center">
-              <p className="font-black uppercase tracking-widest text-[10px]">Add Item</p>
-              <p className="text-[10px] text-muted-foreground mt-1">Expansion Slot</p>
-            </div>
-          </button>
+            <Plus size={13} className="mr-1.5" />
+            New Item
+          </Button>
         </div>
-      </ScrollArea>
+      </div>
+
+      {/* Two-panel layout */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: category sidebar */}
+        <div className="w-48 xl:w-56 shrink-0 border-r border-border overflow-y-auto">
+          <button
+            onClick={() => setActiveCategoryId("all")}
+            className={cn(
+              "w-full text-left px-4 py-3 text-sm flex items-center justify-between border-b border-border transition-colors",
+              activeCategoryId === "all"
+                ? "bg-muted font-medium"
+                : "hover:bg-muted/30 text-muted-foreground"
+            )}
+          >
+            <span>All Items</span>
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              {totalItems}
+            </span>
+          </button>
+          {categories.map((cat: any) => {
+            const count = data?.menuItems?.filter((i: any) => i.category?.id === cat.id).length || 0;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategoryId(cat.id)}
+                className={cn(
+                  "w-full text-left px-4 py-3 text-sm flex items-center justify-between border-b border-border transition-colors",
+                  activeCategoryId === cat.id
+                    ? "bg-muted font-medium"
+                    : "hover:bg-muted/30 text-muted-foreground"
+                )}
+              >
+                <span className="truncate">{cat.name}</span>
+                <span className="text-[11px] text-muted-foreground tabular-nums ml-2 shrink-0">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right: item grid */}
+        <div className="flex-1 overflow-y-auto">
+          {filteredItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center px-8">
+              <Utensils size={28} className="text-muted-foreground/20 mb-3" />
+              <p className="text-sm text-muted-foreground mb-3">No items in this category.</p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={() => {
+                  setCreateListKey("menu-items");
+                  setIsCreateOpen(true);
+                }}
+              >
+                <Plus size={12} className="mr-1.5" /> Add First Item
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 divide-x divide-y border-b border-border">
+              {filteredItems.map((item: any) => {
+                const imageSrc = item.menuItemImages?.[0]?.imagePath;
+                const imageAlt = item.menuItemImages?.[0]?.altText || item.name;
+                return (
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "flex flex-col bg-card group",
+                      !item.available && "opacity-50"
+                    )}
+                  >
+                    {/* Image */}
+                    <div className="aspect-video bg-muted overflow-hidden">
+                      {imageSrc ? (
+                        <img
+                          src={imageSrc}
+                          alt={imageAlt}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Utensils size={20} className="text-muted-foreground/20" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="p-3 flex flex-col flex-1">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <p className="text-sm font-semibold leading-tight">{item.name}</p>
+                        <p className="text-sm font-semibold shrink-0">
+                          {formatCurrency(parseInt(item.price), currencyConfig)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        {/* Availability dot */}
+                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <span className={cn(
+                            "w-1.5 h-1.5 rounded-full",
+                            item.available ? "bg-emerald-500" : "bg-red-400"
+                          )} />
+                          {item.available ? "Available" : "86'd"}
+                        </span>
+                        {item.popular && (
+                          <span className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold">★ Popular</span>
+                        )}
+                        {item.kitchenStation && (
+                          <span className="text-[10px] text-muted-foreground">{item.kitchenStation}</span>
+                        )}
+                      </div>
+
+                      {item.modifiers?.length > 0 && (
+                        <div className="flex items-center gap-1 mb-2">
+                          <Layers size={10} className="text-muted-foreground" />
+                          <span className="text-[11px] text-muted-foreground">
+                            {item.modifiers.length} modifier{item.modifiers.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Edit button */}
+                      <div className="mt-auto pt-2 border-t border-border">
+                        <button
+                          onClick={() => setEditingItemId(item.id)}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Edit2 size={11} /> Configure
+                          <ChevronRight size={10} className="ml-auto" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Add new item card */}
+              <button
+                className="aspect-auto min-h-[160px] flex flex-col items-center justify-center p-8 text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/20 transition-colors border-dashed"
+                onClick={() => {
+                  setCreateListKey("menu-items");
+                  setIsCreateOpen(true);
+                }}
+              >
+                <Plus size={20} className="mb-2" />
+                <span className="text-xs">Add Item</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
       {editingItemId && (
         <EditItemDrawerClientWrapper

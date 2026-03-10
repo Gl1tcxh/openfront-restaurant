@@ -52,7 +52,7 @@ export function OrderDetailsCard({
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Order Details</h3>
-      <div className="rounded-lg border p-4 space-y-3">
+      <div className="rounded-xl bg-card border border-transparent ring-1 ring-foreground/5 shadow-sm p-5 space-y-3">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Order #</span>
           <span className="font-medium">{orderNumber}</span>

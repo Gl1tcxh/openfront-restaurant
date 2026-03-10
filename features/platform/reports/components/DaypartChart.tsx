@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatNumber } from "../lib/reportHelpers";
 
 interface DaypartData {
@@ -16,17 +15,17 @@ interface DaypartChartProps {
   locale?: string;
 }
 
-const daypartLabels: Record<keyof DaypartData, { label: string; time: string; color: string }> = {
-  breakfast: { label: "Breakfast", time: "6AM - 11AM", color: "bg-yellow-500" },
-  lunch: { label: "Lunch", time: "11AM - 3PM", color: "bg-orange-500" },
-  dinner: { label: "Dinner", time: "3PM - 10PM", color: "bg-red-500" },
-  lateNight: { label: "Late Night", time: "10PM - 6AM", color: "bg-purple-500" },
+const daypartLabels: Record<keyof DaypartData, { label: string; time: string; color: string; dot: string }> = {
+  breakfast: { label: "Breakfast", time: "6AM – 11AM", color: "bg-amber-400", dot: "bg-amber-400" },
+  lunch:     { label: "Lunch",     time: "11AM – 3PM", color: "bg-orange-500", dot: "bg-orange-500" },
+  dinner:    { label: "Dinner",    time: "3PM – 10PM",  color: "bg-red-500",    dot: "bg-red-500" },
+  lateNight: { label: "Late Night",time: "10PM – 6AM", color: "bg-purple-500", dot: "bg-purple-500" },
 };
 
 export function DaypartChart({ data, currencyCode = "USD", locale = "en-US" }: DaypartChartProps) {
   const currencyConfig = { currencyCode, locale };
   const totalRevenue = Object.values(data).reduce((sum, d) => sum + d.revenue, 0);
-  
+
   const sortedDayparts = (Object.entries(data) as Array<[keyof DaypartData, { orders: number; revenue: number }]>)
     .map(([key, value]) => ({
       key,
@@ -36,32 +35,37 @@ export function DaypartChart({ data, currencyCode = "USD", locale = "en-US" }: D
     .sort((a, b) => b.revenue - a.revenue);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Sales by Daypart</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="px-5 py-3 border-b border-border bg-muted/20">
+        <p className="text-[11px] uppercase tracking-wider font-semibold text-foreground">Sales by Daypart</p>
+      </div>
+
+      {totalRevenue === 0 ? (
+        <div className="px-5 py-12 text-center">
+          <p className="text-xs text-muted-foreground">No data for this period</p>
+        </div>
+      ) : (
+        <div className="px-5 py-4 space-y-4">
           {sortedDayparts.map((daypart) => {
             const info = daypartLabels[daypart.key];
             return (
-              <div key={daypart.key} className="space-y-2">
+              <div key={daypart.key} className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${info.color}`} />
-                    <span className="font-medium">{info.label}</span>
-                    <span className="text-xs text-muted-foreground">({info.time})</span>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${info.dot}`} />
+                    <span className="text-xs font-semibold">{info.label}</span>
+                    <span className="text-[11px] text-muted-foreground">{info.time}</span>
                   </div>
                   <div className="text-right">
-                    <span className="font-semibold">{formatCurrency(daypart.revenue, currencyConfig)}</span>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      ({formatNumber(daypart.orders)} orders)
+                    <span className="text-xs font-semibold">{formatCurrency(daypart.revenue, currencyConfig)}</span>
+                    <span className="text-[11px] text-muted-foreground ml-2 tabular-nums">
+                      {formatNumber(daypart.orders)} orders
                     </span>
                   </div>
                 </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
-                    className={`h-full ${info.color} transition-all duration-500`}
+                    className={`h-full ${info.color} transition-all duration-500 rounded-full`}
                     style={{ width: `${daypart.percentage}%` }}
                   />
                 </div>
@@ -69,7 +73,7 @@ export function DaypartChart({ data, currencyCode = "USD", locale = "en-US" }: D
             );
           })}
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
