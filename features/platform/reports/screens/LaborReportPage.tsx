@@ -22,6 +22,7 @@ import { DollarSign, Clock, Users, TrendingUp, RefreshCw, ArrowRight, Activity, 
 import { gql, request } from 'graphql-request'
 import { PageBreadcrumbs } from "@/features/dashboard/components/PageBreadcrumbs"
 import { cn } from '@/lib/utils'
+import { PlatformDatePicker } from '@/features/platform/components/PlatformDatePicker'
 import { formatCurrency } from "../lib/reportHelpers"
 
 interface TimeEntry {
@@ -149,19 +150,17 @@ export function LaborReportPage() {
         </div>
         {/* Date + role controls */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 border border-border rounded px-3 h-8 text-xs bg-background">
-            <input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-              className="bg-transparent border-none text-xs focus:outline-none focus:ring-0 w-28 tabular-nums"
+          <div className="flex items-center gap-1.5">
+            <PlatformDatePicker
+              value={new Date(dateRange.start + 'T12:00:00')}
+              onChange={(d) => d && setDateRange({ ...dateRange, start: d.toISOString().slice(0, 10) })}
+              shortFormat
             />
             <ArrowRight size={11} className="text-muted-foreground shrink-0" />
-            <input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-              className="bg-transparent border-none text-xs focus:outline-none focus:ring-0 w-28 tabular-nums"
+            <PlatformDatePicker
+              value={new Date(dateRange.end + 'T12:00:00')}
+              onChange={(d) => d && setDateRange({ ...dateRange, end: d.toISOString().slice(0, 10) })}
+              shortFormat
             />
           </div>
           <Select value={roleFilter} onValueChange={setRoleFilter}>

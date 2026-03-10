@@ -116,39 +116,53 @@ export function MenuArchitectPage() {
       {/* Two-panel layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: category sidebar */}
-        <div className="w-48 xl:w-56 shrink-0 border-r border-border overflow-y-auto">
+        <div className="w-48 xl:w-56 shrink-0 border-r border-border overflow-y-auto flex flex-col">
+          <div className="flex-1">
+            <button
+              onClick={() => setActiveCategoryId("all")}
+              className={cn(
+                "w-full text-left px-4 py-3 text-sm flex items-center justify-between border-b border-border transition-colors",
+                activeCategoryId === "all"
+                  ? "bg-muted font-medium"
+                  : "hover:bg-muted/30 text-muted-foreground"
+              )}
+            >
+              <span>All Items</span>
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                {totalItems}
+              </span>
+            </button>
+            {categories.map((cat: any) => {
+              const count = data?.menuItems?.filter((i: any) => i.category?.id === cat.id).length || 0;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategoryId(cat.id)}
+                  className={cn(
+                    "w-full text-left px-4 py-3 text-sm flex items-center justify-between border-b border-border transition-colors",
+                    activeCategoryId === cat.id
+                      ? "bg-muted font-medium"
+                      : "hover:bg-muted/30 text-muted-foreground"
+                  )}
+                >
+                  <span className="truncate">{cat.name}</span>
+                  <span className="text-[11px] text-muted-foreground tabular-nums ml-2 shrink-0">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Add category button */}
           <button
-            onClick={() => setActiveCategoryId("all")}
-            className={cn(
-              "w-full text-left px-4 py-3 text-sm flex items-center justify-between border-b border-border transition-colors",
-              activeCategoryId === "all"
-                ? "bg-muted font-medium"
-                : "hover:bg-muted/30 text-muted-foreground"
-            )}
+            onClick={() => {
+              setCreateListKey("menu-categories");
+              setIsCreateOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 border-t border-border transition-colors w-full"
           >
-            <span>All Items</span>
-            <span className="text-[11px] text-muted-foreground tabular-nums">
-              {totalItems}
-            </span>
+            <Plus size={12} />
+            Add Category
           </button>
-          {categories.map((cat: any) => {
-            const count = data?.menuItems?.filter((i: any) => i.category?.id === cat.id).length || 0;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategoryId(cat.id)}
-                className={cn(
-                  "w-full text-left px-4 py-3 text-sm flex items-center justify-between border-b border-border transition-colors",
-                  activeCategoryId === cat.id
-                    ? "bg-muted font-medium"
-                    : "hover:bg-muted/30 text-muted-foreground"
-                )}
-              >
-                <span className="truncate">{cat.name}</span>
-                <span className="text-[11px] text-muted-foreground tabular-nums ml-2 shrink-0">{count}</span>
-              </button>
-            );
-          })}
         </div>
 
         {/* Right: item grid */}

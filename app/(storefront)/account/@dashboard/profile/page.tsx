@@ -19,14 +19,14 @@ export default async function AccountProfilePage() {
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="pb-6 border-b border-border">
+      <div className="pb-6">
         <h1 className="text-3xl font-serif">Profile</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Manage your name, email address, and phone number.
         </p>
       </div>
 
-      <div className="pt-6 space-y-0 divide-y divide-border rounded-lg border border-border overflow-hidden">
+      <div className="space-y-0 divide-y divide-border rounded-lg border border-border overflow-hidden">
         <ProfileName customer={customer} />
         <ProfileEmail customer={customer} />
         <ProfilePhone customer={customer} />

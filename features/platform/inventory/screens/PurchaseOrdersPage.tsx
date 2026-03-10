@@ -22,6 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Plus, Trash2, Package, Truck, RefreshCw, FileText, Send, CheckCircle2, XCircle, ChevronRight, Search, X } from 'lucide-react'
 import { gql, request } from 'graphql-request'
 import { cn } from '@/lib/utils'
+import { PlatformDatePicker } from '@/features/platform/components/PlatformDatePicker'
 import { formatCurrency } from '@/features/storefront/lib/currency'
 import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
 
@@ -467,7 +468,12 @@ export function PurchaseOrdersPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Expected Delivery</Label>
-                  <Input type="date" value={form.expectedDelivery} onChange={(e) => setForm({ ...form, expectedDelivery: e.target.value })} className="h-8 text-sm" />
+                  <PlatformDatePicker
+                    value={form.expectedDelivery ? new Date(form.expectedDelivery + 'T12:00:00') : undefined}
+                    onChange={(d) => setForm({ ...form, expectedDelivery: d ? d.toISOString().slice(0, 10) : '' })}
+                    placeholder="Select date"
+                    className="w-full"
+                  />
                 </div>
               </div>
 

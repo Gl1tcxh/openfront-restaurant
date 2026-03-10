@@ -1,11 +1,5 @@
-import { ListPage } from "@/features/dashboard/screens/ListPage";
+import TablesPage from "@/features/platform/tables/screens/TablesPage";
 
-export default async function Page(props: any) {
-  const searchParams = await props.searchParams;
-  return (
-    <ListPage 
-      params={Promise.resolve({ listKey: "tables" })} 
-      searchParams={Promise.resolve(searchParams)} 
-    />
-  );
+export default function Page() {
+  return <TablesPage />;
 }

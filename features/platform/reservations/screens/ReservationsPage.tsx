@@ -22,6 +22,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { RefreshCw, Plus, Calendar, Users, Phone, Mail, Trash2, Edit2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PlatformDatePicker } from '@/features/platform/components/PlatformDatePicker'
 
 interface Reservation {
   id: string
@@ -285,24 +286,17 @@ export function ReservationsPage() {
           <div className="px-4 md:px-6 flex items-center gap-2 h-11 border-b border-border">
             <button
               onClick={() => navigateDay(-1)}
-              className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+              className="w-8 h-8 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors shrink-0"
             >
               <ChevronLeft size={13} />
             </button>
 
-            {/* Date pill */}
-            <div className="flex items-center gap-2 border border-border rounded px-3 h-8 bg-background">
-              <Calendar size={12} className="text-muted-foreground shrink-0" />
-              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider shrink-0">
-                {selectedDate.toLocaleDateString('en-US', { weekday: 'short' })}
-              </span>
-              <input
-                type="date"
-                value={toDateInputValue(selectedDate)}
-                onChange={e => e.target.value && setSelectedDate(new Date(e.target.value + 'T12:00:00'))}
-                className="text-xs font-semibold border-0 bg-transparent outline-none cursor-pointer w-28 tabular-nums"
-              />
-            </div>
+            {/* Date picker */}
+            <PlatformDatePicker
+              value={selectedDate}
+              onChange={(d) => d && setSelectedDate(d)}
+              className="font-semibold"
+            />
 
             {!isToday && (
               <button
@@ -315,7 +309,7 @@ export function ReservationsPage() {
 
             <button
               onClick={() => navigateDay(1)}
-              className="w-7 h-7 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors shrink-0"
+              className="w-8 h-8 rounded border border-border flex items-center justify-center hover:bg-muted transition-colors shrink-0"
             >
               <ChevronRight size={13} />
             </button>
@@ -326,7 +320,7 @@ export function ReservationsPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-5 divide-x">
+          <div className="grid grid-cols-3 md:grid-cols-6 divide-x divide-y md:divide-y-0">
             <button
               onClick={() => setActiveStatusFilter('all')}
               className={cn(
@@ -343,7 +337,6 @@ export function ReservationsPage() {
                 onClick={() => setActiveStatusFilter(activeStatusFilter === key ? 'all' : key)}
                 className={cn(
                   'px-4 py-2.5 text-left transition-colors',
-                  key === 'no_show' && 'border-t border-border',
                   activeStatusFilter === key ? 'bg-muted/40' : 'hover:bg-muted/20'
                 )}
               >
@@ -503,11 +496,11 @@ export function ReservationsPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Date *</Label>
-                <Input
-                  type="date"
-                  value={form.reservationDate}
-                  onChange={e => setForm(f => ({ ...f, reservationDate: e.target.value }))}
-                  className="h-8 text-sm"
+                <PlatformDatePicker
+                  value={form.reservationDate ? new Date(form.reservationDate + 'T12:00:00') : undefined}
+                  onChange={(d) => setForm(f => ({ ...f, reservationDate: d ? toDateInputValue(d) : '' }))}
+                  placeholder="Select date"
+                  className="w-full"
                 />
               </div>
               <div className="space-y-1.5">

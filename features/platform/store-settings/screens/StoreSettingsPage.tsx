@@ -359,7 +359,7 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
         </div>
       </div>
 
-      <div className="grid w-full grid-cols-1 gap-6 p-4 md:p-6 xl:grid-cols-[1.1fr_1fr] overflow-auto">
+      <div className="grid w-full grid-cols-1 gap-6 px-4 md:px-6 py-4 md:py-5 xl:grid-cols-[1.1fr_1fr] xl:items-start overflow-auto">
         <div className="space-y-6">
 
           {/* Identity & Contact */}
@@ -523,7 +523,7 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
 
         </div>
 
-        <div className="space-y-6 xl:sticky xl:top-6 xl:h-fit">
+        <div className="space-y-6">
           <WeeklyHoursEditor
             days={days}
             hours={hours}

@@ -1,11 +1,5 @@
-import { ListPage } from "@/features/dashboard/screens/ListPage";
+import IngredientsPage from "@/features/platform/inventory/screens/IngredientsPage";
 
-export default async function Page(props: any) {
-  const searchParams = await props.searchParams;
-  return (
-    <ListPage 
-      params={Promise.resolve({ listKey: "ingredients" })} 
-      searchParams={Promise.resolve(searchParams)} 
-    />
-  );
+export default function Page() {
+  return <IngredientsPage />;
 }
