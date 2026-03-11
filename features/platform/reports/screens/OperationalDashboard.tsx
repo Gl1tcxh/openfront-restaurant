@@ -52,7 +52,7 @@ export async function OperationalDashboard() {
       <section aria-label="Operational Dashboard" className="flex flex-col h-full">
         <PageBreadcrumbs
           items={[
-            { type: "link", label: "Dashboard", href: "/dashboard" },
+            { type: "link", label: "Dashboard", href: "" },
             { type: "page", label: "Operations" },
           ]}
         />

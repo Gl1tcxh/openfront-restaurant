@@ -65,8 +65,8 @@ export async function MenuPerformanceReport({ searchParams }: PageProps) {
       <div className="flex flex-col h-full bg-background">
         <PageBreadcrumbs
           items={[
-            { type: "link", label: "Dashboard", href: "/dashboard" },
-            { type: "link", label: "Reports", href: "/dashboard/platform/reports" },
+            { type: "link", label: "Dashboard", href: "" },
+            { type: "link", label: "Reports", href: "/platform/reports" },
             { type: "page", label: "Menu Performance" },
           ]}
         />
@@ -214,8 +214,8 @@ export async function MenuPerformanceReport({ searchParams }: PageProps) {
       <div className="flex flex-col h-full bg-background">
         <PageBreadcrumbs
           items={[
-            { type: "link", label: "Dashboard", href: "/dashboard" },
-            { type: "link", label: "Reports", href: "/dashboard/platform/reports" },
+            { type: "link", label: "Dashboard", href: "" },
+            { type: "link", label: "Reports", href: "/platform/reports" },
             { type: "page", label: "Menu Performance" },
           ]}
         />

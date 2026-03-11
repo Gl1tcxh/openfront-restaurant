@@ -173,7 +173,7 @@ export function WastePage() {
     <div className="flex flex-col h-full">
       <PageBreadcrumbs
         items={[
-          { type: 'link', label: 'Dashboard', href: '/dashboard' },
+          { type: 'link', label: 'Dashboard', href: '' },
           { type: 'page', label: 'Platform' },
           { type: 'page', label: 'Waste Tracking' },
         ]}

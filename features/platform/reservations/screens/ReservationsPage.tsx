@@ -255,7 +255,7 @@ export function ReservationsPage() {
     <>
       <PageBreadcrumbs
         items={[
-          { type: 'link', label: 'Dashboard', href: '/dashboard' },
+          { type: 'link', label: 'Dashboard', href: '' },
           { type: 'page', label: 'Platform' },
           { type: 'page', label: 'Reservations' },
         ]}

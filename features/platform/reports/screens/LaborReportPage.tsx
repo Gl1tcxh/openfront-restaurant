@@ -131,8 +131,8 @@ export function LaborReportPage() {
   }).filter((r) => r.hours > 0).sort((a, b) => b.cost - a.cost)
 
   const breadcrumbs = [
-    { type: 'link' as const, label: 'Dashboard', href: '/dashboard' },
-    { type: 'link' as const, label: 'Reports', href: '/dashboard/platform/reports' },
+    { type: 'link' as const, label: 'Dashboard', href: '' },
+    { type: 'link' as const, label: 'Reports', href: '/platform/reports' },
     { type: 'page' as const, label: 'Labor' },
   ]
 

@@ -188,7 +188,7 @@ function Section({
 }
 
 const fieldInput = "h-auto px-0 py-0 border-0 shadow-none bg-transparent text-sm font-semibold mt-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/40 placeholder:font-normal w-full"
-const fieldSelect = "h-auto px-0 py-0 border-0 shadow-none bg-transparent text-sm font-semibold mt-1.5 focus:ring-0 focus:ring-offset-0 [&>svg]:size-3.5 [&>svg]:opacity-40 [&>svg]:ml-1 gap-0 w-full"
+const fieldSelect = "h-auto px-0 py-0 border-0 shadow-none bg-transparent text-sm font-semibold mt-1.5 focus:ring-0 focus:ring-offset-0 [&>svg]:size-3.5 [&>svg]:opacity-40 [&>svg]:ml-1 gap-0 w-full [&>span]:text-left [&>span]:truncate [&>span]:block"
 
 export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreSettingsData | null }) {
   const [isSaving, setIsSaving] = useState(false)
@@ -216,7 +216,7 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
   const [hours, setHours] = useState<HoursState>(parseHours(initialSettings?.hours))
 
   const breadcrumbs = [
-    { type: 'link' as const, label: 'Dashboard', href: '/dashboard' },
+    { type: 'link' as const, label: 'Dashboard', href: '' },
     { type: 'page' as const, label: 'Platform' },
     { type: 'page' as const, label: 'Store Settings' },
   ]

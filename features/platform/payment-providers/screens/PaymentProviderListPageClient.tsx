@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { PlatformFilterBar } from '../../components/PlatformFilterBar'
 import { CreateItemDrawerClientWrapper } from '@/features/platform/components/CreateItemDrawerClientWrapper'
+import { EditItemDrawerClientWrapper } from '@/features/platform/components/EditItemDrawerClientWrapper'
 import { useDashboard } from '../../../dashboard/context/DashboardProvider'
 import { useListItemsQuery } from '../../../dashboard/hooks/useListItems.query'
 import { buildOrderByClause } from '../../../dashboard/lib/buildOrderByClause'
@@ -54,6 +55,7 @@ export function PaymentProviderListPageClient({
   const searchParams = useSearchParams()
   const { basePath } = useDashboard()
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false)
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(null)
 
   const currentSearchParams = useMemo(() => {
     const params: Record<string, string> = {}
@@ -96,7 +98,7 @@ export function PaymentProviderListPageClient({
     <div className="flex flex-col h-full bg-background">
       <PageBreadcrumbs
         items={[
-          { type: 'link', label: 'Dashboard', href: '/dashboard' },
+          { type: 'link', label: 'Dashboard', href: '' },
           { type: 'page', label: 'Platform' },
           { type: 'page', label: 'Payment Providers' },
         ]}
@@ -216,7 +218,7 @@ export function PaymentProviderListPageClient({
                           size="sm"
                           variant="outline"
                           className="h-7 text-xs px-3"
-                          onClick={() => router.push(`${basePath}/payment-providers/${provider.id}`)}
+                          onClick={() => setEditingProviderId(provider.id)}
                         >
                           Manage
                         </Button>
@@ -236,6 +238,16 @@ export function PaymentProviderListPageClient({
         onClose={() => setIsCreateDrawerOpen(false)}
         onCreate={() => window.location.reload()}
       />
+
+      {editingProviderId && (
+        <EditItemDrawerClientWrapper
+          listKey="payment-providers"
+          itemId={editingProviderId}
+          open={!!editingProviderId}
+          onClose={() => setEditingProviderId(null)}
+          onSave={() => window.location.reload()}
+        />
+      )}
     </div>
   )
 }

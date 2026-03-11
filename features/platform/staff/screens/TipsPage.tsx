@@ -267,7 +267,7 @@ export function TipsPage() {
   const pendingCount = tipPools.filter(t => t.status === 'calculated').length
 
   const breadcrumbs = [
-    { type: 'link' as const, label: 'Dashboard', href: '/dashboard' },
+    { type: 'link' as const, label: 'Dashboard', href: '' },
     { type: 'page' as const, label: 'Platform' },
     { type: 'page' as const, label: 'Staff' },
     { type: 'page' as const, label: 'Tips' }

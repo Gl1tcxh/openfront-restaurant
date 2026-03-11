@@ -86,7 +86,7 @@ export function ApiKeyListPageClient({
     <div className="flex flex-col h-full bg-background">
       <PageBreadcrumbs
         items={[
-          { type: "link", label: "Dashboard", href: "/dashboard" },
+          { type: "link", label: "Dashboard", href: "" },
           { type: "page", label: "Platform" },
           { type: "page", label: "API Keys" },
         ]}

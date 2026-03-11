@@ -446,7 +446,7 @@ export function ServiceFloorClient() {
     <>
       <PageBreadcrumbs
         items={[
-          { type: 'link', label: 'Dashboard', href: '/dashboard' },
+          { type: 'link', label: 'Dashboard', href: '' },
           { type: 'page', label: 'Platform' },
           { type: 'page', label: 'Service Floor' },
         ]}

@@ -16,7 +16,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreVertical } from "lucide-react";
-import Link from "next/link";
 import { EditItemDrawerClientWrapper } from "../../components/EditItemDrawerClientWrapper";
 
 interface PaymentProvider {
@@ -49,12 +48,12 @@ export function PaymentProviderDetailsComponent({
               {/* PaymentProvider Info */}
               <div className="flex flex-col items-start text-left gap-2 sm:gap-1.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Link
-                    href={`/dashboard/platform/payment-providers/${paymentprovider.id}`}
-                    className="font-medium text-base hover:text-blue-600 dark:hover:text-blue-400"
+                  <button
+                    onClick={() => setIsEditDrawerOpen(true)}
+                    className="font-medium text-base hover:text-blue-600 dark:hover:text-blue-400 text-left"
                   >
                     {paymentprovider.name}
-                  </Link>
+                  </button>
                   <span>‧</span>
                   <span className="text-sm font-medium">
                     <span className="text-muted-foreground/75">

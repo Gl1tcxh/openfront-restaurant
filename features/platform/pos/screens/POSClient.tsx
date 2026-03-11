@@ -104,7 +104,7 @@ const courseColors = { 1: 'bg-amber-500', 2: 'bg-orange-500', 3: 'bg-rose-500' }
 const courseLabels = { 1: 'C1', 2: 'C2', 3: 'C3' } as const
 
 const breadcrumbs = [
-  { type: 'link' as const, label: 'Dashboard', href: '/dashboard' },
+  { type: 'link' as const, label: 'Dashboard', href: '' },
   { type: 'page' as const, label: 'Platform' },
   { type: 'page' as const, label: 'Point of Sale' },
 ]

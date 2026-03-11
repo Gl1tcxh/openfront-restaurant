@@ -66,7 +66,7 @@ export function MenuArchitectPage() {
   }
 
   const breadcrumbs = [
-    { type: "link" as const, label: "Dashboard", href: "/dashboard" },
+    { type: "link" as const, label: "Dashboard", href: "" },
     { type: "page" as const, label: "Platform" },
     { type: "page" as const, label: "Menu" },
   ];

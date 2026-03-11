@@ -240,7 +240,7 @@ export function SchedulePage() {
   const getRoleConfig = (role: string) => ROLES.find(r => r.value === role) || ROLES[0]
 
   const breadcrumbs = [
-    { type: 'link' as const, label: 'Dashboard', href: '/dashboard' },
+    { type: 'link' as const, label: 'Dashboard', href: '' },
     { type: 'page' as const, label: 'Platform' },
     { type: 'page' as const, label: 'Staff' },
     { type: 'page' as const, label: 'Schedule' }

@@ -23,7 +23,7 @@ export async function PaymentPage({ params }: PaymentPageProps) {
 
   const breadcrumbs = [
     { type: 'link' as const, label: 'Dashboard', href: '/dashboard' },
-    { type: 'link' as const, label: 'POS', href: '/dashboard/platform/pos' },
+    { type: 'link' as const, label: 'POS', href: '/platform/pos' },
     { type: 'page' as const, label: 'Payment' }
   ]
 
