@@ -1,8 +1,7 @@
 import { dehydrate, HydrationBoundary, QueryClient } from '@tanstack/react-query';
 import QueryProvider from '@/features/storefront/lib/providers/query-client-provider';
-import { CartProvider } from '@/features/storefront/lib/cart-context';
 import { getUser } from '@/features/storefront/lib/data/user';
-import { getStoreSettings } from '@/features/storefront/lib/data/menu';
+import { getStoreSettings, getStorefrontPaymentConfig } from '@/features/storefront/lib/data/menu';
 import { fetchCart } from '@/features/storefront/lib/data';
 import { getCurrencyConfig } from '@/features/storefront/lib/currency';
 import StorefrontLayout from './StorefrontLayout';
@@ -24,10 +23,11 @@ export default async function StorefrontServer({
   });
 
   // Prefetch basic data
-  const [user, storeSettings, cart] = await Promise.all([
+  const [user, storeSettings, cart, paymentConfig] = await Promise.all([
     getUser(),
     getStoreSettings(),
     fetchCart(),
+    getStorefrontPaymentConfig(),
   ]);
 
   if (user) {
@@ -66,11 +66,9 @@ export default async function StorefrontServer({
   return (
     <QueryProvider>
       <HydrationBoundary state={dehydrate(queryClient)}>
-        <CartProvider>
-          <StorefrontLayout storeInfo={storeInfo} user={user}>
-            {children}
-          </StorefrontLayout>
-        </CartProvider>
+        <StorefrontLayout storeInfo={storeInfo} user={user} paymentConfig={paymentConfig}>
+          {children}
+        </StorefrontLayout>
       </HydrationBoundary>
     </QueryProvider>
   );

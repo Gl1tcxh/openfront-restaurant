@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { loadStripe } from "@stripe/stripe-js"
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js"
@@ -11,17 +11,12 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { useCart } from "@/features/storefront/lib/cart-context"
-import { type StoreInfo } from "@/features/storefront/lib/store-data"
+import { useCartData, useClearCart } from "@/features/storefront/lib/hooks/use-cart"
+import { type StoreInfo, type StorefrontPaymentConfig } from "@/features/storefront/lib/store-data"
 import { formatCurrency } from "@/features/storefront/lib/currency"
 import Link from "next/link"
-import { useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
-
-const stripeKey = process.env.NEXT_PUBLIC_STRIPE_KEY || process.env.STRIPE_PUBLISHABLE_KEY
-const stripePromise = stripeKey ? loadStripe(stripeKey) : null
-const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
 
 type PaymentMethod = "card" | "paypal" | "cash"
 
@@ -126,6 +121,7 @@ interface CheckoutModalProps {
   orderType: "pickup" | "delivery"
   storeInfo: StoreInfo
   user?: any
+  paymentConfig: StorefrontPaymentConfig
 }
 
 type CheckoutStep = "details" | "payment" | "confirmation"
@@ -148,6 +144,9 @@ function CheckoutForm({
   paymentMethod,
   setPaymentMethod,
   user,
+  hasCardMethod,
+  hasPayPalMethod,
+  hasCashMethod,
 }: { 
   orderType: "pickup" | "delivery"
   storeInfo: StoreInfo
@@ -156,10 +155,14 @@ function CheckoutForm({
   paymentMethod: PaymentMethod
   setPaymentMethod: (method: PaymentMethod) => void
   user?: any
+  hasCardMethod: boolean
+  hasPayPalMethod: boolean
+  hasCashMethod: boolean
 }) {
   const stripe = useStripe()
   const elements = useElements()
-  const { subtotal, items, clearCart } = useCart()
+  const { subtotal, items } = useCartData()
+  const clearCart = useClearCart()
   const currencyConfig = { currencyCode: storeInfo.currencyCode, locale: storeInfo.locale }
   const paypalCurrency = (storeInfo.currencyCode || "USD").toUpperCase()
   
@@ -553,7 +556,7 @@ function CheckoutForm({
                 onValueChange={(val) => setPaymentMethod(val as PaymentMethod)}
                 className="grid grid-cols-3 gap-3"
               >
-                {stripePromise && (
+                {hasCardMethod && (
                   <div>
                     <RadioGroupItem value="card" id="payment-card" className="peer sr-only" />
                     <Label
@@ -565,7 +568,7 @@ function CheckoutForm({
                     </Label>
                   </div>
                 )}
-                {paypalClientId && (
+                {hasPayPalMethod && (
                   <div>
                     <RadioGroupItem value="paypal" id="payment-paypal" className="peer sr-only" />
                     <Label
@@ -577,16 +580,18 @@ function CheckoutForm({
                     </Label>
                   </div>
                 )}
-                <div>
-                  <RadioGroupItem value="cash" id="payment-cash" className="peer sr-only" />
-                  <Label
-                    htmlFor="payment-cash"
-                    className="flex flex-col items-center justify-center border border-border p-4 hover:bg-muted peer-data-[state=checked]:border-foreground peer-data-[state=checked]:bg-muted cursor-pointer text-center transition-colors rounded-md"
-                  >
-                    <DollarSign className="h-5 w-5 mb-2" />
-                    <span className="text-sm font-medium">Cash</span>
-                  </Label>
-                </div>
+                {hasCashMethod && (
+                  <div>
+                    <RadioGroupItem value="cash" id="payment-cash" className="peer sr-only" />
+                    <Label
+                      htmlFor="payment-cash"
+                      className="flex flex-col items-center justify-center border border-border p-4 hover:bg-muted peer-data-[state=checked]:border-foreground peer-data-[state=checked]:bg-muted cursor-pointer text-center transition-colors rounded-md"
+                    >
+                      <DollarSign className="h-5 w-5 mb-2" />
+                      <span className="text-sm font-medium">Cash</span>
+                    </Label>
+                  </div>
+                )}
               </RadioGroup>
             </div>
 
@@ -608,7 +613,7 @@ function CheckoutForm({
             )}
 
             {/* PayPal Button */}
-            {paymentMethod === "paypal" && paypalClientId && (
+            {paymentMethod === "paypal" && hasPayPalMethod && (
               <div className="border border-border rounded-md p-4">
                 <PayPalButtons
                   style={{ layout: "vertical", shape: "rect", label: "pay" }}
@@ -760,11 +765,41 @@ function OrderConfirmation({
   )
 }
 
-export function StripeCheckoutModal({ isOpen, onClose, orderType, storeInfo, user }: CheckoutModalProps) {
+export function StripeCheckoutModal({ isOpen, onClose, orderType, storeInfo, user, paymentConfig }: CheckoutModalProps) {
   const router = useRouter()
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
-    stripePromise ? "card" : paypalClientId ? "paypal" : "cash"
+
+  const stripePromise = useMemo(
+    () => paymentConfig.stripePublishableKey ? loadStripe(paymentConfig.stripePublishableKey) : null,
+    [paymentConfig.stripePublishableKey]
   )
+
+  const hasCardMethod = !!(paymentConfig.hasStripe && stripePromise)
+  const hasPayPalMethod = !!(paymentConfig.hasPayPal && paymentConfig.paypalClientId)
+  const hasCashMethod = paymentConfig.hasCash
+
+  const getDefaultPaymentMethod = (): PaymentMethod => {
+    if (hasCardMethod) return 'card'
+    if (hasPayPalMethod) return 'paypal'
+    return 'cash'
+  }
+
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(getDefaultPaymentMethod)
+
+  useEffect(() => {
+    if (paymentMethod === 'card' && !hasCardMethod) {
+      setPaymentMethod(hasPayPalMethod ? 'paypal' : 'cash')
+      return
+    }
+
+    if (paymentMethod === 'paypal' && !hasPayPalMethod) {
+      setPaymentMethod(hasCardMethod ? 'card' : 'cash')
+      return
+    }
+
+    if (paymentMethod === 'cash' && !hasCashMethod) {
+      setPaymentMethod(hasCardMethod ? 'card' : 'paypal')
+    }
+  }, [paymentMethod, hasCardMethod, hasPayPalMethod, hasCashMethod])
 
   const handleSuccess = (orderId: string) => {
     onClose()
@@ -775,8 +810,7 @@ export function StripeCheckoutModal({ isOpen, onClose, orderType, storeInfo, use
     onClose()
   }
 
-  // Determine available payment methods
-  const hasAnyPaymentMethod = stripePromise || paypalClientId || true // cash is always available
+  const hasAnyPaymentMethod = hasCardMethod || hasPayPalMethod || hasCashMethod
 
   const renderCheckoutContent = () => {
     if (!hasAnyPaymentMethod) {
@@ -788,7 +822,6 @@ export function StripeCheckoutModal({ isOpen, onClose, orderType, storeInfo, use
       )
     }
 
-    // Wrap with PayPalScriptProvider if PayPal is available
     const formContent = (
       <Elements stripe={stripePromise}>
         <CheckoutForm 
@@ -799,15 +832,18 @@ export function StripeCheckoutModal({ isOpen, onClose, orderType, storeInfo, use
           paymentMethod={paymentMethod}
           setPaymentMethod={setPaymentMethod}
           user={user}
+          hasCardMethod={hasCardMethod}
+          hasPayPalMethod={hasPayPalMethod}
+          hasCashMethod={hasCashMethod}
         />
       </Elements>
     )
 
-    if (paypalClientId) {
+    if (hasPayPalMethod && paymentConfig.paypalClientId) {
       return (
         <PayPalScriptProvider
           options={{
-            clientId: paypalClientId,
+            clientId: paymentConfig.paypalClientId,
             currency: (storeInfo.currencyCode || "USD").toUpperCase(),
             intent: "capture",
             components: "buttons",

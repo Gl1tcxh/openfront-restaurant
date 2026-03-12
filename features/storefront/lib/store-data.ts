@@ -119,3 +119,11 @@ export interface StoreInfo {
   rating?: number
   reviewCount?: number
 }
+
+export interface StorefrontPaymentConfig {
+  hasStripe: boolean
+  hasPayPal: boolean
+  hasCash: boolean
+  stripePublishableKey: string | null
+  paypalClientId: string | null
+}

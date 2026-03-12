@@ -1,15 +1,12 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { CartProvider } from "@/features/storefront/lib/cart-context"
 import { StoreHeader } from "@/features/storefront/components/StoreHeader"
 import { CategoryNav } from "@/features/storefront/components/CategoryNav"
 import { HeroBanner } from "@/features/storefront/components/HeroBanner"
 import { StoreInfoBar } from "@/features/storefront/components/StoreInfoBar"
 import { MenuSection } from "@/features/storefront/components/MenuSection"
 import { ItemCustomizationModal } from "@/features/storefront/components/ItemCustomizationModal"
-import { CartSidebar } from "@/features/storefront/components/CartSidebar"
-import { StripeCheckoutModal } from "@/features/storefront/components/StripeCheckoutModal"
 import { type MenuItem, type MenuCategory, type StoreInfo } from "@/features/storefront/lib/store-data"
 import Image from "next/image"
 import { formatCurrency } from "@/features/storefront/lib/currency"
@@ -199,9 +196,5 @@ function StorefrontContent({ categories, menuItems, featuredItems, storeInfo, us
 }
 
 export default function HomePageClient(props: HomePageClientProps) {
-  return (
-    <CartProvider>
-      <StorefrontContent {...props} />
-    </CartProvider>
-  )
+  return <StorefrontContent {...props} />
 }

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { useCart } from "@/features/storefront/lib/cart-context"
+import { useAddItemToCart } from "@/features/storefront/lib/hooks/use-cart"
 import type { MenuItem, SelectedModifier, MenuItemModifier } from "@/features/storefront/lib/store-data"
 import { formatCurrency } from "@/features/storefront/lib/currency"
 
@@ -17,6 +17,7 @@ interface ItemCustomizationModalProps {
   onClose: () => void
   currencyCode?: string
   locale?: string
+  orderType?: "pickup" | "delivery"
 }
 
 // Helper to get image URL
@@ -45,8 +46,8 @@ function getDescriptionText(description: any): string {
   return ''
 }
 
-export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "USD", locale = "en-US" }: ItemCustomizationModalProps) {
-  const { addItem } = useCart()
+export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "USD", locale = "en-US", orderType = "pickup" }: ItemCustomizationModalProps) {
+  const addItemMutation = useAddItemToCart()
   const [quantity, setQuantity] = useState(1)
   const [selectedModifiers, setSelectedModifiers] = useState<SelectedModifier[]>([])
   const [specialInstructions, setSpecialInstructions] = useState("")
@@ -153,8 +154,14 @@ export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "
   const modifiersTotal = selectedModifiers.reduce((sum, m) => sum + m.price, 0)
   const itemTotal = (Number(item.price) + modifiersTotal) * quantity
 
-  const handleAddToCart = () => {
-    addItem(item, quantity, selectedModifiers, specialInstructions || undefined)
+  const handleAddToCart = async () => {
+    await addItemMutation.mutateAsync({
+      menuItem: item,
+      quantity,
+      modifiers: selectedModifiers,
+      specialInstructions: specialInstructions || undefined,
+      orderType,
+    })
     onClose()
   }
 

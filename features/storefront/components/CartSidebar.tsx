@@ -4,15 +4,18 @@ import Image from "next/image"
 import { Minus, Plus, X, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { useCart } from "@/features/storefront/lib/cart-context"
+import { useCartData, useRemoveCartItem, useUpdateCartItemQuantity, useClearCart } from "@/features/storefront/lib/hooks/use-cart"
 import { type StoreInfo, type MenuItem } from "@/features/storefront/lib/store-data"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatCurrency } from "@/features/storefront/lib/currency"
 
 interface CartSidebarProps {
   orderType: "pickup" | "delivery"
+  onOrderTypeChange: (type: "pickup" | "delivery") => void
   onCheckout: () => void
   storeInfo: StoreInfo
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 // Helper function to get image URL
@@ -23,9 +26,12 @@ function getImageUrl(item: MenuItem): string {
   return '/placeholder.jpg'
 }
 
-export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarProps) {
+export function CartSidebar({ orderType, onOrderTypeChange, onCheckout, storeInfo, isOpen, onOpenChange }: CartSidebarProps) {
   const currencyConfig = { currencyCode: storeInfo.currencyCode, locale: storeInfo.locale }
-  const { items, removeItem, updateQuantity, subtotal, isCartOpen, setIsCartOpen, clearCart } = useCart()
+  const { items, subtotal } = useCartData()
+  const removeItemMutation = useRemoveCartItem()
+  const updateQuantityMutation = useUpdateCartItemQuantity()
+  const clearCart = useClearCart()
 
   const deliveryFee = orderType === "delivery" ? storeInfo.deliveryFee : 0
   const discount = orderType === "pickup" ? subtotal * (storeInfo.pickupDiscount / 100) : 0
@@ -33,16 +39,31 @@ export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarPro
   const total = subtotal - discount + deliveryFee + tax
 
   return (
-    <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
+    <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md flex flex-col p-0 bg-background">
         <SheetHeader className="px-6 py-6 border-b border-border">
           <div className="flex items-center justify-between">
             <SheetTitle className="font-serif text-2xl">Your Bag</SheetTitle>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {orderType === "pickup"
-              ? `Pickup · ${storeInfo.estimatedPickup}`
-              : `Delivery · ${storeInfo.estimatedDelivery}`}
+          <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+            <button
+              type="button"
+              onClick={() => onOrderTypeChange("pickup")}
+              className={orderType === "pickup" ? "text-foreground" : "opacity-45 transition-opacity hover:opacity-70"}
+            >
+              Pickup
+            </button>
+            <span aria-hidden="true" className="opacity-45">·</span>
+            <button
+              type="button"
+              onClick={() => onOrderTypeChange("delivery")}
+              className={orderType === "delivery" ? "text-foreground" : "opacity-45 transition-opacity hover:opacity-70"}
+            >
+              Delivery
+            </button>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {orderType === "pickup" ? storeInfo.estimatedPickup : storeInfo.estimatedDelivery}
           </p>
         </SheetHeader>
 
@@ -52,7 +73,7 @@ export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarPro
             <p className="text-sm text-muted-foreground mb-6">Add some items to get started</p>
             <Button
               variant="outline"
-              onClick={() => setIsCartOpen(false)}
+              onClick={() => onOpenChange(false)}
               className="uppercase tracking-widest text-xs"
             >
               Browse Menu
@@ -80,7 +101,7 @@ export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarPro
                         <div className="flex items-start justify-between gap-2">
                           <h4 className="font-serif text-sm">{item.menuItem.name}</h4>
                           <button
-                            onClick={() => removeItem(item.id)}
+                            onClick={() => removeItemMutation.mutate(item.id)}
                             className="text-muted-foreground hover:text-foreground"
                           >
                             <X className="h-4 w-4" />
@@ -98,14 +119,14 @@ export function CartSidebar({ orderType, onCheckout, storeInfo }: CartSidebarPro
                           <div className="flex items-center border border-border">
                             <button
                               className="h-8 w-8 flex items-center justify-center hover:bg-muted transition-colors"
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              onClick={() => updateQuantityMutation.mutate({ cartItemId: item.id, quantity: item.quantity - 1 })}
                             >
                               <Minus className="h-3 w-3" />
                             </button>
                             <span className="text-sm w-8 text-center">{item.quantity}</span>
                             <button
                               className="h-8 w-8 flex items-center justify-center hover:bg-muted transition-colors"
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              onClick={() => updateQuantityMutation.mutate({ cartItemId: item.id, quantity: item.quantity + 1 })}
                             >
                               <Plus className="h-3 w-3" />
                             </button>

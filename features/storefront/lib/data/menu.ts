@@ -2,6 +2,7 @@
 import { gql } from "graphql-request"
 import { openfrontClient } from "../config"
 import { cache } from "react"
+import type { StorefrontPaymentConfig } from "../store-data"
 
 export const getStoreSettings = cache(async function () {
   const GET_STORE_SETTINGS_QUERY = gql`
@@ -225,5 +226,63 @@ export const getMenuItem = cache(async function (id: string) {
   } catch (error) {
     console.error('Error fetching menu item:', error);
     return null;
+  }
+});
+
+export const getStorefrontPaymentConfig = cache(async function (): Promise<StorefrontPaymentConfig> {
+  const GET_PAYMENT_PROVIDERS_QUERY = gql`
+    query GetStorefrontPaymentProviders {
+      paymentProviders(where: { isInstalled: { equals: true } }) {
+        code
+        createPaymentFunction
+      }
+    }
+  `
+
+  const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_KEY || process.env.STRIPE_PUBLISHABLE_KEY || null
+  const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || null
+
+  try {
+    const data = await openfrontClient.request(GET_PAYMENT_PROVIDERS_QUERY)
+    const providers = data?.paymentProviders || []
+
+    const hasStripe = providers.some(
+      (provider: any) =>
+        provider?.createPaymentFunction === 'stripe' ||
+        provider?.code === 'pp_stripe' ||
+        provider?.code?.startsWith('pp_stripe_')
+    )
+
+    const hasPayPal = providers.some(
+      (provider: any) =>
+        provider?.createPaymentFunction === 'paypal' ||
+        provider?.code === 'pp_paypal' ||
+        provider?.code?.startsWith('pp_paypal')
+    )
+
+    const hasCash = providers.some(
+      (provider: any) =>
+        provider?.createPaymentFunction === 'manual' ||
+        provider?.code === 'pp_manual' ||
+        provider?.code === 'pp_system_default'
+    )
+
+    return {
+      hasStripe,
+      hasPayPal,
+      hasCash,
+      stripePublishableKey: hasStripe ? stripePublishableKey : null,
+      paypalClientId: hasPayPal ? paypalClientId : null,
+    }
+  } catch (error) {
+    console.error('Error fetching storefront payment config:', error)
+
+    return {
+      hasStripe: !!stripePublishableKey,
+      hasPayPal: !!paypalClientId,
+      hasCash: true,
+      stripePublishableKey,
+      paypalClientId,
+    }
   }
 });

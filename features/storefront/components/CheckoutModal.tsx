@@ -7,7 +7,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { useCart } from "@/features/storefront/lib/cart-context"
+import { useCartData, useClearCart } from "@/features/storefront/lib/hooks/use-cart"
 import { type StoreInfo } from "@/features/storefront/lib/store-data"
 
 interface CheckoutModalProps {
@@ -20,7 +20,8 @@ interface CheckoutModalProps {
 type CheckoutStep = "details" | "payment" | "confirmation"
 
 export function CheckoutModal({ isOpen, onClose, orderType, storeInfo }: CheckoutModalProps) {
-  const { subtotal, clearCart, items } = useCart()
+  const { subtotal, items } = useCartData()
+  const clearCart = useClearCart()
   const [step, setStep] = useState<CheckoutStep>("details")
   const [tipPercent, setTipPercent] = useState(18)
 

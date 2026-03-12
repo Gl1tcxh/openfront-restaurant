@@ -4,23 +4,21 @@ import { useState } from "react"
 import { StoreHeader } from "@/features/storefront/components/StoreHeader"
 import { CartSidebar } from "@/features/storefront/components/CartSidebar"
 import { StripeCheckoutModal } from "@/features/storefront/components/StripeCheckoutModal"
-import { type StoreInfo, type DayHours } from "@/features/storefront/lib/store-data"
-import { usePathname } from "next/navigation"
+import { type StoreInfo, type DayHours, type StorefrontPaymentConfig } from "@/features/storefront/lib/store-data"
 
 interface StorefrontLayoutProps {
   children: React.ReactNode
   storeInfo: StoreInfo | null
   user: any
+  paymentConfig: StorefrontPaymentConfig
 }
 
-export default function StorefrontLayout({ children, storeInfo, user }: StorefrontLayoutProps) {
+export default function StorefrontLayout({ children, storeInfo, user, paymentConfig }: StorefrontLayoutProps) {
   const [orderType, setOrderType] = useState<"pickup" | "delivery">("pickup")
+  const [isCartOpen, setIsCartOpen] = useState(false)
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
-  const pathname = usePathname()
 
   if (!storeInfo) return <>{children}</>
-
-  const isHomePage = pathname === "/"
 
   const parseHours = (value: string | DayHours | undefined): DayHours | null => {
     if (!value) return null
@@ -114,10 +112,9 @@ export default function StorefrontLayout({ children, storeInfo, user }: Storefro
     <div className="min-h-screen bg-background flex flex-col">
       <div className="sticky top-0 z-50 bg-background">
         <StoreHeader 
-          orderType={orderType} 
-          setOrderType={isHomePage ? setOrderType : undefined} 
           storeInfo={storeInfo} 
-          user={user} 
+          user={user}
+          onOpenCart={() => setIsCartOpen(true)} 
         />
       </div>
 
@@ -159,16 +156,26 @@ export default function StorefrontLayout({ children, storeInfo, user }: Storefro
 
       {/* Common Sidebars & Modals */}
       <CartSidebar 
-        orderType={orderType} 
-        onCheckout={() => setIsCheckoutOpen(true)} 
-        storeInfo={storeInfo} 
+        orderType={orderType}
+        onOrderTypeChange={setOrderType}
+        onCheckout={() => {
+          setIsCartOpen(false)
+          setIsCheckoutOpen(true)
+        }} 
+        storeInfo={storeInfo}
+        isOpen={isCartOpen}
+        onOpenChange={setIsCartOpen} 
       />
       <StripeCheckoutModal 
         isOpen={isCheckoutOpen} 
-        onClose={() => setIsCheckoutOpen(false)} 
+        onClose={() => {
+          setIsCheckoutOpen(false)
+          setIsCartOpen(false)
+        }} 
         orderType={orderType} 
         storeInfo={storeInfo} 
-        user={user} 
+        user={user}
+        paymentConfig={paymentConfig}
       />
     </div>
   )
