@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useCartData, useClearCart } from "@/features/storefront/lib/hooks/use-cart"
 import { type StoreInfo, type StorefrontPaymentConfig } from "@/features/storefront/lib/store-data"
+import { createGuestUser } from "@/features/storefront/lib/data/user"
 import { formatCurrency } from "@/features/storefront/lib/currency"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -20,99 +21,56 @@ import { Separator } from "@/components/ui/separator"
 
 type PaymentMethod = "card" | "paypal" | "cash"
 
-// GraphQL mutation for creating storefront order
-const CREATE_STOREFRONT_ORDER_MUTATION = `
-  mutation CreateStorefrontOrder(
-    $orderType: String!
-    $customerInfo: CustomerInfoInput!
-    $deliveryAddress: DeliveryAddressInput
-    $items: [StorefrontOrderItemInput!]!
-    $subtotal: Int!
-    $tax: Int!
-    $tip: Int!
-    $total: Int!
-    $currencyCode: String
-    $specialInstructions: String
-  ) {
-    createStorefrontOrder(
-      orderType: $orderType
-      customerInfo: $customerInfo
-      deliveryAddress: $deliveryAddress
-      items: $items
-      subtotal: $subtotal
-      tax: $tax
-      tip: $tip
-      total: $total
-      currencyCode: $currencyCode
-      specialInstructions: $specialInstructions
-    ) {
-      success
-      orderId
-      orderNumber
-      clientSecret
-      error
+// ─── OpenFront 3-tier GraphQL mutations ────────────────────────────
+// Tier 1: Cart already exists (managed by use-cart hooks)
+// Tier 2: initiatePaymentSession — creates payment intent with provider
+// Tier 3: completeActiveCart — verifies payment, converts cart → order
+
+const UPDATE_CART_CUSTOMER_INFO = `
+  mutation UpdateCartCustomerInfo($cartId: ID!, $data: CartUpdateInput!) {
+    updateActiveCart(cartId: $cartId, data: $data) { id }
+  }
+`
+
+const INITIATE_PAYMENT_SESSION = `
+  mutation InitiatePaymentSession($cartId: ID!, $paymentProviderId: String!) {
+    initiatePaymentSession(cartId: $cartId, paymentProviderId: $paymentProviderId) {
+      id
+      data
+      amount
     }
   }
 `
 
-// GraphQL mutation for completing order after payment confirmation
-const COMPLETE_STOREFRONT_ORDER_MUTATION = `
-  mutation CompleteStorefrontOrder($orderId: String!) {
-    completeStorefrontOrder(orderId: $orderId) {
-      success
+const COMPLETE_ACTIVE_CART = `
+  mutation CompleteActiveCart($cartId: ID!) {
+    completeActiveCart(cartId: $cartId) {
+      id
       orderNumber
-      error
+      secretKey
+      status
     }
   }
 `
 
-async function createStorefrontOrderGraphQL(variables: {
-  orderType: string
-  customerInfo: { name: string; email: string; phone: string }
-  deliveryAddress?: { address: string; city: string; zip: string } | null
-  items: { menuItemId: string; quantity: number; price: number; specialInstructions?: string; modifierIds?: string[] }[]
-  subtotal: number
-  tax: number
-  tip: number
-  total: number
-  specialInstructions?: string
-  currencyCode?: string
-}) {
+async function graphqlRequest(query: string, variables: any) {
   const response = await fetch("/api/graphql", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: CREATE_STOREFRONT_ORDER_MUTATION,
-      variables,
-    }),
+    credentials: "include",
+    body: JSON.stringify({ query, variables }),
   })
-
   const result = await response.json()
-  
-  if (result.errors) {
+  if (result.errors?.length) {
     throw new Error(result.errors[0]?.message || "GraphQL error")
   }
-  
-  return result.data.createStorefrontOrder
+  return result.data
 }
 
-async function completeStorefrontOrderGraphQL(orderId: string) {
-  const response = await fetch("/api/graphql", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: COMPLETE_STOREFRONT_ORDER_MUTATION,
-      variables: { orderId },
-    }),
-  })
-
-  const result = await response.json()
-  
-  if (result.errors) {
-    throw new Error(result.errors[0]?.message || "GraphQL error")
-  }
-  
-  return result.data.completeStorefrontOrder
+const PAYMENT_METHOD_TO_PROVIDER: Record<PaymentMethod, string> = {
+  card: "pp_stripe",
+  paypal: "pp_paypal",
+  cash: "pp_manual",
 }
 
 interface CheckoutModalProps {
@@ -171,6 +129,8 @@ function CheckoutForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cardComplete, setCardComplete] = useState(false)
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
   
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
     firstName: user?.name?.split(' ')[0] || "",
@@ -200,93 +160,99 @@ function CheckoutForm({
   // Calculations are in cents
   const deliveryFee = orderType === "delivery" ? Math.round(storeInfo.deliveryFee * 100) : 0
   const discount = orderType === "pickup" ? Math.round(subtotal * (storeInfo.pickupDiscount / 100)) : 0
-  const tax = Math.round((subtotal - discount) * 0.0875)
+  const taxRate = (storeInfo.taxRate || 8.75) / 100
+  const tax = Math.round((subtotal - discount) * taxRate)
   const tip = Math.round((subtotal - discount) * (tipPercent / 100))
   const total = subtotal - discount + deliveryFee + tax + tip
 
-  // Create order data helper
-  const createOrderData = () => ({
-    orderType,
-    customerInfo: {
-      name: `${customerInfo.firstName} ${customerInfo.lastName}`,
-      email: customerInfo.email,
-      phone: customerInfo.phone,
-    },
-    deliveryAddress: orderType === "delivery" ? {
-      address: customerInfo.address || "",
-      city: customerInfo.city || "",
-      zip: customerInfo.zip || "",
-    } : null,
-    items: items.map(item => ({
-      menuItemId: item.menuItem.id,
-      quantity: item.quantity,
-      price: Number(item.menuItem.price), // In cents
-      specialInstructions: item.specialInstructions,
-      modifierIds: item.modifiers.map(m => m.modifierId),
-    })),
-    subtotal: Math.round(subtotal),
-    tax: Math.round(tax),
-    tip: Math.round(tip),
-    total: Math.round(total),
-  })
+  // ─── Shared: persist customer info on cart + initiate payment session ───
+  const { cartId } = useCartData()
 
-  // Handle card payment (Stripe)
+  const saveCustomerInfoToCart = async () => {
+    if (!cartId) throw new Error("No cart found")
+    await graphqlRequest(UPDATE_CART_CUSTOMER_INFO, {
+      cartId,
+      data: {
+        email: customerInfo.email,
+        customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
+        customerPhone: customerInfo.phone,
+        orderType,
+        tipPercent: String(tipPercent),
+        ...(orderType === "delivery"
+          ? {
+              deliveryAddress: customerInfo.address || "",
+              deliveryCity: customerInfo.city || "",
+              deliveryZip: customerInfo.zip || "",
+            }
+          : {}),
+      },
+    })
+  }
+
+  const initiateSession = async (method: PaymentMethod) => {
+    if (!cartId) throw new Error("No cart found")
+    const providerCode = PAYMENT_METHOD_TO_PROVIDER[method]
+    const { initiatePaymentSession: session } = await graphqlRequest(
+      INITIATE_PAYMENT_SESSION,
+      { cartId, paymentProviderId: providerCode }
+    )
+    return session // { id, data: { clientSecret?, paymentIntentId?, providerCode }, amount }
+  }
+
+  const completeCart = async () => {
+    if (!cartId) throw new Error("No cart found")
+    const { completeActiveCart: order } = await graphqlRequest(
+      COMPLETE_ACTIVE_CART,
+      { cartId }
+    )
+    return order // { id, orderNumber, secretKey, status }
+  }
+
+  // ─── Handle card payment (Stripe) — OpenFront 3-tier ─────────────
   const handleCardPayment = async () => {
     if (!stripe || !elements) {
       setError("Payment system not ready. Please try again.")
       return
     }
-
     const card = elements.getElement(CardElement)
-    if (!card) {
-      setError("Card element not found.")
-      return
-    }
+    if (!card) { setError("Card element not found."); return }
 
     setIsSubmitting(true)
     setError(null)
 
     try {
-      const orderData = await createStorefrontOrderGraphQL({
-        ...createOrderData(),
-        currencyCode: storeInfo.currencyCode,
-      })
+      // Tier 1: save customer info on cart
+      await saveCustomerInfoToCart()
 
-      if (!orderData.success) {
-        throw new Error(orderData.error || "Failed to create order")
-      }
+      // Tier 2: create Stripe PaymentIntent via adapter
+      const session = await initiateSession("card")
+      const clientSecret = session?.data?.clientSecret
 
-      if (orderData.clientSecret) {
-        const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
-          orderData.clientSecret,
-          {
-            payment_method: {
-              card: card,
-              billing_details: {
-                name: `${customerInfo.firstName} ${customerInfo.lastName}`,
-                email: customerInfo.email,
-              },
+      if (!clientSecret) throw new Error("Failed to create payment session")
+
+      // Client-side Stripe confirmation
+      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: {
+            card,
+            billing_details: {
+              name: `${customerInfo.firstName} ${customerInfo.lastName}`,
+              email: customerInfo.email,
             },
-          }
-        )
-
-        if (stripeError) {
-          throw new Error(stripeError.message || "Payment failed")
+          },
         }
+      )
 
-        if (paymentIntent?.status === "succeeded" || paymentIntent?.status === "requires_capture") {
-          const completeResult = await completeStorefrontOrderGraphQL(orderData.orderId)
-          if (!completeResult.success) {
-            throw new Error(completeResult.error || "Failed to complete order")
-          }
-          clearCart()
-          onSuccess(orderData.orderId)
-        } else {
-          throw new Error("Payment was not successful. Please try again.")
-        }
-      } else {
+      if (stripeError) throw new Error(stripeError.message || "Payment failed")
+
+      if (paymentIntent?.status === "succeeded" || paymentIntent?.status === "requires_capture") {
+        // Tier 3: verify payment + convert cart → order
+        const order = await completeCart()
         clearCart()
-        onSuccess(orderData.orderId)
+        onSuccess(order.id)
+      } else {
+        throw new Error("Payment was not successful. Please try again.")
       }
     } catch (err: any) {
       console.error("Checkout error:", err)
@@ -296,30 +262,16 @@ function CheckoutForm({
     }
   }
 
-  // Handle PayPal payment
+  // ─── Handle PayPal payment — OpenFront 3-tier ────────────────────
   const handlePayPalApprove = async (details: any) => {
     setIsSubmitting(true)
     setError(null)
-    
     try {
-      // Create order in our system
-      const orderData = await createStorefrontOrderGraphQL({
-        ...createOrderData(),
-        currencyCode: storeInfo.currencyCode,
-      })
-      
-      if (!orderData.success) {
-        throw new Error(orderData.error || "Failed to create order")
-      }
-
-      // PayPal already captured the payment, just complete the order
-      const completeResult = await completeStorefrontOrderGraphQL(orderData.orderId)
-      if (!completeResult.success) {
-        throw new Error(completeResult.error || "Failed to complete order")
-      }
-      
+      await saveCustomerInfoToCart()
+      await initiateSession("paypal")
+      const order = await completeCart()
       clearCart()
-      onSuccess(orderData.orderId)
+      onSuccess(order.id)
     } catch (err: any) {
       console.error("PayPal checkout error:", err)
       setError(err.message || "An error occurred during checkout")
@@ -328,23 +280,16 @@ function CheckoutForm({
     }
   }
 
-  // Handle cash/pay at counter
+  // ─── Handle cash/pay at counter — OpenFront 3-tier ───────────────
   const handleCashPayment = async () => {
     setIsSubmitting(true)
     setError(null)
-    
     try {
-      const orderData = await createStorefrontOrderGraphQL({
-        ...createOrderData(),
-        currencyCode: storeInfo.currencyCode,
-      })
-      
-      if (!orderData.success) {
-        throw new Error(orderData.error || "Failed to create order")
-      }
-
+      await saveCustomerInfoToCart()
+      await initiateSession("cash")
+      const order = await completeCart()
       clearCart()
-      onSuccess(orderData.orderId)
+      onSuccess(order.id)
     } catch (err: any) {
       console.error("Checkout error:", err)
       setError(err.message || "An error occurred during checkout")
@@ -372,6 +317,35 @@ function CheckoutForm({
   const isDetailsValid = customerInfo.firstName && customerInfo.lastName && 
     customerInfo.email && customerInfo.phone &&
     (orderType === "pickup" || (customerInfo.address && customerInfo.city && customerInfo.zip))
+
+  const handleContinueToPayment = async () => {
+    if (!isDetailsValid) return
+
+    // If user is already authenticated, skip guest auth
+    if (user) {
+      setStep("payment")
+      return
+    }
+
+    // Guest checkout — try to create an account with this email
+    setIsCreatingAccount(true)
+    setAuthError(null)
+
+    const result = await createGuestUser({
+      email: customerInfo.email,
+      name: `${customerInfo.firstName} ${customerInfo.lastName}`,
+      phone: customerInfo.phone,
+    })
+
+    setIsCreatingAccount(false)
+
+    if (!result.success) {
+      setAuthError(result.error || "Could not proceed. Please try again.")
+      return
+    }
+
+    setStep("payment")
+  }
 
   return (
     <>
@@ -535,11 +509,16 @@ function CheckoutForm({
               </div>
             )}
 
+            {authError && (
+              <p className="text-sm text-destructive">{authError}</p>
+            )}
+
             <Button
               className="w-full h-12 bg-foreground text-background hover:bg-foreground/90 uppercase tracking-widest text-xs"
-              onClick={() => setStep("payment")}
-              disabled={!isDetailsValid}
+              onClick={handleContinueToPayment}
+              disabled={!isDetailsValid || isCreatingAccount}
             >
+              {isCreatingAccount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Continue to Payment
             </Button>
           </div>

@@ -12,16 +12,16 @@ import {
 } from "@keystone-6/core/fields";
 import crypto from "crypto";
 
-import { isSignedIn } from "../access";
+import { isSignedIn, permissions } from "../access";
 import { trackingFields } from "./trackingFields";
 
 export const RestaurantOrder = list({
   access: {
     operation: {
-      query: () => true,
+      query: permissions.canManageOrders,
       create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn,
+      update: permissions.canManageOrders,
+      delete: permissions.canManageOrders,
     },
   },
   ui: {

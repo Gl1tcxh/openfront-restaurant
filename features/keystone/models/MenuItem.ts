@@ -12,15 +12,15 @@ import {
 } from "@keystone-6/core/fields";
 import { document } from "@keystone-6/fields-document";
 
-import { isSignedIn } from "../access";
+import { isSignedIn, permissions } from "../access";
 
 export const MenuItem = list({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn,
+      query: () => true, // Public read for storefront
+      create: permissions.canManageProducts,
+      update: permissions.canManageProducts,
+      delete: permissions.canManageProducts,
     },
   },
   ui: {

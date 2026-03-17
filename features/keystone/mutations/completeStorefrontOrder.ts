@@ -39,25 +39,42 @@ export default async function completeStorefrontOrder(
     const payments = await sudoContext.query.Payment.findMany({
       where: { order: { id: { equals: orderId } } },
       query: `
-        id 
-        status 
-        stripePaymentIntentId 
-        paymentProvider { 
-          id 
-          code 
-          capturePaymentFunction 
-          getPaymentStatusFunction 
+        id
+        status
+        data
+        providerPaymentId
+        paymentProvider {
+          id
+          code
+          capturePaymentFunction
+          getPaymentStatusFunction
         }
       `,
     });
 
     const payment = payments[0];
-    if (!payment || !payment.stripePaymentIntentId) {
+    if (!payment) {
       return {
         success: false,
         orderNumber: null,
         error: "Payment record not found",
       };
+    }
+
+    // Read paymentIntentId from data JSON or providerPaymentId (like OpenFront does)
+    const paymentIntentId = payment.data?.paymentIntentId || payment.providerPaymentId;
+
+    // Cash / PayPal: no Stripe intent to verify
+    if (!paymentIntentId) {
+      await sudoContext.query.Payment.updateOne({
+        where: { id: payment.id },
+        data: { status: "succeeded", processedAt: new Date().toISOString() },
+      });
+      await sudoContext.query.RestaurantOrder.updateOne({
+        where: { id: orderId },
+        data: { status: "sent_to_kitchen" },
+      });
+      return { success: true, orderNumber: order.orderNumber, error: null };
     }
 
     if (!payment.paymentProvider) {
@@ -71,7 +88,7 @@ export default async function completeStorefrontOrder(
     // Verify payment with provider (like OpenFront's captureStripePayment)
     const paymentStatus = await getPaymentStatus({
       provider: payment.paymentProvider,
-      paymentId: payment.stripePaymentIntentId,
+      paymentId: paymentIntentId,
     });
 
     let paymentSucceeded = false;
@@ -110,7 +127,10 @@ export default async function completeStorefrontOrder(
       data: {
         status: "succeeded",
         processedAt: new Date().toISOString(),
-        stripeChargeId: paymentStatus.data?.latest_charge || "",
+        data: {
+          ...payment.data,
+          chargeId: paymentStatus.data?.latest_charge || "",
+        },
       },
     });
 

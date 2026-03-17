@@ -32,6 +32,7 @@ interface CreateStorefrontOrderArgs {
   total: string;
   currencyCode?: string;
   specialInstructions?: string;
+  paymentMethod?: string;
 }
 
 interface CreateStorefrontOrderResult {
@@ -42,6 +43,15 @@ interface CreateStorefrontOrderResult {
   secretKey: string | null;
   error: string | null;
 }
+
+const PAYMENT_METHOD_PROVIDER_MAP: Record<string, string> = {
+  card: "pp_stripe",
+  paypal: "pp_paypal",
+  cash: "pp_manual",
+};
+
+// Providers that handle payment client-side and don't need a server payment intent
+const CLIENT_SIDE_PROVIDERS = new Set(["paypal", "cash"]);
 
 export default async function createStorefrontOrder(
   root: any,
@@ -62,7 +72,10 @@ export default async function createStorefrontOrder(
       total,
       currencyCode,
       specialInstructions,
+      paymentMethod = "card",
     } = args;
+
+    console.log({customerInfo})
 
     // Validate required fields
     if (!customerInfo?.name || !customerInfo?.email || !customerInfo?.phone) {
@@ -87,21 +100,24 @@ export default async function createStorefrontOrder(
       };
     }
 
-    // Get the Stripe payment provider
+    // Map frontend payment method to provider code
+    const providerCode = PAYMENT_METHOD_PROVIDER_MAP[paymentMethod] || "pp_stripe";
+
+    // Get the correct payment provider
     const providers = await sudoContext.query.PaymentProvider.findMany({
-      where: { code: { equals: "pp_stripe" }, isInstalled: { equals: true } },
+      where: { code: { equals: providerCode }, isInstalled: { equals: true } },
       query: "id code isInstalled createPaymentFunction capturePaymentFunction",
     });
 
-    const stripeProvider = providers[0];
-    if (!stripeProvider) {
+    const paymentProvider = providers[0];
+    if (!paymentProvider) {
       return {
         success: false,
         orderId: null,
         orderNumber: null,
         clientSecret: null,
         secretKey: null,
-        error: "Stripe payment provider not configured",
+        error: `${providerCode} payment provider not configured`,
       };
     }
 
@@ -124,6 +140,14 @@ export default async function createStorefrontOrder(
 
     // Link customer if signed in
     const customerId = context.session?.itemId;
+
+    // Map payment method to DB payment method string
+    const dbPaymentMethodMap: Record<string, string> = {
+      card: "credit_card",
+      paypal: "paypal",
+      cash: "cash",
+    };
+    const dbPaymentMethod = dbPaymentMethodMap[paymentMethod] || "credit_card";
 
     // Create the order with status 'open' (payment pending)
     const order = await sudoContext.query.RestaurantOrder.createOne({
@@ -155,7 +179,7 @@ export default async function createStorefrontOrder(
       await sudoContext.query.OrderItem.createOne({
         data: {
           quantity: item.quantity,
-          price: Math.round(item.price), // Assuming price comes in cents or we should handle it
+          price: Math.round(item.price),
           specialInstructions: item.specialInstructions || "",
           order: { connect: { id: order.id } },
           menuItem: { connect: { id: item.menuItemId } },
@@ -167,37 +191,63 @@ export default async function createStorefrontOrder(
       });
     }
 
-    // Use store-configured currency when creating payment intents/orders
     const amountInCents = parseInt(total);
     const normalizedCurrency = (currencyCode || "USD").toLowerCase();
 
-    const sessionData = await createPayment({
-      provider: stripeProvider,
-      order,
-      amount: amountInCents,
-      currency: normalizedCurrency,
-    });
+    let clientSecret: string | null = null;
 
-    // Create Payment record with pending status
-    await sudoContext.query.Payment.createOne({
-      data: {
+    if (CLIENT_SIDE_PROVIDERS.has(paymentMethod)) {
+      // Cash / PayPal: create a Payment record but skip server payment intent.
+      // Cash is settled in-person; PayPal is authorised client-side by the SDK.
+      await sudoContext.query.Payment.createOne({
+        data: {
+          amount: amountInCents,
+          status: "pending",
+          paymentMethod: dbPaymentMethod,
+          currencyCode: currencyCode || "USD",
+          tipAmount: parseInt(tip),
+          data: {},
+          order: { connect: { id: order.id } },
+          paymentProvider: { connect: { id: paymentProvider.id } },
+        },
+        query: "id",
+      });
+    } else {
+      // Card: create a real Stripe payment intent
+      const sessionData = await createPayment({
+        provider: paymentProvider,
+        order,
         amount: amountInCents,
-        status: "pending",
-        paymentMethod: "credit_card",
-        currencyCode: currencyCode || "USD",
-        stripePaymentIntentId: sessionData.paymentIntentId,
-        tipAmount: parseInt(tip),
-        order: { connect: { id: order.id } },
-        paymentProvider: { connect: { id: stripeProvider.id } },
-      },
-      query: "id",
-    });
+        currency: normalizedCurrency,
+      });
+
+      clientSecret = sessionData.clientSecret;
+
+      // Store Stripe data in JSON field (like OpenFront does)
+      await sudoContext.query.Payment.createOne({
+        data: {
+          amount: amountInCents,
+          status: "pending",
+          paymentMethod: dbPaymentMethod,
+          currencyCode: currencyCode || "USD",
+          tipAmount: parseInt(tip),
+          data: {
+            paymentIntentId: sessionData.paymentIntentId,
+            clientSecret: sessionData.clientSecret,
+          },
+          providerPaymentId: sessionData.paymentIntentId,
+          order: { connect: { id: order.id } },
+          paymentProvider: { connect: { id: paymentProvider.id } },
+        },
+        query: "id",
+      });
+    }
 
     return {
       success: true,
       orderId: order.id,
       orderNumber: order.orderNumber,
-      clientSecret: sessionData.clientSecret,
+      clientSecret,
       secretKey: order.secretKey,
       error: null,
     };

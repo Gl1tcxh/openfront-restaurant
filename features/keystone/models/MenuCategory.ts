@@ -2,15 +2,15 @@ import { list } from "@keystone-6/core";
 import { allOperations } from "@keystone-6/core/access";
 import { text, relationship, multiselect, integer } from "@keystone-6/core/fields";
 
-import { isSignedIn } from "../access";
+import { isSignedIn, permissions } from "../access";
 
 export const MenuCategory = list({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn,
+      query: () => true, // Public read for storefront
+      create: permissions.canManageProducts,
+      update: permissions.canManageProducts,
+      delete: permissions.canManageProducts,
     },
   },
   ui: {

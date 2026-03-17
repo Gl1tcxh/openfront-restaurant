@@ -127,13 +127,38 @@ const { withAuth } = createAuth({
       role: {
         create: {
           name: "Admin",
-          canCreateTodos: true,
-          canManageAllTodos: true,
+          canAccessDashboard: true,
+          canReadOrders: true,
+          canManageOrders: true,
+          canReadPayments: true,
+          canManagePayments: true,
+          canReadProducts: true,
+          canManageProducts: true,
+          canReadCart: true,
+          canManageCart: true,
+          canReadInventory: true,
+          canManageInventory: true,
+          canReadUsers: true,
+          canManageUsers: true,
           canSeeOtherPeople: true,
           canEditOtherPeople: true,
           canManagePeople: true,
+          canReadRoles: true,
           canManageRoles: true,
-          canAccessDashboard: true,
+          canReadKitchen: true,
+          canManageKitchen: true,
+          canReadTables: true,
+          canManageTables: true,
+          canReadStaff: true,
+          canManageStaff: true,
+          canManageSettings: true,
+          canManageOnboarding: true,
+          canReadVendors: true,
+          canManageVendors: true,
+          canReadGiftCards: true,
+          canManageGiftCards: true,
+          canReadDiscounts: true,
+          canManageDiscounts: true,
         },
       },
     },
@@ -151,13 +176,38 @@ const { withAuth } = createAuth({
     role {
       id
       name
-      canCreateTodos
-      canManageAllTodos
+      canAccessDashboard
+      canReadOrders
+      canManageOrders
+      canReadPayments
+      canManagePayments
+      canReadProducts
+      canManageProducts
+      canReadCart
+      canManageCart
+      canReadInventory
+      canManageInventory
+      canReadUsers
+      canManageUsers
       canSeeOtherPeople
       canEditOtherPeople
       canManagePeople
+      canReadRoles
       canManageRoles
-      canAccessDashboard
+      canReadKitchen
+      canManageKitchen
+      canReadTables
+      canManageTables
+      canReadStaff
+      canManageStaff
+      canManageSettings
+      canManageOnboarding
+      canReadVendors
+      canManageVendors
+      canReadGiftCards
+      canManageGiftCards
+      canReadDiscounts
+      canManageDiscounts
     }
   `,
 });

@@ -110,6 +110,7 @@ export interface StoreInfo {
   deliveryFee: number
   deliveryMinimum: number
   pickupDiscount: number
+  taxRate: number
   estimatedDelivery: string
   estimatedPickup: string
   heroHeadline?: string

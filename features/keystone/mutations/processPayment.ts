@@ -121,15 +121,18 @@ export default async function processPayment(
       usesStripe = true;
     }
 
-    // Create Payment record in database
+    // Create Payment record in database (store Stripe data in JSON, like OpenFront)
     const payment = await context.db.Payment.createOne({
       data: {
-        amount: amount, 
+        amount: amount,
         status: paymentStatus,
         paymentMethod,
         currencyCode: currency.toUpperCase(),
-        stripePaymentIntentId: usesStripe ? providerPaymentId : null,
         providerPaymentId,
+        data: {
+          paymentIntentId: providerPaymentId,
+          clientSecret,
+        },
         paymentProvider: provider
           ? { connect: { id: provider.id } }
           : undefined,
@@ -189,13 +192,10 @@ export async function capturePaymentMutation(
     const sudoContext = context.sudo();
     const payments = await sudoContext.query.Payment.findMany({
       where: {
-        OR: [
-          { stripePaymentIntentId: { equals: paymentIntentId } },
-          { providerPaymentId: { equals: paymentIntentId } },
-        ],
+        providerPaymentId: { equals: paymentIntentId },
       },
       query:
-        "id providerPaymentId stripePaymentIntentId order { id } paymentProvider { id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction credentials metadata }",
+        "id providerPaymentId data order { id } paymentProvider { id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction credentials metadata }",
     });
 
     const payment = payments[0];
@@ -277,13 +277,10 @@ export async function getPaymentStatus(
     const sudoContext = context.sudo();
     const payments = await sudoContext.query.Payment.findMany({
       where: {
-        OR: [
-          { stripePaymentIntentId: { equals: args.paymentIntentId } },
-          { providerPaymentId: { equals: args.paymentIntentId } },
-        ],
+        providerPaymentId: { equals: args.paymentIntentId },
       },
       query:
-        "id providerPaymentId stripePaymentIntentId paymentProvider { id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction credentials metadata }",
+        "id providerPaymentId data paymentProvider { id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction credentials metadata }",
     });
 
     const payment = payments[0];

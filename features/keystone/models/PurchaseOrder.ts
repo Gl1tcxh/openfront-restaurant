@@ -9,16 +9,16 @@ import {
   virtual
 } from "@keystone-6/core/fields";
 
-import { isSignedIn } from "../access";
+import { isSignedIn, permissions } from "../access";
 import { trackingFields } from "./trackingFields";
 
 export const PurchaseOrder = list({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn,
+      query: permissions.canReadInventory,
+      create: permissions.canManageInventory,
+      update: permissions.canManageInventory,
+      delete: permissions.canManageInventory,
     },
   },
   ui: {

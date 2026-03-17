@@ -8,16 +8,16 @@ import {
   timestamp
 } from "@keystone-6/core/fields";
 
-import { isSignedIn } from "../access";
+import { isSignedIn, permissions } from "../access";
 import { trackingFields } from "./trackingFields";
 
 export const Reservation = list({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn,
+      query: permissions.canReadTables,
+      create: permissions.canManageTables,
+      update: permissions.canManageTables,
+      delete: permissions.canManageTables,
     },
   },
   ui: {

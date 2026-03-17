@@ -7,19 +7,22 @@ import {
   timestamp,
   decimal,
   checkbox,
-  integer
+  integer,
+  json
 } from "@keystone-6/core/fields";
 
-import { isSignedIn } from "../access";
+import { isSignedIn, permissions } from "../access";
 import { trackingFields } from "./trackingFields";
 
 export const Payment = list({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn,
+      query: ({ session }) =>
+        permissions.canReadPayments({ session }) ||
+        permissions.canManagePayments({ session }),
+      create: permissions.canManagePayments,
+      update: permissions.canManagePayments,
+      delete: permissions.canManagePayments,
     },
   },
   ui: {
@@ -32,6 +35,12 @@ export const Payment = list({
       validation: { isRequired: true },
       ui: {
         description: "Payment amount in cents",
+      },
+    }),
+
+    data: json({
+      ui: {
+        description: "Payment provider data (clientSecret, paymentIntentId, orderId, etc.)",
       },
     }),
 
@@ -91,26 +100,6 @@ export const Payment = list({
     providerPaymentId: text({
       ui: {
         description: "Provider payment identifier (Stripe/PayPal/etc.)",
-      },
-    }),
-
-    // Stripe integration fields
-    stripePaymentIntentId: text({
-      isIndexed: 'unique',
-      ui: {
-        description: "Stripe PaymentIntent ID",
-      },
-    }),
-
-    stripeChargeId: text({
-      ui: {
-        description: "Stripe Charge ID for successful payments",
-      },
-    }),
-
-    stripeRefundId: text({
-      ui: {
-        description: "Stripe Refund ID if refunded",
       },
     }),
 

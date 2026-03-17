@@ -1,9 +1,16 @@
 import { list } from "@keystone-6/core";
 import { relationship, integer, text } from "@keystone-6/core/fields";
-import { allowAll } from "@keystone-6/core/access";
+import { permissions } from "../access";
 
 export const CartItem = list({
-  access: allowAll,
+  access: {
+    operation: {
+      query: () => true, // Public read for storefront
+      create: () => true, // Allow adding items for guests
+      update: permissions.canManageCart,
+      delete: permissions.canManageCart,
+    },
+  },
   fields: {
     cart: relationship({ ref: "Cart.items" }),
     menuItem: relationship({ ref: "MenuItem" }),

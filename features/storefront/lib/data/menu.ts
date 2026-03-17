@@ -22,6 +22,7 @@ export const getStoreSettings = cache(async function () {
         deliveryFee
         deliveryMinimum
         pickupDiscount
+        taxRate
         estimatedDelivery
         estimatedPickup
         heroHeadline

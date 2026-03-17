@@ -8,15 +8,15 @@ import {
   timestamp,
 } from "@keystone-6/core/fields";
 
-import { isSignedIn } from "../access";
+import { isSignedIn, permissions } from "../access";
 
 export const KitchenTicket = list({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn,
+      query: permissions.canReadKitchen,
+      create: permissions.canManageKitchen,
+      update: permissions.canManageKitchen,
+      delete: permissions.canManageKitchen,
     },
   },
   ui: {

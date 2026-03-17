@@ -20,6 +20,7 @@
     "deliveryFee": 4.99,
     "deliveryMinimum": 15.0,
     "pickupDiscount": 10,
+    "taxRate": 8.75,
     "estimatedDelivery": "30-45 min",
     "estimatedPickup": "15-20 min",
     "heroHeadline": "Thoughtfully crafted burgers.",

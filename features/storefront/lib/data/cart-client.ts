@@ -39,6 +39,13 @@ export const CART_QUERY = gql`
           id
           name
           price
+          menuItemImages(take: 1) {
+            id
+            image {
+              url
+            }
+            imagePath
+          }
         }
         modifiers {
           id
@@ -63,9 +70,22 @@ export async function fetchCart(cartId?: string) {
     const resolvedCartId = cartId || getCartId();
     if (!resolvedCartId) return null;
     const data = await requestGraphQL<{ cart: any }>(CART_QUERY, { cartId: resolvedCartId });
+
+    // Cart no longer exists (e.g. DB was reset) — clear stale cookie
+    if (!data.cart) {
+      if (typeof window !== "undefined") {
+        document.cookie = "_restaurant_cart_id=; path=/; max-age=-1";
+      }
+      return null;
+    }
+
     return data.cart;
   } catch (error) {
+    // GraphQL error (access denied, malformed ID, etc.) — clear stale cookie
     console.error('Error fetching cart:', error);
+    if (typeof window !== "undefined") {
+      document.cookie = "_restaurant_cart_id=; path=/; max-age=-1";
+    }
     return null;
   }
 }

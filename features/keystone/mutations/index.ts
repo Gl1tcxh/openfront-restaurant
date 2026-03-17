@@ -7,11 +7,14 @@ import { splitCheckByItem, splitCheckByGuest } from "./splitCheck";
 import { voidOrderItem, compOrderItem, voidOrder } from "./voidComp";
 import createStorefrontOrder from "./createStorefrontOrder";
 import completeStorefrontOrder from "./completeStorefrontOrder";
+import initiatePaymentSession from "./initiatePaymentSession";
+import completeActiveCart from "./completeActiveCart";
 import activeCart from "./activeCart";
 import updateActiveCart from "./updateActiveCart";
 import updateCartItemQuantity from "./updateCartItemQuantity";
 import removeCartItem from "./removeCartItem";
 import getCustomerOrder from "./getCustomerOrder";
+import getCustomerOrders from "./getCustomerOrders";
 import { transferTable, combineTables } from "./tableManagement";
 import { fireCourse, recallCourse } from "./courseManagement";
 import { syncKitchenTickets, updateKitchenTicketStatus, fulfillKitchenTicketItem } from "./kdsTickets";
@@ -56,6 +59,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         getPaymentStatus(paymentIntentId: String!): GetPaymentStatusResult
         activeCart(cartId: ID): Cart
         getCustomerOrder(orderId: ID!, secretKey: String): JSON
+        getCustomerOrders(limit: Int, offset: Int): JSON
       }
 
       type Mutation {
@@ -118,11 +122,21 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
           total: Int!
           currencyCode: String
           specialInstructions: String
+          paymentMethod: String
         ): CreateStorefrontOrderResult
 
         completeStorefrontOrder(
           orderId: String!
         ): CompleteStorefrontOrderResult
+
+        initiatePaymentSession(
+          cartId: ID!
+          paymentProviderId: String!
+        ): InitiatePaymentSessionResult
+
+        completeActiveCart(
+          cartId: ID!
+        ): RestaurantOrder
 
         transferTable(
           orderId: String!
@@ -204,6 +218,12 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         error: String
       }
 
+      type InitiatePaymentSessionResult {
+        id: ID!
+        data: JSON
+        amount: Int
+      }
+
       type CompleteStorefrontOrderResult {
         success: Boolean!
         orderNumber: String
@@ -243,6 +263,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         getPaymentStatus,
         activeCart,
         getCustomerOrder,
+        getCustomerOrders,
       },
       Mutation: {
         updateActiveUser,
@@ -258,6 +279,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         voidOrder,
         createStorefrontOrder,
         completeStorefrontOrder,
+        initiatePaymentSession,
+        completeActiveCart,
         transferTable,
         combineTables,
         fireCourse,

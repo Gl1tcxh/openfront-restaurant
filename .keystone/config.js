@@ -469,39 +469,58 @@ function isSignedIn({ session }) {
   return Boolean(session);
 }
 var permissions = {
-  canCreateTodos: ({ session }) => session?.data.role?.canCreateTodos ?? false,
-  canManageAllTodos: ({ session }) => session?.data.role?.canManageAllTodos ?? false,
-  canManagePeople: ({ session }) => session?.data.role?.canManagePeople ?? false,
-  canManageRoles: ({ session }) => session?.data.role?.canManageRoles ?? false,
-  canAccessDashboard: ({ session }) => session?.data.role?.canAccessDashboard ?? false
+  canAccessDashboard: ({ session }) => !!session?.data?.role?.canAccessDashboard,
+  canReadOrders: ({ session }) => !!session?.data?.role?.canReadOrders,
+  canManageOrders: ({ session }) => !!session?.data?.role?.canManageOrders,
+  canReadPayments: ({ session }) => !!session?.data?.role?.canReadPayments,
+  canManagePayments: ({ session }) => !!session?.data?.role?.canManagePayments,
+  canReadProducts: ({ session }) => !!session?.data?.role?.canReadProducts,
+  canManageProducts: ({ session }) => !!session?.data?.role?.canManageProducts,
+  canReadCart: ({ session }) => !!session?.data?.role?.canReadCart,
+  canManageCart: ({ session }) => !!session?.data?.role?.canManageCart,
+  canReadInventory: ({ session }) => !!session?.data?.role?.canReadInventory,
+  canManageInventory: ({ session }) => !!session?.data?.role?.canManageInventory,
+  canReadUsers: ({ session }) => !!session?.data?.role?.canReadUsers,
+  canManageUsers: ({ session }) => !!session?.data?.role?.canManageUsers,
+  canSeeOtherPeople: ({ session }) => !!session?.data?.role?.canSeeOtherPeople,
+  canEditOtherPeople: ({ session }) => !!session?.data?.role?.canEditOtherPeople,
+  canManagePeople: ({ session }) => !!session?.data?.role?.canManagePeople,
+  canReadRoles: ({ session }) => !!session?.data?.role?.canReadRoles,
+  canManageRoles: ({ session }) => !!session?.data?.role?.canManageRoles,
+  canReadKitchen: ({ session }) => !!session?.data?.role?.canReadKitchen,
+  canManageKitchen: ({ session }) => !!session?.data?.role?.canManageKitchen,
+  canReadTables: ({ session }) => !!session?.data?.role?.canReadTables,
+  canManageTables: ({ session }) => !!session?.data?.role?.canManageTables,
+  canReadStaff: ({ session }) => !!session?.data?.role?.canReadStaff,
+  canManageStaff: ({ session }) => !!session?.data?.role?.canManageStaff,
+  canManageSettings: ({ session }) => !!session?.data?.role?.canManageSettings,
+  canManageOnboarding: ({ session }) => !!session?.data?.role?.canManageOnboarding,
+  canReadVendors: ({ session }) => !!session?.data?.role?.canReadVendors,
+  canManageVendors: ({ session }) => !!session?.data?.role?.canManageVendors,
+  canReadGiftCards: ({ session }) => !!session?.data?.role?.canReadGiftCards,
+  canManageGiftCards: ({ session }) => !!session?.data?.role?.canManageGiftCards,
+  canReadDiscounts: ({ session }) => !!session?.data?.role?.canReadDiscounts,
+  canManageDiscounts: ({ session }) => !!session?.data?.role?.canManageDiscounts
 };
 var rules = {
-  canReadTodos: ({ session }) => {
-    if (!session) return false;
-    if (session.data.role?.canManageAllTodos) {
-      return {
-        OR: [
-          { assignedTo: { id: { equals: session.itemId } } },
-          { assignedTo: null, isPrivate: { equals: true } },
-          { NOT: { isPrivate: { equals: true } } }
-        ]
-      };
-    }
-    return { assignedTo: { id: { equals: session.itemId } } };
+  canManageOrders({ session }) {
+    if (!isSignedIn({ session })) return false;
+    if (permissions.canManageOrders({ session })) return true;
+    return false;
   },
-  canManageTodos: ({ session }) => {
-    if (!session) return false;
-    if (session.data.role?.canManageAllTodos) return true;
-    return { assignedTo: { id: { equals: session.itemId } } };
+  canManagePayments({ session }) {
+    if (!isSignedIn({ session })) return false;
+    if (permissions.canManagePayments({ session })) return true;
+    return false;
   },
-  canReadPeople: ({ session }) => {
+  canReadPeople({ session }) {
     if (!session) return false;
-    if (session.data.role?.canSeeOtherPeople) return true;
+    if (permissions.canSeeOtherPeople({ session })) return true;
     return { id: { equals: session.itemId } };
   },
-  canUpdatePeople: ({ session }) => {
+  canUpdatePeople({ session }) {
     if (!session) return false;
-    if (session.data.role?.canEditOtherPeople) return true;
+    if (permissions.canEditOtherPeople({ session })) return true;
     return { id: { equals: session.itemId } };
   }
 };
@@ -534,13 +553,9 @@ var trackingFields = {
 var User = (0, import_core.list)({
   access: {
     operation: {
-      query: () => true,
-      create: (args) => {
-        if (process.env.PUBLIC_SIGNUPS_ALLOWED === "true") {
-          return true;
-        }
-        return permissions.canManagePeople(args);
-      },
+      query: isSignedIn,
+      // Any signed-in user can query (filter limits to self)
+      create: () => true,
       update: isSignedIn,
       delete: permissions.canManagePeople
     },
@@ -665,9 +680,9 @@ var User = (0, import_core.list)({
     }),
     // Restaurant Staff Fields
     employeeId: (0, import_fields2.text)({
-      isIndexed: "unique",
+      db: { isNullable: true },
       ui: {
-        description: "Unique employee identifier"
+        description: "Unique employee identifier (staff only)"
       }
     }),
     staffRole: (0, import_fields2.select)({
@@ -779,14 +794,54 @@ var Role = (0, import_core2.list)({
   },
   fields: {
     name: (0, import_fields3.text)({ validation: { isRequired: true } }),
-    canCreateTodos: (0, import_fields3.checkbox)({ defaultValue: false }),
-    canManageAllTodos: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Dashboard
+    canAccessDashboard: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Orders
+    canReadOrders: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManageOrders: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Payments
+    canReadPayments: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManagePayments: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Products / Menu
+    canReadProducts: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManageProducts: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Cart
+    canReadCart: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManageCart: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Inventory
+    canReadInventory: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManageInventory: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Users
+    canReadUsers: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManageUsers: (0, import_fields3.checkbox)({ defaultValue: false }),
     canSeeOtherPeople: (0, import_fields3.checkbox)({ defaultValue: false }),
     canEditOtherPeople: (0, import_fields3.checkbox)({ defaultValue: false }),
     canManagePeople: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Roles
+    canReadRoles: (0, import_fields3.checkbox)({ defaultValue: false }),
     canManageRoles: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Kitchen
+    canReadKitchen: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManageKitchen: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Tables / Seating / Reservations
+    canReadTables: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManageTables: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Staff / Scheduling
+    canReadStaff: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManageStaff: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Settings
+    canManageSettings: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Onboarding
     canManageOnboarding: (0, import_fields3.checkbox)({ defaultValue: true }),
-    canAccessDashboard: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Vendors
+    canReadVendors: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManageVendors: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Gift Cards
+    canReadGiftCards: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManageGiftCards: (0, import_fields3.checkbox)({ defaultValue: false }),
+    // Discounts
+    canReadDiscounts: (0, import_fields3.checkbox)({ defaultValue: false }),
+    canManageDiscounts: (0, import_fields3.checkbox)({ defaultValue: false }),
     assignedTo: (0, import_fields3.relationship)({
       ref: "User.role",
       many: true,
@@ -803,10 +858,10 @@ var import_fields4 = require("@keystone-6/core/fields");
 var Section = (0, import_core3.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadTables,
+      create: permissions.canManageTables,
+      update: permissions.canManageTables,
+      delete: permissions.canManageTables
     }
   },
   ui: {
@@ -839,10 +894,10 @@ var import_fields5 = require("@keystone-6/core/fields");
 var Floor = (0, import_core4.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadTables,
+      create: permissions.canManageTables,
+      update: permissions.canManageTables,
+      delete: permissions.canManageTables
     }
   },
   ui: {
@@ -890,10 +945,10 @@ var import_fields6 = require("@keystone-6/core/fields");
 var Table = (0, import_core5.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadTables,
+      create: permissions.canManageTables,
+      update: permissions.canManageTables,
+      delete: permissions.canManageTables
     }
   },
   ui: {
@@ -1004,9 +1059,10 @@ var MenuCategory = (0, import_core6.list)({
   access: {
     operation: {
       query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      // Public read for storefront
+      create: permissions.canManageProducts,
+      update: permissions.canManageProducts,
+      delete: permissions.canManageProducts
     }
   },
   ui: {
@@ -1066,9 +1122,10 @@ var MenuItem = (0, import_core7.list)({
   access: {
     operation: {
       query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      // Public read for storefront
+      create: permissions.canManageProducts,
+      update: permissions.canManageProducts,
+      delete: permissions.canManageProducts
     }
   },
   ui: {
@@ -1202,9 +1259,10 @@ var MenuItemImage = (0, import_core8.list)({
   access: {
     operation: {
       query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      // Public read for storefront
+      create: permissions.canManageProducts,
+      update: permissions.canManageProducts,
+      delete: permissions.canManageProducts
     }
   },
   fields: {
@@ -1231,9 +1289,10 @@ var MenuItemModifier = (0, import_core9.list)({
   access: {
     operation: {
       query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      // Public read for storefront
+      create: permissions.canManageProducts,
+      update: permissions.canManageProducts,
+      delete: permissions.canManageProducts
     }
   },
   ui: {
@@ -1320,10 +1379,10 @@ var import_crypto = __toESM(require("crypto"));
 var RestaurantOrder = (0, import_core10.list)({
   access: {
     operation: {
-      query: () => true,
+      query: permissions.canManageOrders,
       create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      update: permissions.canManageOrders,
+      delete: permissions.canManageOrders
     }
   },
   ui: {
@@ -1589,10 +1648,10 @@ var import_fields13 = require("@keystone-6/core/fields");
 var OrderItem = (0, import_core12.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadOrders,
+      create: permissions.canManageOrders,
+      update: permissions.canManageOrders,
+      delete: permissions.canManageOrders
     }
   },
   ui: {
@@ -1732,10 +1791,10 @@ var import_fields14 = require("@keystone-6/core/fields");
 var OrderCourse = (0, import_core13.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadKitchen,
+      create: permissions.canManageKitchen,
+      update: permissions.canManageKitchen,
+      delete: permissions.canManageKitchen
     }
   },
   ui: {
@@ -1803,10 +1862,10 @@ var import_fields15 = require("@keystone-6/core/fields");
 var KitchenMessage = (0, import_core14.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadKitchen,
+      create: permissions.canManageKitchen,
+      update: permissions.canManageKitchen,
+      delete: permissions.canManageKitchen
     }
   },
   fields: {
@@ -1840,9 +1899,10 @@ var Recipe = (0, import_core15.list)({
   access: {
     operation: {
       query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      // Public read for storefront
+      create: permissions.canManageProducts,
+      update: permissions.canManageProducts,
+      delete: permissions.canManageProducts
     }
   },
   ui: {
@@ -1952,10 +2012,10 @@ var import_fields17 = require("@keystone-6/core/fields");
 var Reservation = (0, import_core16.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadTables,
+      create: permissions.canManageTables,
+      update: permissions.canManageTables,
+      delete: permissions.canManageTables
     }
   },
   ui: {
@@ -2018,10 +2078,10 @@ var import_fields18 = require("@keystone-6/core/fields");
 var Payment = (0, import_core17.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: ({ session }) => permissions.canReadPayments({ session }) || permissions.canManagePayments({ session }),
+      create: permissions.canManagePayments,
+      update: permissions.canManagePayments,
+      delete: permissions.canManagePayments
     }
   },
   ui: {
@@ -2034,6 +2094,11 @@ var Payment = (0, import_core17.list)({
       validation: { isRequired: true },
       ui: {
         description: "Payment amount in cents"
+      }
+    }),
+    data: (0, import_fields18.json)({
+      ui: {
+        description: "Payment provider data (clientSecret, paymentIntentId, orderId, etc.)"
       }
     }),
     currencyCode: (0, import_fields18.text)({
@@ -2088,23 +2153,6 @@ var Payment = (0, import_core17.list)({
     providerPaymentId: (0, import_fields18.text)({
       ui: {
         description: "Provider payment identifier (Stripe/PayPal/etc.)"
-      }
-    }),
-    // Stripe integration fields
-    stripePaymentIntentId: (0, import_fields18.text)({
-      isIndexed: "unique",
-      ui: {
-        description: "Stripe PaymentIntent ID"
-      }
-    }),
-    stripeChargeId: (0, import_fields18.text)({
-      ui: {
-        description: "Stripe Charge ID for successful payments"
-      }
-    }),
-    stripeRefundId: (0, import_fields18.text)({
-      ui: {
-        description: "Stripe Refund ID if refunded"
       }
     }),
     // Card details (last 4 digits for reference)
@@ -2180,9 +2228,17 @@ var Payment = (0, import_core17.list)({
 // features/keystone/models/Cart.ts
 var import_core18 = require("@keystone-6/core");
 var import_fields19 = require("@keystone-6/core/fields");
-var import_access20 = require("@keystone-6/core/access");
 var Cart = (0, import_core18.list)({
-  access: import_access20.allowAll,
+  access: {
+    operation: {
+      query: () => true,
+      // Public read for storefront
+      create: () => true,
+      // Allow cart creation for guests
+      update: permissions.canManageCart,
+      delete: permissions.canManageCart
+    }
+  },
   fields: {
     user: (0, import_fields19.relationship)({ ref: "User.carts" }),
     items: (0, import_fields19.relationship)({ ref: "CartItem.cart", many: true }),
@@ -2193,6 +2249,32 @@ var Cart = (0, import_core18.list)({
       ],
       defaultValue: "pickup"
     }),
+    // Customer info (set during checkout, persists across steps)
+    email: (0, import_fields19.text)(),
+    customerName: (0, import_fields19.text)(),
+    customerPhone: (0, import_fields19.text)(),
+    // Delivery address (set during checkout)
+    deliveryAddress: (0, import_fields19.text)(),
+    deliveryCity: (0, import_fields19.text)(),
+    deliveryZip: (0, import_fields19.text)(),
+    // Payment session data (like OpenFront's PaymentSession.data)
+    // Stores: { providerCode, paymentIntentId, clientSecret, orderId, ... }
+    paymentData: (0, import_fields19.json)(),
+    // Payment provider used for this cart's session
+    paymentProvider: (0, import_fields19.relationship)({ ref: "PaymentProvider" }),
+    // Tip and totals (set during checkout)
+    tipPercent: (0, import_fields19.select)({
+      options: [
+        { label: "0%", value: "0" },
+        { label: "15%", value: "15" },
+        { label: "18%", value: "18" },
+        { label: "20%", value: "20" },
+        { label: "25%", value: "25" }
+      ],
+      defaultValue: "18"
+    }),
+    // Link to order once completed (like OpenFront's cart.order)
+    order: (0, import_fields19.relationship)({ ref: "RestaurantOrder" }),
     subtotal: (0, import_fields19.virtual)({
       field: import_core18.graphql.field({
         type: import_core18.graphql.Int,
@@ -2216,9 +2298,17 @@ var Cart = (0, import_core18.list)({
 // features/keystone/models/CartItem.ts
 var import_core19 = require("@keystone-6/core");
 var import_fields20 = require("@keystone-6/core/fields");
-var import_access21 = require("@keystone-6/core/access");
 var CartItem = (0, import_core19.list)({
-  access: import_access21.allowAll,
+  access: {
+    operation: {
+      query: () => true,
+      // Public read for storefront
+      create: () => true,
+      // Allow adding items for guests
+      update: permissions.canManageCart,
+      delete: permissions.canManageCart
+    }
+  },
   fields: {
     cart: (0, import_fields20.relationship)({ ref: "Cart.items" }),
     menuItem: (0, import_fields20.relationship)({ ref: "MenuItem" }),
@@ -2235,9 +2325,10 @@ var PaymentProvider = (0, import_core20.list)({
   access: {
     operation: {
       query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      // Public read for storefront
+      create: permissions.canManagePayments,
+      update: permissions.canManagePayments,
+      delete: permissions.canManagePayments
     }
   },
   ui: {
@@ -2434,9 +2525,9 @@ var import_fields23 = require("@keystone-6/core/fields");
 var Discount = (0, import_core22.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
+      query: permissions.canReadDiscounts,
+      create: permissions.canManageDiscounts,
+      update: permissions.canManageDiscounts,
       delete: isSignedIn
     }
   },
@@ -2484,10 +2575,10 @@ var import_fields24 = require("@keystone-6/core/fields");
 var DiscountRule = (0, import_core23.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadDiscounts,
+      create: permissions.canManageDiscounts,
+      update: permissions.canManageDiscounts,
+      delete: permissions.canManageDiscounts
     }
   },
   ui: {
@@ -2531,10 +2622,10 @@ var import_fields25 = require("@keystone-6/core/fields");
 var GiftCard = (0, import_core24.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadGiftCards,
+      create: permissions.canManageGiftCards,
+      update: permissions.canManageGiftCards,
+      delete: permissions.canManageGiftCards
     }
   },
   ui: {
@@ -2573,10 +2664,10 @@ var import_fields26 = require("@keystone-6/core/fields");
 var GiftCardTransaction = (0, import_core25.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadGiftCards,
+      create: permissions.canManageGiftCards,
+      update: permissions.canManageGiftCards,
+      delete: permissions.canManageGiftCards
     }
   },
   ui: {
@@ -2604,10 +2695,10 @@ var import_fields27 = require("@keystone-6/core/fields");
 var KitchenStation = (0, import_core26.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadKitchen,
+      create: permissions.canManageKitchen,
+      update: permissions.canManageKitchen,
+      delete: permissions.canManageKitchen
     }
   },
   ui: {
@@ -2662,10 +2753,10 @@ var import_fields28 = require("@keystone-6/core/fields");
 var PrepStation = (0, import_core27.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadKitchen,
+      create: permissions.canManageKitchen,
+      update: permissions.canManageKitchen,
+      delete: permissions.canManageKitchen
     }
   },
   ui: {
@@ -2704,10 +2795,10 @@ var import_fields29 = require("@keystone-6/core/fields");
 var KitchenTicket = (0, import_core28.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadKitchen,
+      create: permissions.canManageKitchen,
+      update: permissions.canManageKitchen,
+      delete: permissions.canManageKitchen
     }
   },
   ui: {
@@ -2815,10 +2906,10 @@ var import_fields30 = require("@keystone-6/core/fields");
 var Vendor = (0, import_core29.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadVendors,
+      create: permissions.canManageVendors,
+      update: permissions.canManageVendors,
+      delete: permissions.canManageVendors
     }
   },
   ui: {
@@ -2878,10 +2969,10 @@ var import_fields31 = require("@keystone-6/core/fields");
 var InventoryLocation = (0, import_core30.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadInventory,
+      create: permissions.canManageInventory,
+      update: permissions.canManageInventory,
+      delete: permissions.canManageInventory
     }
   },
   ui: {
@@ -2922,10 +3013,10 @@ var import_fields32 = require("@keystone-6/core/fields");
 var Ingredient = (0, import_core31.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadInventory,
+      create: permissions.canManageInventory,
+      update: permissions.canManageInventory,
+      delete: permissions.canManageInventory
     }
   },
   ui: {
@@ -3049,10 +3140,10 @@ var import_fields33 = require("@keystone-6/core/fields");
 var StockMovement = (0, import_core32.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadInventory,
+      create: permissions.canManageInventory,
+      update: permissions.canManageInventory,
+      delete: permissions.canManageInventory
     }
   },
   ui: {
@@ -3124,9 +3215,10 @@ var StoreSettings = (0, import_core33.list)({
   access: {
     operation: {
       query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      // Public read for storefront
+      create: permissions.canManageSettings,
+      update: permissions.canManageSettings,
+      delete: permissions.canManageSettings
     }
   },
   isSingleton: true,
@@ -3186,6 +3278,13 @@ var StoreSettings = (0, import_core33.list)({
         sunday: "10:00 AM - 9:00 PM"
       },
       ui: { description: "Operating hours by day of week" }
+    }),
+    // Tax
+    taxRate: (0, import_fields34.decimal)({
+      precision: 5,
+      scale: 2,
+      defaultValue: "8.75",
+      ui: { description: "Tax rate percentage (e.g. 8.75 for 8.75%)" }
     }),
     // Delivery/Pickup Settings
     deliveryFee: (0, import_fields34.decimal)({
@@ -3250,10 +3349,10 @@ var import_fields35 = require("@keystone-6/core/fields");
 var WaitlistEntry = (0, import_core34.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadKitchen,
+      create: permissions.canManageKitchen,
+      update: permissions.canManageKitchen,
+      delete: permissions.canManageKitchen
     }
   },
   ui: {
@@ -3343,10 +3442,10 @@ var import_fields36 = require("@keystone-6/core/fields");
 var Shift = (0, import_core35.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadStaff,
+      create: permissions.canManageStaff,
+      update: permissions.canManageStaff,
+      delete: permissions.canManageStaff
     }
   },
   ui: {
@@ -3441,10 +3540,10 @@ var import_fields37 = require("@keystone-6/core/fields");
 var TipPool = (0, import_core36.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadStaff,
+      create: permissions.canManageStaff,
+      update: permissions.canManageStaff,
+      delete: permissions.canManageStaff
     }
   },
   ui: {
@@ -3514,10 +3613,10 @@ var import_fields38 = require("@keystone-6/core/fields");
 var TimeEntry = (0, import_core37.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadStaff,
+      create: permissions.canManageStaff,
+      update: permissions.canManageStaff,
+      delete: permissions.canManageStaff
     }
   },
   ui: {
@@ -3607,10 +3706,10 @@ var import_fields39 = require("@keystone-6/core/fields");
 var WasteLog = (0, import_core38.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadKitchen,
+      create: permissions.canManageKitchen,
+      update: permissions.canManageKitchen,
+      delete: permissions.canManageKitchen
     }
   },
   ui: {
@@ -3680,10 +3779,10 @@ var import_fields40 = require("@keystone-6/core/fields");
 var PurchaseOrder = (0, import_core39.list)({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn
+      query: permissions.canReadInventory,
+      create: permissions.canManageInventory,
+      update: permissions.canManageInventory,
+      delete: permissions.canManageInventory
     }
   },
   ui: {
@@ -4025,8 +4124,11 @@ async function processPayment(root, args, context) {
         status: paymentStatus,
         paymentMethod,
         currencyCode: currency.toUpperCase(),
-        stripePaymentIntentId: usesStripe ? providerPaymentId : null,
         providerPaymentId,
+        data: {
+          paymentIntentId: providerPaymentId,
+          clientSecret
+        },
         paymentProvider: provider ? { connect: { id: provider.id } } : void 0,
         tipAmount,
         order: { connect: { id: orderId } },
@@ -4063,12 +4165,9 @@ async function capturePaymentMutation(root, args, context) {
     const sudoContext = context.sudo();
     const payments = await sudoContext.query.Payment.findMany({
       where: {
-        OR: [
-          { stripePaymentIntentId: { equals: paymentIntentId } },
-          { providerPaymentId: { equals: paymentIntentId } }
-        ]
+        providerPaymentId: { equals: paymentIntentId }
       },
-      query: "id providerPaymentId stripePaymentIntentId order { id } paymentProvider { id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction credentials metadata }"
+      query: "id providerPaymentId data order { id } paymentProvider { id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction credentials metadata }"
     });
     const payment = payments[0];
     if (!payment) {
@@ -4124,12 +4223,9 @@ async function getPaymentStatus2(root, args, context) {
     const sudoContext = context.sudo();
     const payments = await sudoContext.query.Payment.findMany({
       where: {
-        OR: [
-          { stripePaymentIntentId: { equals: args.paymentIntentId } },
-          { providerPaymentId: { equals: args.paymentIntentId } }
-        ]
+        providerPaymentId: { equals: args.paymentIntentId }
       },
-      query: "id providerPaymentId stripePaymentIntentId paymentProvider { id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction credentials metadata }"
+      query: "id providerPaymentId data paymentProvider { id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction credentials metadata }"
     });
     const payment = payments[0];
     if (!payment) {
@@ -4375,7 +4471,7 @@ async function hasManagerPermission(context) {
   const role = await context.db.Role.findOne({
     where: { id: user.roleId }
   });
-  return role?.canManageAllTodos === true;
+  return role?.canManageOrders === true;
 }
 async function voidOrderItem(root, args, context) {
   if (!context.session?.itemId) {
@@ -4627,6 +4723,12 @@ async function voidOrder(root, args, context) {
 }
 
 // features/keystone/mutations/createStorefrontOrder.ts
+var PAYMENT_METHOD_PROVIDER_MAP = {
+  card: "pp_stripe",
+  paypal: "pp_paypal",
+  cash: "pp_manual"
+};
+var CLIENT_SIDE_PROVIDERS = /* @__PURE__ */ new Set(["paypal", "cash"]);
 async function createStorefrontOrder(root, args, context) {
   const sudoContext = context.sudo();
   try {
@@ -4640,8 +4742,10 @@ async function createStorefrontOrder(root, args, context) {
       tip,
       total,
       currencyCode,
-      specialInstructions
+      specialInstructions,
+      paymentMethod = "card"
     } = args;
+    console.log({ customerInfo });
     if (!customerInfo?.name || !customerInfo?.email || !customerInfo?.phone) {
       return {
         success: false,
@@ -4662,19 +4766,20 @@ async function createStorefrontOrder(root, args, context) {
         error: "Order must contain at least one item"
       };
     }
+    const providerCode = PAYMENT_METHOD_PROVIDER_MAP[paymentMethod] || "pp_stripe";
     const providers = await sudoContext.query.PaymentProvider.findMany({
-      where: { code: { equals: "pp_stripe" }, isInstalled: { equals: true } },
+      where: { code: { equals: providerCode }, isInstalled: { equals: true } },
       query: "id code isInstalled createPaymentFunction capturePaymentFunction"
     });
-    const stripeProvider = providers[0];
-    if (!stripeProvider) {
+    const paymentProvider = providers[0];
+    if (!paymentProvider) {
       return {
         success: false,
         orderId: null,
         orderNumber: null,
         clientSecret: null,
         secretKey: null,
-        error: "Stripe payment provider not configured"
+        error: `${providerCode} payment provider not configured`
       };
     }
     const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
@@ -4688,6 +4793,12 @@ async function createStorefrontOrder(root, args, context) {
 Delivery: ${deliveryAddress.address}, ${deliveryAddress.city} ${deliveryAddress.zip}` : "";
     const fullInstructions = `${customerNote}${deliveryNote}${specialInstructions ? "\n" + specialInstructions : ""}`;
     const customerId = context.session?.itemId;
+    const dbPaymentMethodMap = {
+      card: "credit_card",
+      paypal: "paypal",
+      cash: "cash"
+    };
+    const dbPaymentMethod = dbPaymentMethodMap[paymentMethod] || "credit_card";
     const order = await sudoContext.query.RestaurantOrder.createOne({
       data: {
         orderNumber,
@@ -4716,7 +4827,6 @@ Delivery: ${deliveryAddress.address}, ${deliveryAddress.city} ${deliveryAddress.
         data: {
           quantity: item.quantity,
           price: Math.round(item.price),
-          // Assuming price comes in cents or we should handle it
           specialInstructions: item.specialInstructions || "",
           order: { connect: { id: order.id } },
           menuItem: { connect: { id: item.menuItemId } },
@@ -4727,30 +4837,52 @@ Delivery: ${deliveryAddress.address}, ${deliveryAddress.city} ${deliveryAddress.
     }
     const amountInCents = parseInt(total);
     const normalizedCurrency = (currencyCode || "USD").toLowerCase();
-    const sessionData = await createPayment({
-      provider: stripeProvider,
-      order,
-      amount: amountInCents,
-      currency: normalizedCurrency
-    });
-    await sudoContext.query.Payment.createOne({
-      data: {
+    let clientSecret = null;
+    if (CLIENT_SIDE_PROVIDERS.has(paymentMethod)) {
+      await sudoContext.query.Payment.createOne({
+        data: {
+          amount: amountInCents,
+          status: "pending",
+          paymentMethod: dbPaymentMethod,
+          currencyCode: currencyCode || "USD",
+          tipAmount: parseInt(tip),
+          data: {},
+          order: { connect: { id: order.id } },
+          paymentProvider: { connect: { id: paymentProvider.id } }
+        },
+        query: "id"
+      });
+    } else {
+      const sessionData = await createPayment({
+        provider: paymentProvider,
+        order,
         amount: amountInCents,
-        status: "pending",
-        paymentMethod: "credit_card",
-        currencyCode: currencyCode || "USD",
-        stripePaymentIntentId: sessionData.paymentIntentId,
-        tipAmount: parseInt(tip),
-        order: { connect: { id: order.id } },
-        paymentProvider: { connect: { id: stripeProvider.id } }
-      },
-      query: "id"
-    });
+        currency: normalizedCurrency
+      });
+      clientSecret = sessionData.clientSecret;
+      await sudoContext.query.Payment.createOne({
+        data: {
+          amount: amountInCents,
+          status: "pending",
+          paymentMethod: dbPaymentMethod,
+          currencyCode: currencyCode || "USD",
+          tipAmount: parseInt(tip),
+          data: {
+            paymentIntentId: sessionData.paymentIntentId,
+            clientSecret: sessionData.clientSecret
+          },
+          providerPaymentId: sessionData.paymentIntentId,
+          order: { connect: { id: order.id } },
+          paymentProvider: { connect: { id: paymentProvider.id } }
+        },
+        query: "id"
+      });
+    }
     return {
       success: true,
       orderId: order.id,
       orderNumber: order.orderNumber,
-      clientSecret: sessionData.clientSecret,
+      clientSecret,
       secretKey: order.secretKey,
       error: null
     };
@@ -4787,24 +4919,37 @@ async function completeStorefrontOrder(root, args, context) {
     const payments = await sudoContext.query.Payment.findMany({
       where: { order: { id: { equals: orderId } } },
       query: `
-        id 
-        status 
-        stripePaymentIntentId 
-        paymentProvider { 
-          id 
-          code 
-          capturePaymentFunction 
-          getPaymentStatusFunction 
+        id
+        status
+        data
+        providerPaymentId
+        paymentProvider {
+          id
+          code
+          capturePaymentFunction
+          getPaymentStatusFunction
         }
       `
     });
     const payment = payments[0];
-    if (!payment || !payment.stripePaymentIntentId) {
+    if (!payment) {
       return {
         success: false,
         orderNumber: null,
         error: "Payment record not found"
       };
+    }
+    const paymentIntentId = payment.data?.paymentIntentId || payment.providerPaymentId;
+    if (!paymentIntentId) {
+      await sudoContext.query.Payment.updateOne({
+        where: { id: payment.id },
+        data: { status: "succeeded", processedAt: (/* @__PURE__ */ new Date()).toISOString() }
+      });
+      await sudoContext.query.RestaurantOrder.updateOne({
+        where: { id: orderId },
+        data: { status: "sent_to_kitchen" }
+      });
+      return { success: true, orderNumber: order.orderNumber, error: null };
     }
     if (!payment.paymentProvider) {
       return {
@@ -4815,7 +4960,7 @@ async function completeStorefrontOrder(root, args, context) {
     }
     const paymentStatus = await getPaymentStatus({
       provider: payment.paymentProvider,
-      paymentId: payment.stripePaymentIntentId
+      paymentId: paymentIntentId
     });
     let paymentSucceeded = false;
     if (paymentStatus.status === "succeeded") {
@@ -4846,7 +4991,10 @@ async function completeStorefrontOrder(root, args, context) {
       data: {
         status: "succeeded",
         processedAt: (/* @__PURE__ */ new Date()).toISOString(),
-        stripeChargeId: paymentStatus.data?.latest_charge || ""
+        data: {
+          ...payment.data,
+          chargeId: paymentStatus.data?.latest_charge || ""
+        }
       }
     });
     await sudoContext.query.RestaurantOrder.updateOne({
@@ -4869,6 +5017,233 @@ async function completeStorefrontOrder(root, args, context) {
       error: errorMessage
     };
   }
+}
+
+// features/keystone/mutations/initiatePaymentSession.ts
+async function initiatePaymentSession(root, { cartId, paymentProviderId }, context) {
+  const sudoContext = context.sudo();
+  const cart = await sudoContext.query.Cart.findOne({
+    where: { id: cartId },
+    query: `
+      id
+      subtotal
+      orderType
+      paymentData
+    `
+  });
+  if (!cart) throw new Error("Cart not found");
+  const provider = await sudoContext.query.PaymentProvider.findOne({
+    where: { code: paymentProviderId },
+    query: `
+      id code isInstalled
+      createPaymentFunction capturePaymentFunction
+      refundPaymentFunction getPaymentStatusFunction
+      generatePaymentLinkFunction credentials
+    `
+  });
+  if (!provider || !provider.isInstalled) {
+    throw new Error(`Payment provider ${paymentProviderId} not found or not installed`);
+  }
+  const amount = cart.subtotal || 0;
+  const settings = await sudoContext.query.StoreSettings.findOne({
+    where: { id: "1" },
+    query: "currencyCode"
+  });
+  const currency = (settings?.currencyCode || "USD").toLowerCase();
+  const isManualProvider = paymentProviderId === "pp_manual" || paymentProviderId === "pp_system_default";
+  let sessionData;
+  if (isManualProvider) {
+    sessionData = { providerCode: paymentProviderId };
+  } else {
+    sessionData = await createPayment({
+      provider,
+      order: { id: cartId },
+      // pass cartId as order context for adapter metadata
+      amount,
+      currency
+    });
+    sessionData.providerCode = paymentProviderId;
+  }
+  await sudoContext.query.Cart.updateOne({
+    where: { id: cartId },
+    data: {
+      paymentData: sessionData,
+      paymentProvider: { connect: { id: provider.id } }
+    }
+  });
+  return {
+    id: cartId,
+    // using cartId as session identifier
+    data: sessionData,
+    amount
+  };
+}
+
+// features/keystone/mutations/completeActiveCart.ts
+async function completeActiveCart(root, { cartId }, context) {
+  const sudoContext = context.sudo();
+  const userId = context.session?.itemId;
+  const cart = await sudoContext.query.Cart.findOne({
+    where: { id: cartId },
+    query: `
+      id
+      orderType
+      subtotal
+      email
+      customerName
+      customerPhone
+      deliveryAddress
+      deliveryCity
+      deliveryZip
+      tipPercent
+      paymentData
+      user { id }
+      paymentProvider {
+        id code
+        capturePaymentFunction
+        getPaymentStatusFunction
+      }
+      items {
+        id
+        quantity
+        specialInstructions
+        menuItem {
+          id name price
+          menuItemImages(take: 1) {
+            id
+            image { url }
+            imagePath
+          }
+        }
+        modifiers {
+          id name priceAdjustment
+        }
+      }
+    `
+  });
+  if (!cart) throw new Error("Cart not found");
+  if (!cart.items?.length) throw new Error("Cart is empty");
+  const paymentData = cart.paymentData;
+  const providerCode = paymentData?.providerCode;
+  const paymentIntentId = paymentData?.paymentIntentId;
+  const isManual = providerCode === "pp_manual" || providerCode === "pp_system_default";
+  let paymentResult = {
+    status: "manual_pending",
+    paymentIntentId: null
+  };
+  if (!isManual && paymentIntentId && cart.paymentProvider) {
+    const status = await getPaymentStatus({
+      provider: cart.paymentProvider,
+      paymentId: paymentIntentId
+    });
+    if (status.status === "succeeded") {
+      paymentResult = { status: "succeeded", paymentIntentId };
+    } else if (status.status === "requires_capture") {
+      const captured = await capturePayment2({
+        provider: cart.paymentProvider,
+        paymentId: paymentIntentId
+      });
+      paymentResult = {
+        status: captured.status === "succeeded" ? "succeeded" : "failed",
+        paymentIntentId
+      };
+    } else {
+      throw new Error(`Payment not successful. Status: ${status.status}`);
+    }
+    if (paymentResult.status === "failed") {
+      throw new Error("Payment capture failed");
+    }
+  }
+  const subtotal = cart.subtotal || 0;
+  const tipPercent = parseInt(cart.tipPercent || "0", 10);
+  const tip = Math.round(subtotal * (tipPercent / 100));
+  const settings = await sudoContext.query.StoreSettings.findOne({
+    where: { id: "1" },
+    query: "taxRate currencyCode pickupDiscount"
+  });
+  const taxRate = parseFloat(settings?.taxRate || "8.75");
+  const currencyCode = settings?.currencyCode || "USD";
+  const storePickupDiscount = parseInt(settings?.pickupDiscount || "10", 10);
+  const tax = Math.round(subtotal * (taxRate / 100));
+  const pickupDiscount = cart.orderType === "pickup" ? Math.round(subtotal * (storePickupDiscount / 100)) : 0;
+  const total = subtotal - pickupDiscount + tax + tip;
+  const orderTypeMap = {
+    pickup: "takeout",
+    delivery: "delivery"
+  };
+  const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
+  const customerId = cart.user?.id || userId;
+  const secretKey = !customerId ? require("crypto").randomBytes(32).toString("hex") : void 0;
+  const order = await sudoContext.query.RestaurantOrder.createOne({
+    data: {
+      orderNumber,
+      orderType: orderTypeMap[cart.orderType || "pickup"] || "takeout",
+      orderSource: "online",
+      status: isManual ? "open" : "sent_to_kitchen",
+      guestCount: 1,
+      subtotal,
+      tax,
+      tip,
+      total,
+      currencyCode,
+      customer: customerId ? { connect: { id: customerId } } : void 0,
+      customerName: cart.customerName || "",
+      customerEmail: cart.email || "",
+      customerPhone: cart.customerPhone || "",
+      deliveryAddress: cart.deliveryAddress || void 0,
+      deliveryCity: cart.deliveryCity || void 0,
+      deliveryZip: cart.deliveryZip || void 0,
+      secretKey
+    },
+    query: "id orderNumber secretKey"
+  });
+  for (const item of cart.items) {
+    const modTotal = item.modifiers?.reduce(
+      (s, m) => s + (m.priceAdjustment || 0),
+      0
+    ) || 0;
+    const unitPrice = (item.menuItem?.price || 0) + modTotal;
+    await sudoContext.query.OrderItem.createOne({
+      data: {
+        quantity: item.quantity,
+        price: Math.round(unitPrice),
+        specialInstructions: item.specialInstructions || "",
+        order: { connect: { id: order.id } },
+        menuItem: { connect: { id: item.menuItem.id } },
+        appliedModifiers: item.modifiers?.length ? { connect: item.modifiers.map((m) => ({ id: m.id })) } : void 0
+      }
+    });
+  }
+  const paymentMethodMap = {
+    pp_stripe: "credit_card",
+    pp_paypal: "paypal",
+    pp_manual: "cash",
+    pp_system_default: "cash"
+  };
+  await sudoContext.query.Payment.createOne({
+    data: {
+      amount: total,
+      status: paymentResult.status === "succeeded" ? "succeeded" : "pending",
+      paymentMethod: paymentMethodMap[providerCode || "pp_manual"] || "cash",
+      currencyCode,
+      tipAmount: tip,
+      providerPaymentId: paymentResult.paymentIntentId || void 0,
+      data: paymentData || {},
+      processedAt: paymentResult.status === "succeeded" ? (/* @__PURE__ */ new Date()).toISOString() : void 0,
+      order: { connect: { id: order.id } },
+      paymentProvider: cart.paymentProvider ? { connect: { id: cart.paymentProvider.id } } : void 0
+    }
+  });
+  await sudoContext.query.Cart.updateOne({
+    where: { id: cartId },
+    data: {
+      order: { connect: { id: order.id } }
+    }
+  });
+  return await sudoContext.query.RestaurantOrder.findOne({
+    where: { id: order.id },
+    query: "id orderNumber secretKey status"
+  });
 }
 
 // features/keystone/mutations/activeCart.ts
@@ -5038,6 +5413,41 @@ async function getCustomerOrder(root, { orderId, secretKey }, context) {
     throw new Error("Order not found");
   }
   return order;
+}
+
+// features/keystone/mutations/getCustomerOrders.ts
+async function getCustomerOrders(root, { limit = 10, offset = 0 }, context) {
+  if (!context.session?.itemId) {
+    throw new Error("Not authenticated");
+  }
+  const sudoContext = context.sudo();
+  const orders = await sudoContext.query.RestaurantOrder.findMany({
+    where: {
+      customer: { id: { equals: context.session.itemId } }
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    skip: offset,
+    query: `
+      id
+      orderNumber
+      orderType
+      status
+      total
+      createdAt
+      customerName
+      orderItems {
+        id
+        quantity
+        price
+        menuItem {
+          id
+          name
+        }
+      }
+    `
+  });
+  return orders;
 }
 
 // features/keystone/mutations/tableManagement.ts
@@ -5456,15 +5866,12 @@ async function handlePaymentProviderWebhook(root, { providerCode, event, headers
   }
   const { type, resource } = await handleWebhook({ provider, event, headers });
   if (type === "payment_intent.succeeded" || type === "charge.succeeded") {
-    const stripePaymentIntentId = resource.id || resource.payment_intent;
+    const paymentIntentId = resource.id || resource.payment_intent;
     const payments = await sudoContext.query.Payment.findMany({
       where: {
-        OR: [
-          { stripePaymentIntentId: { equals: stripePaymentIntentId } },
-          { providerPaymentId: { equals: stripePaymentIntentId } }
-        ]
+        providerPaymentId: { equals: paymentIntentId }
       },
-      query: "id order { id }"
+      query: "id data order { id }"
     });
     if (payments.length > 0) {
       const payment = payments[0];
@@ -5473,7 +5880,10 @@ async function handlePaymentProviderWebhook(root, { providerCode, event, headers
         data: {
           status: "succeeded",
           processedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          stripeChargeId: resource.latest_charge || resource.id
+          data: {
+            ...payment.data || {},
+            chargeId: resource.latest_charge || resource.id
+          }
         }
       });
       if (payment.order?.id) {
@@ -5486,9 +5896,9 @@ async function handlePaymentProviderWebhook(root, { providerCode, event, headers
       }
     }
   } else if (type === "payment_intent.payment_failed") {
-    const stripePaymentIntentId = resource.id;
+    const paymentIntentId = resource.id;
     const payments = await sudoContext.query.Payment.findMany({
-      where: { stripePaymentIntentId: { equals: stripePaymentIntentId } },
+      where: { providerPaymentId: { equals: paymentIntentId } },
       query: "id"
     });
     if (payments.length > 0) {
@@ -5501,9 +5911,9 @@ async function handlePaymentProviderWebhook(root, { providerCode, event, headers
       });
     }
   } else if (type === "payment_intent.canceled") {
-    const stripePaymentIntentId = resource.id;
+    const paymentIntentId = resource.id;
     const payments = await sudoContext.query.Payment.findMany({
-      where: { stripePaymentIntentId: { equals: stripePaymentIntentId } },
+      where: { providerPaymentId: { equals: paymentIntentId } },
       query: "id order { id }"
     });
     if (payments.length > 0) {
@@ -5562,6 +5972,7 @@ function extendGraphqlSchema(baseSchema) {
         getPaymentStatus(paymentIntentId: String!): GetPaymentStatusResult
         activeCart(cartId: ID): Cart
         getCustomerOrder(orderId: ID!, secretKey: String): JSON
+        getCustomerOrders(limit: Int, offset: Int): JSON
       }
 
       type Mutation {
@@ -5624,11 +6035,21 @@ function extendGraphqlSchema(baseSchema) {
           total: Int!
           currencyCode: String
           specialInstructions: String
+          paymentMethod: String
         ): CreateStorefrontOrderResult
 
         completeStorefrontOrder(
           orderId: String!
         ): CompleteStorefrontOrderResult
+
+        initiatePaymentSession(
+          cartId: ID!
+          paymentProviderId: String!
+        ): InitiatePaymentSessionResult
+
+        completeActiveCart(
+          cartId: ID!
+        ): RestaurantOrder
 
         transferTable(
           orderId: String!
@@ -5710,6 +6131,12 @@ function extendGraphqlSchema(baseSchema) {
         error: String
       }
 
+      type InitiatePaymentSessionResult {
+        id: ID!
+        data: JSON
+        amount: Int
+      }
+
       type CompleteStorefrontOrderResult {
         success: Boolean!
         orderNumber: String
@@ -5748,7 +6175,8 @@ function extendGraphqlSchema(baseSchema) {
         redirectToInit: redirectToInit_default,
         getPaymentStatus: getPaymentStatus2,
         activeCart,
-        getCustomerOrder
+        getCustomerOrder,
+        getCustomerOrders
       },
       Mutation: {
         updateActiveUser: updateActiveUser_default,
@@ -5764,6 +6192,8 @@ function extendGraphqlSchema(baseSchema) {
         voidOrder,
         createStorefrontOrder,
         completeStorefrontOrder,
+        initiatePaymentSession,
+        completeActiveCart,
         transferTable,
         combineTables,
         fireCourse,
@@ -5941,13 +6371,38 @@ var { withAuth } = (0, import_auth.createAuth)({
       role: {
         create: {
           name: "Admin",
-          canCreateTodos: true,
-          canManageAllTodos: true,
+          canAccessDashboard: true,
+          canReadOrders: true,
+          canManageOrders: true,
+          canReadPayments: true,
+          canManagePayments: true,
+          canReadProducts: true,
+          canManageProducts: true,
+          canReadCart: true,
+          canManageCart: true,
+          canReadInventory: true,
+          canManageInventory: true,
+          canReadUsers: true,
+          canManageUsers: true,
           canSeeOtherPeople: true,
           canEditOtherPeople: true,
           canManagePeople: true,
+          canReadRoles: true,
           canManageRoles: true,
-          canAccessDashboard: true
+          canReadKitchen: true,
+          canManageKitchen: true,
+          canReadTables: true,
+          canManageTables: true,
+          canReadStaff: true,
+          canManageStaff: true,
+          canManageSettings: true,
+          canManageOnboarding: true,
+          canReadVendors: true,
+          canManageVendors: true,
+          canReadGiftCards: true,
+          canManageGiftCards: true,
+          canReadDiscounts: true,
+          canManageDiscounts: true
         }
       }
     }
@@ -5964,13 +6419,38 @@ var { withAuth } = (0, import_auth.createAuth)({
     role {
       id
       name
-      canCreateTodos
-      canManageAllTodos
+      canAccessDashboard
+      canReadOrders
+      canManageOrders
+      canReadPayments
+      canManagePayments
+      canReadProducts
+      canManageProducts
+      canReadCart
+      canManageCart
+      canReadInventory
+      canManageInventory
+      canReadUsers
+      canManageUsers
       canSeeOtherPeople
       canEditOtherPeople
       canManagePeople
+      canReadRoles
       canManageRoles
-      canAccessDashboard
+      canReadKitchen
+      canManageKitchen
+      canReadTables
+      canManageTables
+      canReadStaff
+      canManageStaff
+      canManageSettings
+      canManageOnboarding
+      canReadVendors
+      canManageVendors
+      canReadGiftCards
+      canManageGiftCards
+      canReadDiscounts
+      canManageDiscounts
     }
   `
 });

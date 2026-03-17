@@ -1,16 +1,16 @@
 import { list } from "@keystone-6/core";
 import { text, checkbox, json } from "@keystone-6/core/fields";
 
-import { isSignedIn } from "../access";
+import { isSignedIn, permissions } from "../access";
 import { trackingFields } from "./trackingFields";
 
 export const PaymentProvider = list({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn,
+      query: () => true, // Public read for storefront
+      create: permissions.canManagePayments,
+      update: permissions.canManagePayments,
+      delete: permissions.canManagePayments,
     },
   },
   ui: {

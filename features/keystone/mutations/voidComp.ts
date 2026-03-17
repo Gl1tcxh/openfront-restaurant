@@ -43,8 +43,8 @@ async function hasManagerPermission(context: Context): Promise<boolean> {
     where: { id: user.roleId },
   });
 
-  // Manager needs canManageAllTodos permission (or we could add specific void/comp permissions)
-  return role?.canManageAllTodos === true;
+  // Manager needs canManageOrders permission
+  return role?.canManageOrders === true;
 }
 
 // Void an individual order item

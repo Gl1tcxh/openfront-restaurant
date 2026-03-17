@@ -20,15 +20,8 @@ import { trackingFields } from './trackingFields'
 export const User = list({
   access: {
     operation: {
-      query: () => true,
-      create: (args) => {
-        // Allow public sign-ups if environment variable is set to true
-        if (process.env.PUBLIC_SIGNUPS_ALLOWED === 'true') {
-          return true;
-        }
-        // Otherwise, require canManagePeople permission
-        return permissions.canManagePeople(args);
-      },
+      query: isSignedIn, // Any signed-in user can query (filter limits to self)
+      create: () => true,
       update: isSignedIn,
       delete: permissions.canManagePeople,
     },
@@ -171,9 +164,9 @@ export const User = list({
 
     // Restaurant Staff Fields
     employeeId: text({
-      isIndexed: 'unique',
+      db: { isNullable: true },
       ui: {
-        description: 'Unique employee identifier',
+        description: 'Unique employee identifier (staff only)',
       },
     }),
 

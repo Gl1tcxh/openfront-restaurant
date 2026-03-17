@@ -1,15 +1,15 @@
 import { list } from "@keystone-6/core";
 import { text, integer, decimal, json } from "@keystone-6/core/fields";
 
-import { isSignedIn } from "../access";
+import { isSignedIn, permissions } from "../access";
 
 export const StoreSettings = list({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn,
+      query: () => true, // Public read for storefront
+      create: permissions.canManageSettings,
+      update: permissions.canManageSettings,
+      delete: permissions.canManageSettings,
     },
   },
   isSingleton: true,
@@ -78,6 +78,14 @@ export const StoreSettings = list({
         sunday: "10:00 AM - 9:00 PM",
       },
       ui: { description: "Operating hours by day of week" },
+    }),
+
+    // Tax
+    taxRate: decimal({
+      precision: 5,
+      scale: 2,
+      defaultValue: "8.75",
+      ui: { description: "Tax rate percentage (e.g. 8.75 for 8.75%)" },
     }),
 
     // Delivery/Pickup Settings

@@ -115,6 +115,7 @@ export function useOnboardingApi({
           deliveryFee: storeInfo.deliveryFee?.toString(),
           deliveryMinimum: storeInfo.deliveryMinimum?.toString(),
           pickupDiscount: storeInfo.pickupDiscount,
+          taxRate: storeInfo.taxRate?.toString() || "8.75",
           estimatedDelivery: storeInfo.estimatedDelivery,
           estimatedPickup: storeInfo.estimatedPickup,
           heroHeadline: storeInfo.heroHeadline,

@@ -38,29 +38,29 @@ export default async function handlePaymentProviderWebhook(
   // Handle the event based on type patterns
   // Pattern for successful payment (Stripe payment_intent.succeeded)
   if (type === 'payment_intent.succeeded' || type === 'charge.succeeded') {
-    const stripePaymentIntentId = resource.id || resource.payment_intent;
-    
-    // Find the payment record
+    const paymentIntentId = resource.id || resource.payment_intent;
+
+    // Find the payment record by providerPaymentId
     const payments = await sudoContext.query.Payment.findMany({
-      where: { 
-        OR: [
-          { stripePaymentIntentId: { equals: stripePaymentIntentId } },
-          { providerPaymentId: { equals: stripePaymentIntentId } }
-        ]
+      where: {
+        providerPaymentId: { equals: paymentIntentId },
       },
-      query: 'id order { id }',
+      query: 'id data order { id }',
     });
 
     if (payments.length > 0) {
       const payment = payments[0];
-      
+
       // Update payment status
       await sudoContext.db.Payment.updateOne({
         where: { id: payment.id },
         data: {
           status: 'succeeded',
           processedAt: new Date().toISOString(),
-          stripeChargeId: resource.latest_charge || resource.id,
+          data: {
+            ...(payment.data || {}),
+            chargeId: resource.latest_charge || resource.id,
+          },
         },
       });
 
@@ -75,10 +75,10 @@ export default async function handlePaymentProviderWebhook(
       }
     }
   } else if (type === 'payment_intent.payment_failed') {
-    const stripePaymentIntentId = resource.id;
-    
+    const paymentIntentId = resource.id;
+
     const payments = await sudoContext.query.Payment.findMany({
-      where: { stripePaymentIntentId: { equals: stripePaymentIntentId } },
+      where: { providerPaymentId: { equals: paymentIntentId } },
       query: 'id',
     });
 
@@ -92,10 +92,10 @@ export default async function handlePaymentProviderWebhook(
       });
     }
   } else if (type === 'payment_intent.canceled') {
-    const stripePaymentIntentId = resource.id;
-    
+    const paymentIntentId = resource.id;
+
     const payments = await sudoContext.query.Payment.findMany({
-      where: { stripePaymentIntentId: { equals: stripePaymentIntentId } },
+      where: { providerPaymentId: { equals: paymentIntentId } },
       query: 'id order { id }',
     });
 

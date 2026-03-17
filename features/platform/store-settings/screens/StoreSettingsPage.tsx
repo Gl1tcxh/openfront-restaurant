@@ -30,6 +30,7 @@ interface StoreSettingsData {
   locale?: string | null
   timezone?: string | null
   countryCode?: string | null
+  taxRate?: string | null
   deliveryFee?: string | null
   deliveryMinimum?: string | null
   pickupDiscount?: number | null
@@ -47,6 +48,7 @@ const UPDATE_STORE_SETTINGS = gql`
       currencyCode
       locale
       timezone
+      taxRate
       hours
     }
   }
@@ -205,6 +207,7 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
     locale: initialSettings?.locale || 'en-US',
     timezone: initialSettings?.timezone || 'America/New_York',
     countryCode: initialSettings?.countryCode || 'US',
+    taxRate: initialSettings?.taxRate || '8.75',
     deliveryFee: initialSettings?.deliveryFee || '4.99',
     deliveryMinimum: initialSettings?.deliveryMinimum || '15.00',
     pickupDiscount: initialSettings?.pickupDiscount ?? 10,
@@ -292,6 +295,7 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
         locale: form.locale,
         timezone: form.timezone,
         countryCode: form.countryCode,
+        taxRate: String(form.taxRate || '8.75'),
         deliveryFee: String(form.deliveryFee || '0'),
         deliveryMinimum: String(form.deliveryMinimum || '0'),
         pickupDiscount: Number(form.pickupDiscount || 0),
@@ -440,7 +444,7 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
 
           {/* Localization */}
           <Section title="Localization" icon={<Globe2 size={13} />}>
-            <div className="grid grid-cols-3 divide-x divide-border">
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
               <div className="px-5 py-3">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Currency</p>
                 <Select value={form.currencyCode} onValueChange={(v) => setForm((f) => ({ ...f, currencyCode: v }))}>
@@ -461,6 +465,17 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
                   <SelectTrigger className={fieldSelect}><SelectValue /></SelectTrigger>
                   <SelectContent>{timezoneOptions.map((tz) => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}</SelectContent>
                 </Select>
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Tax Rate %</p>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.taxRate}
+                  onChange={(e) => setForm((f) => ({ ...f, taxRate: e.target.value }))}
+                  placeholder="8.75"
+                  className={fieldInput}
+                />
               </div>
             </div>
           </Section>

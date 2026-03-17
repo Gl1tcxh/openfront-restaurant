@@ -18,6 +18,7 @@ interface ItemCustomizationModalProps {
   currencyCode?: string
   locale?: string
   orderType?: "pickup" | "delivery"
+  onAdded?: () => void
 }
 
 // Helper to get image URL
@@ -46,7 +47,7 @@ function getDescriptionText(description: any): string {
   return ''
 }
 
-export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "USD", locale = "en-US", orderType = "pickup" }: ItemCustomizationModalProps) {
+export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "USD", locale = "en-US", orderType = "pickup", onAdded }: ItemCustomizationModalProps) {
   const addItemMutation = useAddItemToCart()
   const [quantity, setQuantity] = useState(1)
   const [selectedModifiers, setSelectedModifiers] = useState<SelectedModifier[]>([])
@@ -162,6 +163,7 @@ export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "
       specialInstructions: specialInstructions || undefined,
       orderType,
     })
+    onAdded?.()
     onClose()
   }
 

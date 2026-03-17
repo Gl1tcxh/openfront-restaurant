@@ -88,9 +88,9 @@ export default async function AccountOrdersPage() {
                           minute: "2-digit",
                         })}
                       </span>
-                      {order.items?.length > 0 && (
+                      {order.orderItems?.length > 0 && (
                         <span className="text-xs text-muted-foreground hidden sm:inline">
-                          · {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+                          · {order.orderItems.length} item{order.orderItems.length !== 1 ? "s" : ""}
                         </span>
                       )}
                     </div>

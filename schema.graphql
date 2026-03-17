@@ -64,7 +64,6 @@ enum ImageExtension {
 
 input UserWhereUniqueInput {
   id: ID
-  employeeId: String
 }
 
 input UserWhereInput {
@@ -79,7 +78,7 @@ input UserWhereInput {
   restaurantOrders: RestaurantOrderManyRelationFilter
   addresses: AddressManyRelationFilter
   carts: CartManyRelationFilter
-  employeeId: StringFilter
+  employeeId: StringNullableFilter
   staffRole: StringNullableFilter
   hireDate: DateTimeNullableFilter
   hourlyRate: DecimalNullableFilter
@@ -377,14 +376,38 @@ input CartRelateToManyForCreateInput {
 type Role {
   id: ID!
   name: String
-  canCreateTodos: Boolean
-  canManageAllTodos: Boolean
+  canAccessDashboard: Boolean
+  canReadOrders: Boolean
+  canManageOrders: Boolean
+  canReadPayments: Boolean
+  canManagePayments: Boolean
+  canReadProducts: Boolean
+  canManageProducts: Boolean
+  canReadCart: Boolean
+  canManageCart: Boolean
+  canReadInventory: Boolean
+  canManageInventory: Boolean
+  canReadUsers: Boolean
+  canManageUsers: Boolean
   canSeeOtherPeople: Boolean
   canEditOtherPeople: Boolean
   canManagePeople: Boolean
+  canReadRoles: Boolean
   canManageRoles: Boolean
+  canReadKitchen: Boolean
+  canManageKitchen: Boolean
+  canReadTables: Boolean
+  canManageTables: Boolean
+  canReadStaff: Boolean
+  canManageStaff: Boolean
+  canManageSettings: Boolean
   canManageOnboarding: Boolean
-  canAccessDashboard: Boolean
+  canReadVendors: Boolean
+  canManageVendors: Boolean
+  canReadGiftCards: Boolean
+  canManageGiftCards: Boolean
+  canReadDiscounts: Boolean
+  canManageDiscounts: Boolean
   assignedTo(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
   assignedToCount(where: UserWhereInput! = {}): Int
 }
@@ -399,14 +422,38 @@ input RoleWhereInput {
   NOT: [RoleWhereInput!]
   id: IDFilter
   name: StringFilter
-  canCreateTodos: BooleanFilter
-  canManageAllTodos: BooleanFilter
+  canAccessDashboard: BooleanFilter
+  canReadOrders: BooleanFilter
+  canManageOrders: BooleanFilter
+  canReadPayments: BooleanFilter
+  canManagePayments: BooleanFilter
+  canReadProducts: BooleanFilter
+  canManageProducts: BooleanFilter
+  canReadCart: BooleanFilter
+  canManageCart: BooleanFilter
+  canReadInventory: BooleanFilter
+  canManageInventory: BooleanFilter
+  canReadUsers: BooleanFilter
+  canManageUsers: BooleanFilter
   canSeeOtherPeople: BooleanFilter
   canEditOtherPeople: BooleanFilter
   canManagePeople: BooleanFilter
+  canReadRoles: BooleanFilter
   canManageRoles: BooleanFilter
+  canReadKitchen: BooleanFilter
+  canManageKitchen: BooleanFilter
+  canReadTables: BooleanFilter
+  canManageTables: BooleanFilter
+  canReadStaff: BooleanFilter
+  canManageStaff: BooleanFilter
+  canManageSettings: BooleanFilter
   canManageOnboarding: BooleanFilter
-  canAccessDashboard: BooleanFilter
+  canReadVendors: BooleanFilter
+  canManageVendors: BooleanFilter
+  canReadGiftCards: BooleanFilter
+  canManageGiftCards: BooleanFilter
+  canReadDiscounts: BooleanFilter
+  canManageDiscounts: BooleanFilter
   assignedTo: UserManyRelationFilter
 }
 
@@ -419,26 +466,74 @@ input UserManyRelationFilter {
 input RoleOrderByInput {
   id: OrderDirection
   name: OrderDirection
-  canCreateTodos: OrderDirection
-  canManageAllTodos: OrderDirection
+  canAccessDashboard: OrderDirection
+  canReadOrders: OrderDirection
+  canManageOrders: OrderDirection
+  canReadPayments: OrderDirection
+  canManagePayments: OrderDirection
+  canReadProducts: OrderDirection
+  canManageProducts: OrderDirection
+  canReadCart: OrderDirection
+  canManageCart: OrderDirection
+  canReadInventory: OrderDirection
+  canManageInventory: OrderDirection
+  canReadUsers: OrderDirection
+  canManageUsers: OrderDirection
   canSeeOtherPeople: OrderDirection
   canEditOtherPeople: OrderDirection
   canManagePeople: OrderDirection
+  canReadRoles: OrderDirection
   canManageRoles: OrderDirection
+  canReadKitchen: OrderDirection
+  canManageKitchen: OrderDirection
+  canReadTables: OrderDirection
+  canManageTables: OrderDirection
+  canReadStaff: OrderDirection
+  canManageStaff: OrderDirection
+  canManageSettings: OrderDirection
   canManageOnboarding: OrderDirection
-  canAccessDashboard: OrderDirection
+  canReadVendors: OrderDirection
+  canManageVendors: OrderDirection
+  canReadGiftCards: OrderDirection
+  canManageGiftCards: OrderDirection
+  canReadDiscounts: OrderDirection
+  canManageDiscounts: OrderDirection
 }
 
 input RoleUpdateInput {
   name: String
-  canCreateTodos: Boolean
-  canManageAllTodos: Boolean
+  canAccessDashboard: Boolean
+  canReadOrders: Boolean
+  canManageOrders: Boolean
+  canReadPayments: Boolean
+  canManagePayments: Boolean
+  canReadProducts: Boolean
+  canManageProducts: Boolean
+  canReadCart: Boolean
+  canManageCart: Boolean
+  canReadInventory: Boolean
+  canManageInventory: Boolean
+  canReadUsers: Boolean
+  canManageUsers: Boolean
   canSeeOtherPeople: Boolean
   canEditOtherPeople: Boolean
   canManagePeople: Boolean
+  canReadRoles: Boolean
   canManageRoles: Boolean
+  canReadKitchen: Boolean
+  canManageKitchen: Boolean
+  canReadTables: Boolean
+  canManageTables: Boolean
+  canReadStaff: Boolean
+  canManageStaff: Boolean
+  canManageSettings: Boolean
   canManageOnboarding: Boolean
-  canAccessDashboard: Boolean
+  canReadVendors: Boolean
+  canManageVendors: Boolean
+  canReadGiftCards: Boolean
+  canManageGiftCards: Boolean
+  canReadDiscounts: Boolean
+  canManageDiscounts: Boolean
   assignedTo: UserRelateToManyForUpdateInput
 }
 
@@ -456,14 +551,38 @@ input RoleUpdateArgs {
 
 input RoleCreateInput {
   name: String
-  canCreateTodos: Boolean
-  canManageAllTodos: Boolean
+  canAccessDashboard: Boolean
+  canReadOrders: Boolean
+  canManageOrders: Boolean
+  canReadPayments: Boolean
+  canManagePayments: Boolean
+  canReadProducts: Boolean
+  canManageProducts: Boolean
+  canReadCart: Boolean
+  canManageCart: Boolean
+  canReadInventory: Boolean
+  canManageInventory: Boolean
+  canReadUsers: Boolean
+  canManageUsers: Boolean
   canSeeOtherPeople: Boolean
   canEditOtherPeople: Boolean
   canManagePeople: Boolean
+  canReadRoles: Boolean
   canManageRoles: Boolean
+  canReadKitchen: Boolean
+  canManageKitchen: Boolean
+  canReadTables: Boolean
+  canManageTables: Boolean
+  canReadStaff: Boolean
+  canManageStaff: Boolean
+  canManageSettings: Boolean
   canManageOnboarding: Boolean
-  canAccessDashboard: Boolean
+  canReadVendors: Boolean
+  canManageVendors: Boolean
+  canReadGiftCards: Boolean
+  canManageGiftCards: Boolean
+  canReadDiscounts: Boolean
+  canManageDiscounts: Boolean
   assignedTo: UserRelateToManyForCreateInput
 }
 
@@ -1955,14 +2074,12 @@ input TableRelateToOneForCreateInput {
 type Payment {
   id: ID!
   amount: Int
+  data: JSON
   currencyCode: String
   status: String
   paymentMethod: String
   paymentProvider: PaymentProvider
   providerPaymentId: String
-  stripePaymentIntentId: String
-  stripeChargeId: String
-  stripeRefundId: String
   cardLast4: String
   cardBrand: String
   tipAmount: Int
@@ -1980,7 +2097,6 @@ type Payment {
 
 input PaymentWhereUniqueInput {
   id: ID
-  stripePaymentIntentId: String
 }
 
 input PaymentWhereInput {
@@ -1994,9 +2110,6 @@ input PaymentWhereInput {
   paymentMethod: StringNullableFilter
   paymentProvider: PaymentProviderWhereInput
   providerPaymentId: StringFilter
-  stripePaymentIntentId: StringFilter
-  stripeChargeId: StringFilter
-  stripeRefundId: StringFilter
   cardLast4: StringFilter
   cardBrand: StringFilter
   tipAmount: IntNullableFilter
@@ -2019,9 +2132,6 @@ input PaymentOrderByInput {
   status: OrderDirection
   paymentMethod: OrderDirection
   providerPaymentId: OrderDirection
-  stripePaymentIntentId: OrderDirection
-  stripeChargeId: OrderDirection
-  stripeRefundId: OrderDirection
   cardLast4: OrderDirection
   cardBrand: OrderDirection
   tipAmount: OrderDirection
@@ -2037,14 +2147,12 @@ input PaymentOrderByInput {
 
 input PaymentUpdateInput {
   amount: Int
+  data: JSON
   currencyCode: String
   status: String
   paymentMethod: String
   paymentProvider: PaymentProviderRelateToOneForUpdateInput
   providerPaymentId: String
-  stripePaymentIntentId: String
-  stripeChargeId: String
-  stripeRefundId: String
   cardLast4: String
   cardBrand: String
   tipAmount: Int
@@ -2073,14 +2181,12 @@ input PaymentUpdateArgs {
 
 input PaymentCreateInput {
   amount: Int
+  data: JSON
   currencyCode: String
   status: String
   paymentMethod: String
   paymentProvider: PaymentProviderRelateToOneForCreateInput
   providerPaymentId: String
-  stripePaymentIntentId: String
-  stripeChargeId: String
-  stripeRefundId: String
   cardLast4: String
   cardBrand: String
   tipAmount: Int
@@ -2107,6 +2213,16 @@ type Cart {
   items(where: CartItemWhereInput! = {}, orderBy: [CartItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CartItemWhereUniqueInput): [CartItem!]
   itemsCount(where: CartItemWhereInput! = {}): Int
   orderType: String
+  email: String
+  customerName: String
+  customerPhone: String
+  deliveryAddress: String
+  deliveryCity: String
+  deliveryZip: String
+  paymentData: JSON
+  paymentProvider: PaymentProvider
+  tipPercent: String
+  order: RestaurantOrder
   subtotal: Int
   createdAt: DateTime
   updatedAt: DateTime
@@ -2124,6 +2240,15 @@ input CartWhereInput {
   user: UserWhereInput
   items: CartItemManyRelationFilter
   orderType: StringNullableFilter
+  email: StringFilter
+  customerName: StringFilter
+  customerPhone: StringFilter
+  deliveryAddress: StringFilter
+  deliveryCity: StringFilter
+  deliveryZip: StringFilter
+  paymentProvider: PaymentProviderWhereInput
+  tipPercent: StringNullableFilter
+  order: RestaurantOrderWhereInput
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
 }
@@ -2137,6 +2262,13 @@ input CartItemManyRelationFilter {
 input CartOrderByInput {
   id: OrderDirection
   orderType: OrderDirection
+  email: OrderDirection
+  customerName: OrderDirection
+  customerPhone: OrderDirection
+  deliveryAddress: OrderDirection
+  deliveryCity: OrderDirection
+  deliveryZip: OrderDirection
+  tipPercent: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -2145,6 +2277,16 @@ input CartUpdateInput {
   user: UserRelateToOneForUpdateInput
   items: CartItemRelateToManyForUpdateInput
   orderType: String
+  email: String
+  customerName: String
+  customerPhone: String
+  deliveryAddress: String
+  deliveryCity: String
+  deliveryZip: String
+  paymentData: JSON
+  paymentProvider: PaymentProviderRelateToOneForUpdateInput
+  tipPercent: String
+  order: RestaurantOrderRelateToOneForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2165,6 +2307,16 @@ input CartCreateInput {
   user: UserRelateToOneForCreateInput
   items: CartItemRelateToManyForCreateInput
   orderType: String
+  email: String
+  customerName: String
+  customerPhone: String
+  deliveryAddress: String
+  deliveryCity: String
+  deliveryZip: String
+  paymentData: JSON
+  paymentProvider: PaymentProviderRelateToOneForCreateInput
+  tipPercent: String
+  order: RestaurantOrderRelateToOneForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -3375,6 +3527,7 @@ type StoreSettings {
   timezone: String
   countryCode: String
   hours: JSON
+  taxRate: Decimal
   deliveryFee: Decimal
   deliveryMinimum: Decimal
   pickupDiscount: Int
@@ -3406,6 +3559,7 @@ input StoreSettingsWhereInput {
   locale: StringFilter
   timezone: StringFilter
   countryCode: StringFilter
+  taxRate: DecimalNullableFilter
   deliveryFee: DecimalNullableFilter
   deliveryMinimum: DecimalNullableFilter
   pickupDiscount: IntNullableFilter
@@ -3430,6 +3584,7 @@ input StoreSettingsOrderByInput {
   locale: OrderDirection
   timezone: OrderDirection
   countryCode: OrderDirection
+  taxRate: OrderDirection
   deliveryFee: OrderDirection
   deliveryMinimum: OrderDirection
   pickupDiscount: OrderDirection
@@ -3454,6 +3609,7 @@ input StoreSettingsUpdateInput {
   timezone: String
   countryCode: String
   hours: JSON
+  taxRate: Decimal
   deliveryFee: Decimal
   deliveryMinimum: Decimal
   pickupDiscount: Int
@@ -3483,6 +3639,7 @@ input StoreSettingsCreateInput {
   timezone: String
   countryCode: String
   hours: JSON
+  taxRate: Decimal
   deliveryFee: Decimal
   deliveryMinimum: Decimal
   pickupDiscount: Int
@@ -4241,8 +4398,10 @@ type Mutation {
   voidOrderItem(orderItemId: String!, reason: String!, managerApproval: Boolean, managerId: String): VoidCompResult
   compOrderItem(orderItemId: String!, reason: String!, compAmount: Int, managerApproval: Boolean, managerId: String): VoidCompResult
   voidOrder(orderId: String!, reason: String!, managerApproval: Boolean, managerId: String): VoidCompResult
-  createStorefrontOrder(orderType: String!, customerInfo: CustomerInfoInput!, deliveryAddress: DeliveryAddressInput, items: [StorefrontOrderItemInput!]!, subtotal: Int!, tax: Int!, tip: Int!, total: Int!, currencyCode: String, specialInstructions: String): CreateStorefrontOrderResult
+  createStorefrontOrder(orderType: String!, customerInfo: CustomerInfoInput!, deliveryAddress: DeliveryAddressInput, items: [StorefrontOrderItemInput!]!, subtotal: Int!, tax: Int!, tip: Int!, total: Int!, currencyCode: String, specialInstructions: String, paymentMethod: String): CreateStorefrontOrderResult
   completeStorefrontOrder(orderId: String!): CompleteStorefrontOrderResult
+  initiatePaymentSession(cartId: ID!, paymentProviderId: String!): InitiatePaymentSessionResult
+  completeActiveCart(cartId: ID!): RestaurantOrder
   transferTable(orderId: String!, fromTableId: String!, toTableId: String!): TableManagementResult
   combineTables(orderId: String!, tableIds: [String!]!): TableManagementResult
   fireCourse(courseId: String!): CourseManagementResult
@@ -4406,6 +4565,7 @@ type Query {
   getPaymentStatus(paymentIntentId: String!): GetPaymentStatusResult
   activeCart(cartId: ID): Cart
   getCustomerOrder(orderId: ID!, secretKey: String): JSON
+  getCustomerOrders(limit: Int, offset: Int): JSON
 }
 
 union AuthenticatedItem = User
@@ -4613,6 +4773,12 @@ type CreateStorefrontOrderResult {
   clientSecret: String
   secretKey: String
   error: String
+}
+
+type InitiatePaymentSessionResult {
+  id: ID!
+  data: JSON
+  amount: Int
 }
 
 type CompleteStorefrontOrderResult {

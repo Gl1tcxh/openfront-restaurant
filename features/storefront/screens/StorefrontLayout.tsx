@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { StoreHeader } from "@/features/storefront/components/StoreHeader"
 import { CartSidebar } from "@/features/storefront/components/CartSidebar"
 import { StripeCheckoutModal } from "@/features/storefront/components/StripeCheckoutModal"
 import { type StoreInfo, type DayHours, type StorefrontPaymentConfig } from "@/features/storefront/lib/store-data"
+import { useCartData } from "@/features/storefront/lib/hooks/use-cart"
 
 interface StorefrontLayoutProps {
   children: React.ReactNode
@@ -17,6 +18,17 @@ export default function StorefrontLayout({ children, storeInfo, user, paymentCon
   const [orderType, setOrderType] = useState<"pickup" | "delivery">("pickup")
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
+
+  // Track cart item count — open drawer automatically when an item is added
+  const { itemCount } = useCartData()
+  const prevItemCount = useRef(itemCount)
+
+  useEffect(() => {
+    if (itemCount > prevItemCount.current) {
+      setIsCartOpen(true)
+    }
+    prevItemCount.current = itemCount
+  }, [itemCount])
 
   if (!storeInfo) return <>{children}</>
 

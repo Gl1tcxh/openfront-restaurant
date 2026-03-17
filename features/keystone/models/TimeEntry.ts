@@ -8,16 +8,16 @@ import {
   virtual
 } from "@keystone-6/core/fields";
 
-import { isSignedIn } from "../access";
+import { isSignedIn, permissions } from "../access";
 import { trackingFields } from "./trackingFields";
 
 export const TimeEntry = list({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn,
+      query: permissions.canReadStaff,
+      create: permissions.canManageStaff,
+      update: permissions.canManageStaff,
+      delete: permissions.canManageStaff,
     },
   },
   ui: {

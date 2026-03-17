@@ -23,7 +23,7 @@ model User {
   restaurantOrders                  RestaurantOrder[] @relation("RestaurantOrder_customer")
   addresses                         Address[]         @relation("Address_user")
   carts                             Cart[]            @relation("Cart_user")
-  employeeId                        String            @unique @default("")
+  employeeId                        String?
   staffRole                         String?
   hireDate                          DateTime?
   hourlyRate                        Decimal?          @postgresql.Decimal(10, 2)
@@ -64,14 +64,38 @@ model User {
 model Role {
   id                  String  @id @default(cuid())
   name                String  @default("")
-  canCreateTodos      Boolean @default(false)
-  canManageAllTodos   Boolean @default(false)
+  canAccessDashboard  Boolean @default(false)
+  canReadOrders       Boolean @default(false)
+  canManageOrders     Boolean @default(false)
+  canReadPayments     Boolean @default(false)
+  canManagePayments   Boolean @default(false)
+  canReadProducts     Boolean @default(false)
+  canManageProducts   Boolean @default(false)
+  canReadCart         Boolean @default(false)
+  canManageCart       Boolean @default(false)
+  canReadInventory    Boolean @default(false)
+  canManageInventory  Boolean @default(false)
+  canReadUsers        Boolean @default(false)
+  canManageUsers      Boolean @default(false)
   canSeeOtherPeople   Boolean @default(false)
   canEditOtherPeople  Boolean @default(false)
   canManagePeople     Boolean @default(false)
+  canReadRoles        Boolean @default(false)
   canManageRoles      Boolean @default(false)
+  canReadKitchen      Boolean @default(false)
+  canManageKitchen    Boolean @default(false)
+  canReadTables       Boolean @default(false)
+  canManageTables     Boolean @default(false)
+  canReadStaff        Boolean @default(false)
+  canManageStaff      Boolean @default(false)
+  canManageSettings   Boolean @default(false)
   canManageOnboarding Boolean @default(true)
-  canAccessDashboard  Boolean @default(false)
+  canReadVendors      Boolean @default(false)
+  canManageVendors    Boolean @default(false)
+  canReadGiftCards    Boolean @default(false)
+  canManageGiftCards  Boolean @default(false)
+  canReadDiscounts    Boolean @default(false)
+  canManageDiscounts  Boolean @default(false)
   assignedTo          User[]  @relation("User_role")
 }
 
@@ -221,6 +245,7 @@ model RestaurantOrder {
   createdAt                      DateTime              @default(now())
   updatedAt                      DateTime              @default(now()) @updatedAt
   from_KitchenMessage_order      KitchenMessage[]      @relation("KitchenMessage_order")
+  from_Cart_order                Cart[]                @relation("Cart_order")
   from_GiftCardTransaction_order GiftCardTransaction[] @relation("GiftCardTransaction_order")
   from_KitchenTicket_order       KitchenTicket[]       @relation("KitchenTicket_order")
   from_StockMovement_order       StockMovement[]       @relation("StockMovement_order")
@@ -347,32 +372,30 @@ model Reservation {
 }
 
 model Payment {
-  id                    String           @id @default(cuid())
-  amount                Int
-  currencyCode          String           @default("USD")
-  status                String           @default("pending")
-  paymentMethod         String?          @default("credit_card")
-  paymentProvider       PaymentProvider? @relation("Payment_paymentProvider", fields: [paymentProviderId], references: [id])
-  paymentProviderId     String?          @map("paymentProvider")
-  providerPaymentId     String           @default("")
-  stripePaymentIntentId String           @unique @default("")
-  stripeChargeId        String           @default("")
-  stripeRefundId        String           @default("")
-  cardLast4             String           @default("")
-  cardBrand             String           @default("")
-  tipAmount             Int?             @default(0)
-  isSplitPayment        Boolean          @default(false)
-  splitPaymentIndex     Int?
-  splitTotal            Int?
-  processedAt           DateTime?
-  errorMessage          String           @default("")
-  notes                 String           @default("")
-  order                 RestaurantOrder? @relation("Payment_order", fields: [orderId], references: [id])
-  orderId               String?          @map("order")
-  processedBy           User?            @relation("Payment_processedBy", fields: [processedById], references: [id])
-  processedById         String?          @map("processedBy")
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @default(now()) @updatedAt
+  id                String           @id @default(cuid())
+  amount            Int
+  data              Json?
+  currencyCode      String           @default("USD")
+  status            String           @default("pending")
+  paymentMethod     String?          @default("credit_card")
+  paymentProvider   PaymentProvider? @relation("Payment_paymentProvider", fields: [paymentProviderId], references: [id])
+  paymentProviderId String?          @map("paymentProvider")
+  providerPaymentId String           @default("")
+  cardLast4         String           @default("")
+  cardBrand         String           @default("")
+  tipAmount         Int?             @default(0)
+  isSplitPayment    Boolean          @default(false)
+  splitPaymentIndex Int?
+  splitTotal        Int?
+  processedAt       DateTime?
+  errorMessage      String           @default("")
+  notes             String           @default("")
+  order             RestaurantOrder? @relation("Payment_order", fields: [orderId], references: [id])
+  orderId           String?          @map("order")
+  processedBy       User?            @relation("Payment_processedBy", fields: [processedById], references: [id])
+  processedById     String?          @map("processedBy")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @default(now()) @updatedAt
 
   @@index([paymentProviderId])
   @@index([orderId])
@@ -380,15 +403,29 @@ model Payment {
 }
 
 model Cart {
-  id        String     @id @default(cuid())
-  user      User?      @relation("Cart_user", fields: [userId], references: [id])
-  userId    String?    @map("user")
-  items     CartItem[] @relation("CartItem_cart")
-  orderType String?    @default("pickup")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @default(now()) @updatedAt
+  id                String           @id @default(cuid())
+  user              User?            @relation("Cart_user", fields: [userId], references: [id])
+  userId            String?          @map("user")
+  items             CartItem[]       @relation("CartItem_cart")
+  orderType         String?          @default("pickup")
+  email             String           @default("")
+  customerName      String           @default("")
+  customerPhone     String           @default("")
+  deliveryAddress   String           @default("")
+  deliveryCity      String           @default("")
+  deliveryZip       String           @default("")
+  paymentData       Json?
+  paymentProvider   PaymentProvider? @relation("Cart_paymentProvider", fields: [paymentProviderId], references: [id])
+  paymentProviderId String?          @map("paymentProvider")
+  tipPercent        String?          @default("18")
+  order             RestaurantOrder? @relation("Cart_order", fields: [orderId], references: [id])
+  orderId           String?          @map("order")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @default(now()) @updatedAt
 
   @@index([userId])
+  @@index([paymentProviderId])
+  @@index([orderId])
 }
 
 model CartItem {
@@ -421,6 +458,7 @@ model PaymentProvider {
   createdAt                    DateTime  @default(now())
   updatedAt                    DateTime  @default(now()) @updatedAt
   from_Payment_paymentProvider Payment[] @relation("Payment_paymentProvider")
+  from_Cart_paymentProvider    Cart[]    @relation("Cart_paymentProvider")
 }
 
 model ApiKey {
@@ -626,6 +664,7 @@ model StoreSettings {
   timezone          String   @default("America/New_York")
   countryCode       String   @default("US")
   hours             Json?    @default("{\"monday\":\"11:00 AM - 10:00 PM\",\"tuesday\":\"11:00 AM - 10:00 PM\",\"wednesday\":\"11:00 AM - 10:00 PM\",\"thursday\":\"11:00 AM - 10:00 PM\",\"friday\":\"11:00 AM - 11:00 PM\",\"saturday\":\"10:00 AM - 11:00 PM\",\"sunday\":\"10:00 AM - 9:00 PM\"}")
+  taxRate           Decimal? @default("8.75") @postgresql.Decimal(5, 2)
   deliveryFee       Decimal? @default("4.99") @postgresql.Decimal(10, 2)
   deliveryMinimum   Decimal? @default("15.00") @postgresql.Decimal(10, 2)
   pickupDiscount    Int?     @default(10)

@@ -51,12 +51,14 @@ export function useCartData() {
 
   const subtotal = query.data?.subtotal || 0
   const itemCount = items.reduce((count, item) => count + item.quantity, 0)
+  const cartId = getCartId() || null
 
   return {
     ...query,
     items,
     subtotal,
     itemCount,
+    cartId,
   }
 }
 

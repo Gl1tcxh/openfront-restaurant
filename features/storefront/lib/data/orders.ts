@@ -62,12 +62,35 @@ export const listCustomerOrders = cache(async function (
   offset: number = 0
 ) {
   try {
+    const headers = await getAuthHeaders();
+
+    // Get the current user to filter orders by customer
+    const { authenticatedItem } = await openfrontClient.request(
+      gql`
+        query GetCurrentUser {
+          authenticatedItem {
+            ... on User {
+              id
+            }
+          }
+        }
+      `,
+      {},
+      headers
+    );
+
+    const userId = authenticatedItem?.id;
+    if (!userId) {
+      return [];
+    }
+
     const query = gql`
-      query GetCustomerOrders($take: Int, $skip: Int) {
+      query GetCustomerOrders($take: Int, $skip: Int, $userId: ID!) {
         restaurantOrders(
           take: $take
           skip: $skip
           orderBy: [{ createdAt: desc }]
+          where: { customer: { id: { equals: $userId } } }
         ) {
           id
           orderNumber
@@ -79,10 +102,9 @@ export const listCustomerOrders = cache(async function (
       }
     `;
 
-    const headers = await getAuthHeaders();
     const { restaurantOrders } = await openfrontClient.request<{
       restaurantOrders: any[];
-    }>(query, { take: limit, skip: offset }, headers);
+    }>(query, { take: limit, skip: offset, userId }, headers);
 
     return restaurantOrders;
   } catch (error) {

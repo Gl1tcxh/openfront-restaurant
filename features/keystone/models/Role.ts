@@ -23,14 +23,71 @@ export const Role = list({
   },
   fields: {
     name: text({ validation: { isRequired: true } }),
-    canCreateTodos: checkbox({ defaultValue: false }),
-    canManageAllTodos: checkbox({ defaultValue: false }),
+
+    // Dashboard
+    canAccessDashboard: checkbox({ defaultValue: false }),
+
+    // Orders
+    canReadOrders: checkbox({ defaultValue: false }),
+    canManageOrders: checkbox({ defaultValue: false }),
+
+    // Payments
+    canReadPayments: checkbox({ defaultValue: false }),
+    canManagePayments: checkbox({ defaultValue: false }),
+
+    // Products / Menu
+    canReadProducts: checkbox({ defaultValue: false }),
+    canManageProducts: checkbox({ defaultValue: false }),
+
+    // Cart
+    canReadCart: checkbox({ defaultValue: false }),
+    canManageCart: checkbox({ defaultValue: false }),
+
+    // Inventory
+    canReadInventory: checkbox({ defaultValue: false }),
+    canManageInventory: checkbox({ defaultValue: false }),
+
+    // Users
+    canReadUsers: checkbox({ defaultValue: false }),
+    canManageUsers: checkbox({ defaultValue: false }),
     canSeeOtherPeople: checkbox({ defaultValue: false }),
     canEditOtherPeople: checkbox({ defaultValue: false }),
     canManagePeople: checkbox({ defaultValue: false }),
+
+    // Roles
+    canReadRoles: checkbox({ defaultValue: false }),
     canManageRoles: checkbox({ defaultValue: false }),
+
+    // Kitchen
+    canReadKitchen: checkbox({ defaultValue: false }),
+    canManageKitchen: checkbox({ defaultValue: false }),
+
+    // Tables / Seating / Reservations
+    canReadTables: checkbox({ defaultValue: false }),
+    canManageTables: checkbox({ defaultValue: false }),
+
+    // Staff / Scheduling
+    canReadStaff: checkbox({ defaultValue: false }),
+    canManageStaff: checkbox({ defaultValue: false }),
+
+    // Settings
+    canManageSettings: checkbox({ defaultValue: false }),
+
+    // Onboarding
     canManageOnboarding: checkbox({ defaultValue: true }),
-    canAccessDashboard: checkbox({ defaultValue: false }),
+
+    // Vendors
+    canReadVendors: checkbox({ defaultValue: false }),
+    canManageVendors: checkbox({ defaultValue: false }),
+
+    // Gift Cards
+    canReadGiftCards: checkbox({ defaultValue: false }),
+    canManageGiftCards: checkbox({ defaultValue: false }),
+
+    // Discounts
+    canReadDiscounts: checkbox({ defaultValue: false }),
+    canManageDiscounts: checkbox({ defaultValue: false }),
+
     assignedTo: relationship({
       ref: 'User.role',
       many: true,

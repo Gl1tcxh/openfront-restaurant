@@ -49,6 +49,7 @@ export default async function HomePage() {
     deliveryFee: parseFloat(storeSettings.deliveryFee) || 0,
     deliveryMinimum: parseFloat(storeSettings.deliveryMinimum) || 0,
     pickupDiscount: storeSettings.pickupDiscount ?? 0,
+    taxRate: parseFloat(storeSettings.taxRate || "8.75") || 8.75,
     estimatedDelivery: storeSettings.estimatedDelivery || '',
     estimatedPickup: storeSettings.estimatedPickup || '',
     heroHeadline: storeSettings.heroHeadline,

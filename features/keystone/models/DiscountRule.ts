@@ -1,16 +1,16 @@
 import { list } from "@keystone-6/core";
 import { integer, json, select, text, relationship } from "@keystone-6/core/fields";
 
-import { isSignedIn } from "../access";
+import { isSignedIn, permissions } from "../access";
 import { trackingFields } from "./trackingFields";
 
 export const DiscountRule = list({
   access: {
     operation: {
-      query: () => true,
-      create: isSignedIn,
-      update: isSignedIn,
-      delete: isSignedIn,
+      query: permissions.canReadDiscounts,
+      create: permissions.canManageDiscounts,
+      update: permissions.canManageDiscounts,
+      delete: permissions.canManageDiscounts,
     },
   },
   ui: {
