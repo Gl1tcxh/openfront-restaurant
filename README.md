@@ -8,8 +8,6 @@ Openfront Restaurant is a specialized version of the Openfront platform designed
 
 ## Demo
 
-<a href="#"><img src="https://github.com/user-attachments/assets/c0cf0110-a79e-4b1c-8ba7-2a9ca09947cf" alt="Openfront Restaurant Demo" width="600"></a>
-
 | | |
 |---|---|
 | **Storefront** | [craft-burgers.openship.org](https://craft-burgers.openship.org) |
