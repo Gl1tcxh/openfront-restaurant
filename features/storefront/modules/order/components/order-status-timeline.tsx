@@ -1,7 +1,5 @@
 "use client";
 
-import { CheckCircle, Clock, ChefHat, Bell, Package, Truck } from "lucide-react";
-
 export type OrderStatus =
   | "open"
   | "sent_to_kitchen"
@@ -16,33 +14,32 @@ export type OrderType = "dine_in" | "takeout" | "delivery";
 interface StatusStep {
   status: OrderStatus;
   label: string;
-  icon: React.ReactNode;
 }
 
 const PICKUP_STEPS: StatusStep[] = [
-  { status: "open", label: "Order Received", icon: <CheckCircle className="h-5 w-5" /> },
-  { status: "sent_to_kitchen", label: "Sent to Kitchen", icon: <Clock className="h-5 w-5" /> },
-  { status: "in_progress", label: "Preparing", icon: <ChefHat className="h-5 w-5" /> },
-  { status: "ready", label: "Ready for Pickup", icon: <Bell className="h-5 w-5" /> },
-  { status: "completed", label: "Picked Up", icon: <Package className="h-5 w-5" /> },
+  { status: "open", label: "Received" },
+  { status: "sent_to_kitchen", label: "Kitchen" },
+  { status: "in_progress", label: "Preparing" },
+  { status: "ready", label: "Ready" },
+  { status: "completed", label: "Picked Up" },
 ];
 
 const DELIVERY_STEPS: StatusStep[] = [
-  { status: "open", label: "Order Received", icon: <CheckCircle className="h-5 w-5" /> },
-  { status: "sent_to_kitchen", label: "Sent to Kitchen", icon: <Clock className="h-5 w-5" /> },
-  { status: "in_progress", label: "Preparing", icon: <ChefHat className="h-5 w-5" /> },
-  { status: "ready", label: "Ready", icon: <Bell className="h-5 w-5" /> },
-  { status: "served", label: "Out for Delivery", icon: <Truck className="h-5 w-5" /> },
-  { status: "completed", label: "Delivered", icon: <Package className="h-5 w-5" /> },
+  { status: "open", label: "Received" },
+  { status: "sent_to_kitchen", label: "Kitchen" },
+  { status: "in_progress", label: "Preparing" },
+  { status: "ready", label: "Ready" },
+  { status: "served", label: "On the Way" },
+  { status: "completed", label: "Delivered" },
 ];
 
 const DINE_IN_STEPS: StatusStep[] = [
-  { status: "open", label: "Order Received", icon: <CheckCircle className="h-5 w-5" /> },
-  { status: "sent_to_kitchen", label: "Sent to Kitchen", icon: <Clock className="h-5 w-5" /> },
-  { status: "in_progress", label: "Preparing", icon: <ChefHat className="h-5 w-5" /> },
-  { status: "ready", label: "Ready", icon: <Bell className="h-5 w-5" /> },
-  { status: "served", label: "Served", icon: <Package className="h-5 w-5" /> },
-  { status: "completed", label: "Completed", icon: <CheckCircle className="h-5 w-5" /> },
+  { status: "open", label: "Received" },
+  { status: "sent_to_kitchen", label: "Kitchen" },
+  { status: "in_progress", label: "Preparing" },
+  { status: "ready", label: "Ready" },
+  { status: "served", label: "Served" },
+  { status: "completed", label: "Completed" },
 ];
 
 function getStepsForOrderType(orderType: OrderType): StatusStep[] {
@@ -74,52 +71,55 @@ export function OrderStatusTimeline({ status, orderType }: OrderStatusTimelinePr
 
   if (isCancelled) {
     return (
-      <div className="rounded-xl border border-destructive/20 ring-1 ring-destructive/10 bg-destructive/5 p-4 shadow-sm">
-        <div className="flex items-center gap-2 text-destructive">
-          <CheckCircle className="h-5 w-5" />
-          <span className="font-medium">Order Cancelled</span>
-        </div>
+      <div>
+        <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-4">Status</h3>
+        <div className="text-destructive text-sm font-medium">Order Cancelled</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">Order Status</h3>
-      <div className="relative">
-        <div className="absolute left-[18px] top-0 h-full w-0.5 bg-muted" />
-        <div className="space-y-6">
-          {steps.map((step, index) => {
-            const isCompleted = index <= currentIndex;
-            const isCurrent = index === currentIndex;
+    <div>
+      <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-4">Status</h3>
+      <div className="flex items-center space-x-2">
+        {steps.map((step, index) => {
+          const isCompleted = index <= currentIndex;
+          const isCurrent = index === currentIndex;
 
-            return (
-              <div key={step.status} className="relative flex items-center gap-4">
+          return (
+            <div key={step.status} className="flex-1 truncate">
+              {/* Progress bar segment */}
+              <div className="flex w-full items-center [&>*]:h-1.5">
                 <div
-                  className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full border shadow-sm border-transparent ring-1 ring-foreground/5 ${
-                    isCompleted
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-muted bg-background text-muted-foreground"
-                  } ${isCurrent ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                  className={`relative flex h-1.5 w-full items-center rounded-full ${
+                    isCompleted ? "bg-primary/20" : "bg-muted"
+                  }`}
                 >
-                  {step.icon}
-                </div>
-                <div>
-                  <p
-                    className={`font-medium ${
-                      isCompleted ? "text-foreground" : "text-muted-foreground"
+                  <div
+                    className={`h-full flex-col rounded-full ${
+                      isCompleted ? "bg-primary" : "bg-muted"
                     }`}
-                  >
-                    {step.label}
-                  </p>
-                  {isCurrent && (
-                    <p className="text-sm text-muted-foreground">Current status</p>
-                  )}
+                    style={{ width: isCompleted ? "100%" : "0%" }}
+                  />
                 </div>
               </div>
-            );
-          })}
-        </div>
+              {/* Label below */}
+              <div className="mt-2 truncate">
+                <p
+                  className={`text-xs truncate ${
+                    isCompleted
+                      ? isCurrent
+                        ? "text-foreground font-medium"
+                        : "text-foreground"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {step.label}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

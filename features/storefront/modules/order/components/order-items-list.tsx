@@ -42,7 +42,7 @@ export function OrderItemsList({ items, currencyCode = "USD", locale = "en-US" }
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium">Order Items</h3>
+      <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Order Items</h3>
       <div className="divide-y">
         {items.map((item) => (
           <div key={item.id} className="flex gap-4 py-4 first:pt-0 last:pb-0">

@@ -24,7 +24,7 @@ export function OrderSummary({
   const currencyConfig = { currencyCode, locale };
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium">Order Summary</h3>
+      <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Order Summary</h3>
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Subtotal</span>
@@ -41,13 +41,13 @@ export function OrderSummary({
           </div>
         )}
         {discount > 0 && (
-          <div className="flex justify-between text-sm text-green-600">
+          <div className="flex justify-between text-sm text-emerald-600">
             <span>Discount</span>
             <span>-{formatCurrency(discount, currencyConfig)}</span>
           </div>
         )}
-        <div className="border-t pt-2">
-          <div className="flex justify-between font-medium">
+        <div className="border-t border-border pt-2 mt-2">
+          <div className="flex justify-between text-base font-semibold">
             <span>Total</span>
             <span>{formatCurrency(total, currencyConfig)}</span>
           </div>

@@ -18,13 +18,10 @@ export async function getBaseUrl(): Promise<string> {
       const headersList = await headers();
       
       // Try x-forwarded-host first (common in production deployments)
-      const hostHeader = headersList.get('x-forwarded-host') || headersList.get('host');
-      const forwardedPort = headersList.get('x-forwarded-port');
+      const host = headersList.get('x-forwarded-host') || headersList.get('host');
       const protocol = headersList.get('x-forwarded-proto') || 'https';
-      
-      if (hostHeader) {
-        const hasExplicitPort = hostHeader.includes(':');
-        const host = !hasExplicitPort && forwardedPort ? `${hostHeader}:${forwardedPort}` : hostHeader;
+
+      if (host) {
         return `${protocol}://${host}`;
       }
     } catch (e) {
