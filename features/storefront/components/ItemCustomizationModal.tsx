@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { useAddItemToCart } from "@/features/storefront/lib/hooks/use-cart"
+import { addToCart, createCart } from "@/features/storefront/lib/data/cart"
 import type { MenuItem, SelectedModifier, MenuItemModifier } from "@/features/storefront/lib/store-data"
 import { formatCurrency } from "@/features/storefront/lib/currency"
+import { useRouter } from "next/navigation"
 
 interface ItemCustomizationModalProps {
   item: MenuItem | null
@@ -48,10 +49,11 @@ function getDescriptionText(description: any): string {
 }
 
 export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "USD", locale = "en-US", orderType = "pickup", onAdded }: ItemCustomizationModalProps) {
-  const addItemMutation = useAddItemToCart()
+  const router = useRouter()
   const [quantity, setQuantity] = useState(1)
   const [selectedModifiers, setSelectedModifiers] = useState<SelectedModifier[]>([])
   const [specialInstructions, setSpecialInstructions] = useState("")
+  const [isAdding, setIsAdding] = useState(false)
 
   // Group modifiers by modifierGroup
   const modifierGroups = useMemo(() => {
@@ -155,16 +157,43 @@ export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "
   const modifiersTotal = selectedModifiers.reduce((sum, m) => sum + m.price, 0)
   const itemTotal = (Number(item.price) + modifiersTotal) * quantity
 
+  const getCartId = (): string | undefined => {
+    return document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("_restaurant_cart_id="))
+      ?.split("=")[1]
+  }
+
+  const setCartIdCookie = (id: string) => {
+    document.cookie = `_restaurant_cart_id=${id}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict`
+  }
+
   const handleAddToCart = async () => {
-    await addItemMutation.mutateAsync({
-      menuItem: item,
-      quantity,
-      modifiers: selectedModifiers,
-      specialInstructions: specialInstructions || undefined,
-      orderType,
-    })
-    onAdded?.()
-    onClose()
+    setIsAdding(true)
+    try {
+      let cartId = getCartId() || ""
+
+      if (!cartId) {
+        const newCart = await createCart(orderType)
+        cartId = newCart.id
+        setCartIdCookie(cartId)
+      }
+
+      await addToCart({
+        cartId: cartId,
+        menuItemId: item.id,
+        quantity,
+        modifierIds: selectedModifiers.map((m) => m.modifierId),
+        specialInstructions: specialInstructions || undefined,
+      })
+
+      router.refresh()
+      onAdded?.()
+      onClose()
+    } catch (error) {
+      console.error("Error adding to cart:", error)
+    }
+    setIsAdding(false)
   }
 
   return (
@@ -272,8 +301,9 @@ export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "
             <Button
               className="flex-1 h-12 bg-foreground text-background hover:bg-foreground/90 uppercase tracking-widest text-xs"
               onClick={handleAddToCart}
+              disabled={isAdding}
             >
-              Add to Bag · {formatCurrency(itemTotal, { currencyCode, locale })}
+              {isAdding ? "Adding..." : `Add to Bag · ${formatCurrency(itemTotal, { currencyCode, locale })}`}
             </Button>
           </div>
         </div>

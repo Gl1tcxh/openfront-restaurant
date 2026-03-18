@@ -4,7 +4,7 @@ import { gql } from "graphql-request";
 import { openfrontClient } from "../config";
 import { getAuthHeaders } from "./cookies";
 
-export const CART_QUERY = gql`
+const CART_QUERY = gql`
   query GetCart($cartId: ID) {
     cart: activeCart(cartId: $cartId) {
       id

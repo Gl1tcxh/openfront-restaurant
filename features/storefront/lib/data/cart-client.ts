@@ -1,31 +1,9 @@
 "use client";
 
 import { gql } from "graphql-request";
+import { openfrontClient } from "../config";
 
-// This file is safe to import in Client Components.
-// It talks to the local GraphQL endpoint directly so it does not pull
-// server-only endpoint resolution into the client bundle.
-
-async function requestGraphQL<T = any>(query: string, variables: Record<string, any> = {}): Promise<T> {
-  const response = await fetch("/api/graphql", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-    body: JSON.stringify({ query, variables }),
-  })
-
-  const result = await response.json()
-
-  if (result.errors?.length) {
-    throw new Error(result.errors[0]?.message || "GraphQL request failed")
-  }
-
-  return result.data
-}
-
-export const CART_QUERY = gql`
+const CART_QUERY = gql`
   query GetCart($cartId: ID) {
     cart: activeCart(cartId: $cartId) {
       id
@@ -69,19 +47,21 @@ export async function fetchCart(cartId?: string) {
   try {
     const resolvedCartId = cartId || getCartId();
     if (!resolvedCartId) return null;
-    const data = await requestGraphQL<{ cart: any }>(CART_QUERY, { cartId: resolvedCartId });
 
-    // Cart no longer exists (e.g. DB was reset) — clear stale cookie
-    if (!data.cart) {
+    const { cart } = await openfrontClient.request<{ cart: any }>(
+      CART_QUERY,
+      { cartId: resolvedCartId }
+    );
+
+    if (!cart) {
       if (typeof window !== "undefined") {
         document.cookie = "_restaurant_cart_id=; path=/; max-age=-1";
       }
       return null;
     }
 
-    return data.cart;
+    return cart;
   } catch (error) {
-    // GraphQL error (access denied, malformed ID, etc.) — clear stale cookie
     console.error('Error fetching cart:', error);
     if (typeof window !== "undefined") {
       document.cookie = "_restaurant_cart_id=; path=/; max-age=-1";
@@ -98,12 +78,13 @@ export async function createCart(orderType: string = "pickup") {
       }
     }
   `;
-  
+
   try {
-    const data = await requestGraphQL<{ createCart: any }>(CREATE_CART_MUTATION, {
-      data: { orderType }
-    });
-    return data.createCart;
+    const { createCart } = await openfrontClient.request<{ createCart: any }>(
+      CREATE_CART_MUTATION,
+      { data: { orderType } }
+    );
+    return createCart;
   } catch (error) {
     console.error('Error creating cart:', error);
     throw error;
@@ -121,27 +102,39 @@ export async function addToCart(params: {
     mutation AddToCart($cartId: ID!, $data: CartUpdateInput!) {
       updateActiveCart(cartId: $cartId, data: $data) {
         id
+        items {
+          id
+          quantity
+          menuItem {
+            id
+            name
+            price
+          }
+        }
       }
     }
   `;
 
   try {
-    const data = await requestGraphQL<{ updateActiveCart: any }>(ADD_TO_CART_MUTATION, {
-      cartId: params.cartId,
-      data: {
-        items: {
-          create: [
-            {
-              menuItem: { connect: { id: params.menuItemId } },
-              quantity: params.quantity,
-              modifiers: params.modifierIds ? { connect: params.modifierIds.map((id: string) => ({ id })) } : undefined,
-              specialInstructions: params.specialInstructions,
-            },
-          ],
+    const { updateActiveCart } = await openfrontClient.request<{ updateActiveCart: any }>(
+      ADD_TO_CART_MUTATION,
+      {
+        cartId: params.cartId,
+        data: {
+          items: {
+            create: [
+              {
+                menuItem: { connect: { id: params.menuItemId } },
+                quantity: params.quantity,
+                modifiers: params.modifierIds ? { connect: params.modifierIds.map((id: string) => ({ id })) } : undefined,
+                specialInstructions: params.specialInstructions,
+              },
+            ],
+          },
         },
-      },
-    });
-    return data.updateActiveCart;
+      }
+    );
+    return updateActiveCart;
   } catch (error) {
     console.error('Error adding to cart:', error);
     throw error;
@@ -161,11 +154,14 @@ export async function updateCartItemQuantity(params: {
   `;
 
   try {
-    const data = await requestGraphQL<{ updateCartItemQuantity: any }>(UPDATE_CART_ITEM_MUTATION, {
-      cartItemId: params.cartItemId,
-      quantity: params.quantity,
-    });
-    return data.updateCartItemQuantity;
+    const { updateCartItemQuantity } = await openfrontClient.request<{ updateCartItemQuantity: any }>(
+      UPDATE_CART_ITEM_MUTATION,
+      {
+        cartItemId: params.cartItemId,
+        quantity: params.quantity,
+      }
+    );
+    return updateCartItemQuantity;
   } catch (error) {
     console.error('Error updating cart item quantity:', error);
     throw error;
@@ -182,10 +178,11 @@ export async function removeCartItem(cartItemId: string) {
   `;
 
   try {
-    const data = await requestGraphQL<{ removeCartItem: any }>(REMOVE_CART_ITEM_MUTATION, {
-      cartItemId,
-    });
-    return data.removeCartItem;
+    const { removeCartItem } = await openfrontClient.request<{ removeCartItem: any }>(
+      REMOVE_CART_ITEM_MUTATION,
+      { cartItemId }
+    );
+    return removeCartItem;
   } catch (error) {
     console.error('Error removing cart item:', error);
     throw error;

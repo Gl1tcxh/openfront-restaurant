@@ -2,10 +2,16 @@
 
 import { useCallback, useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { fetchCart, createCart, addToCart, removeCartItem, updateCartItemQuantity } from "../data/cart-client"
+import { fetchCart } from "../data"
+import {
+  createCart,
+  addToCart,
+  removeCartItem,
+  updateCartItemQuantity
+} from "../data/cart-client"
+import { queryKeys } from "../query-keys"
 import type { CartItem, MenuItem, SelectedModifier } from "../store-data"
 
-const CART_QUERY_KEY = ["cart"] as const
 const CART_ID_COOKIE = "_restaurant_cart_id"
 
 const getCartId = () => {
@@ -28,9 +34,11 @@ const removeCartIdCookie = () => {
 
 export function useCartData() {
   const query = useQuery({
-    queryKey: CART_QUERY_KEY,
+    queryKey: queryKeys.cart.active(),
     queryFn: () => fetchCart(),
     staleTime: 5000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   })
 
   const items: CartItem[] = useMemo(
@@ -91,7 +99,7 @@ export function useAddItemToCart() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.cart.active() })
     },
   })
 }
@@ -102,7 +110,7 @@ export function useRemoveCartItem() {
   return useMutation({
     mutationFn: async (cartItemId: string) => removeCartItem(cartItemId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.cart.active() })
     },
   })
 }
@@ -113,7 +121,7 @@ export function useUpdateCartItemQuantity() {
   return useMutation({
     mutationFn: async (params: { cartItemId: string; quantity: number }) => updateCartItemQuantity(params),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CART_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.cart.active() })
     },
   })
 }
@@ -123,6 +131,6 @@ export function useClearCart() {
 
   return useCallback(() => {
     removeCartIdCookie()
-    queryClient.removeQueries({ queryKey: CART_QUERY_KEY })
+    queryClient.removeQueries({ queryKey: queryKeys.cart.active() })
   }, [queryClient])
 }

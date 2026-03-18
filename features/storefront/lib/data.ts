@@ -1,5 +1,3 @@
-"use server";
-
 import { gql } from "graphql-request";
 import { openfrontClient } from "./config";
 import { getCartId, getAuthHeaders } from "./data/cookies";

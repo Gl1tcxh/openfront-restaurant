@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { StoreHeader } from "@/features/storefront/components/StoreHeader"
 import { CategoryNav } from "@/features/storefront/components/CategoryNav"
 import { HeroBanner } from "@/features/storefront/components/HeroBanner"
 import { StoreInfoBar } from "@/features/storefront/components/StoreInfoBar"
