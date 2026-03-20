@@ -5,9 +5,7 @@ const getStripeClient = () => {
   if (!stripeKey) {
     throw new Error("Stripe secret key not configured");
   }
-  return new Stripe(stripeKey, {
-    apiVersion: "2023-10-16",
-  });
+  return new Stripe(stripeKey);
 };
 
 export async function createPaymentFunction({ order, amount, currency }: { order: any; amount: number; currency: string }) {

@@ -130,9 +130,7 @@ var init_stripe = __esm({
       if (!stripeKey) {
         throw new Error("Stripe secret key not configured");
       }
-      return new import_stripe2.default(stripeKey, {
-        apiVersion: "2023-10-16"
-      });
+      return new import_stripe2.default(stripeKey);
     };
   }
 });
