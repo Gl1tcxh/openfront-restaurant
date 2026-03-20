@@ -4038,10 +4038,7 @@ var getStripeClient = () => {
   if (!stripeKey) {
     throw new Error("Stripe secret key not configured. Set STRIPE_SECRET_KEY environment variable.");
   }
-  return new import_stripe.default(stripeKey, {
-    apiVersion: "2023-10-16",
-    typescript: true
-  });
+  return new import_stripe.default(stripeKey);
 };
 var stripeClient = null;
 var stripe = new Proxy({}, {
