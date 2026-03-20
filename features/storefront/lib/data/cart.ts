@@ -54,6 +54,84 @@ export async function createCart(orderType: string = "pickup") {
   return createCart;
 }
 
+export async function setCheckoutContact(data: {
+  email: string;
+  customerName: string;
+  customerPhone: string;
+  orderType: string;
+  userId?: string | null;
+}) {
+  const cartId = await getCartId();
+  if (!cartId) return { success: false, message: "No cartId cookie found" };
+
+  try {
+    await openfrontClient.request(
+      gql`
+        mutation UpdateActiveCart($cartId: ID!, $data: CartUpdateInput!) {
+          updateActiveCart(cartId: $cartId, data: $data) {
+            id
+          }
+        }
+      `,
+      {
+        cartId,
+        data: {
+          email: data.email,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          orderType: data.orderType,
+          user: data.userId ? { connect: { id: data.userId } } : undefined,
+        },
+      },
+      await getAuthHeaders()
+    );
+
+    revalidateTag("cart");
+    return { success: true };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Could not update checkout contact";
+    return { success: false, message };
+  }
+}
+
+export async function setCheckoutDelivery(data: {
+  deliveryAddress?: string;
+  deliveryCity?: string;
+  deliveryZip?: string;
+}) {
+  const cartId = await getCartId();
+  if (!cartId) return { success: false, message: "No cartId cookie found" };
+
+  try {
+    await openfrontClient.request(
+      gql`
+        mutation UpdateActiveCart($cartId: ID!, $data: CartUpdateInput!) {
+          updateActiveCart(cartId: $cartId, data: $data) {
+            id
+          }
+        }
+      `,
+      {
+        cartId,
+        data: {
+          deliveryAddress: data.deliveryAddress,
+          deliveryCity: data.deliveryCity,
+          deliveryZip: data.deliveryZip,
+        },
+      },
+      await getAuthHeaders()
+    );
+
+    revalidateTag("cart");
+    return { success: true };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Could not update checkout delivery";
+    return { success: false, message };
+  }
+}
+
 export async function addToCart(params: {
   cartId: string;
   menuItemId: string;
@@ -173,7 +251,7 @@ export async function placeOrder(paymentSessionId?: string) {
 
   if (completeActiveCart?.id) {
     await removeCartId();
-    revalidateTag("cart", "max");
+    revalidateTag("cart");
 
     const secretKeyParam = completeActiveCart.secretKey
       ? `?secretKey=${completeActiveCart.secretKey}`

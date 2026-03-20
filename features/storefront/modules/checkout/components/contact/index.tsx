@@ -9,29 +9,10 @@ import Divider from "@/features/storefront/modules/common/components/divider"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
 import { createGuestUser } from "@/features/storefront/lib/data/user"
+import { setCheckoutContact } from "@/features/storefront/lib/data/cart"
 import { Loader2 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-
-const UPDATE_CART = `
-  mutation UpdateCart($cartId: ID!, $data: CartUpdateInput!) {
-    updateActiveCart(cartId: $cartId, data: $data) { id }
-  }
-`
-
-async function graphqlRequest(query: string, variables: any) {
-  const response = await fetch("/api/graphql", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ query, variables }),
-  })
-  const result = await response.json()
-  if (result.errors?.length) {
-    throw new Error(result.errors[0]?.message || "GraphQL error")
-  }
-  return result.data
-}
 
 const Contact = ({
   cart,
@@ -87,16 +68,19 @@ const Contact = ({
       }
 
       // Save to cart
-      await graphqlRequest(UPDATE_CART, {
-        cartId: cart.id,
-        data: {
-          email: customerInfo.email,
-          customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
-          customerPhone: customerInfo.phone,
-          orderType,
-          user: customerId ? { connect: { id: customerId } } : undefined,
-        },
+      const result = await setCheckoutContact({
+        email: customerInfo.email,
+        customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
+        customerPhone: customerInfo.phone,
+        orderType,
+        userId: customerId,
       })
+
+      if (!result.success) {
+        setError(result.message || "Could not proceed. Please try again.")
+        setIsLoading(false)
+        return
+      }
 
       router.push(pathname + "?step=delivery")
     } catch (err: any) {

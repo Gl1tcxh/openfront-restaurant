@@ -4,7 +4,6 @@ import CheckoutForm from "@/features/storefront/modules/checkout/components/chec
 import CheckoutSummary from "@/features/storefront/modules/checkout/components/checkout-summary";
 import { retrieveCart } from "@/features/storefront/lib/data/cart";
 import { getUser } from "@/features/storefront/lib/data/user";
-import { getStorefrontPaymentConfig } from "@/features/storefront/lib/data/menu";
 import React from "react"
 import Link from "next/link"
 
@@ -21,15 +20,12 @@ const fetchCartData = async () => {
 };
 
 export async function CheckoutPage() {
-  const [cart, customer, paymentConfig] = await Promise.all([
-    fetchCartData(),
-    getUser(),
-    getStorefrontPaymentConfig(),
-  ]);
+  const cart = await fetchCartData();
+  const customer = await getUser();
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[1fr_416px] max-w-[1440px] w-full mx-auto px-6 gap-y-8 sm:gap-x-12 xl:gap-x-40 py-12">
-      <Wrapper cart={cart} paymentConfig={paymentConfig}>
+      <Wrapper cart={cart}>
         <CheckoutForm cart={cart} customer={customer} />
       </Wrapper>
       <CheckoutSummary cart={cart} />

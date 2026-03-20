@@ -6,7 +6,7 @@ import { createContext } from "react"
 export const StripeContext = createContext(false)
 
 interface StripeWrapperProps {
-  paymentSession?: {
+  paymentSession: {
     data?: {
       clientSecret?: string;
     };
@@ -22,15 +22,13 @@ const StripeWrapper = ({
   stripePromise,
   children,
 }: StripeWrapperProps) => {
-  const options = paymentSession?.data?.clientSecret
-    ? {
-        clientSecret: paymentSession.data.clientSecret,
-      }
-    : undefined
+  const options = {
+    clientSecret: paymentSession?.data?.clientSecret,
+  }
 
   if (!stripeKey) {
     throw new Error(
-      "Stripe key is missing. Make sure storefront payment config includes a Stripe publishable key."
+      "Stripe key is missing. Set NEXT_PUBLIC_STRIPE_KEY environment variable."
     )
   }
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { loadStripe } from "@stripe/stripe-js"
-import React, { useMemo } from "react"
+import React from "react"
 import StripeWrapper from "./stripe-wrapper"
 import { PayPalScriptProvider } from "@paypal/react-paypal-js"
 import { isStripe, isPaypal } from "@/features/storefront/lib/constants"
@@ -21,51 +21,41 @@ interface PaymentWrapperProps {
     };
     currencyCode?: string;
   };
-  paymentConfig: {
-    hasStripe: boolean;
-    hasPayPal: boolean;
-    hasCash: boolean;
-    stripePublishableKey: string | null;
-    paypalClientId: string | null;
-  };
   children: React.ReactNode
 }
 
-const PaymentWrapper: React.FC<PaymentWrapperProps> = ({
-  cart,
-  paymentConfig,
-  children,
-}) => {
+const stripeKey = process.env.NEXT_PUBLIC_STRIPE_KEY
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null
+
+const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
+
+const PaymentWrapper: React.FC<PaymentWrapperProps> = ({ cart, children }) => {
   const paymentSession = cart.paymentCollection?.paymentSessions?.find(
     (s) => s.isSelected
   )
-  const stripeKey = paymentConfig.stripePublishableKey
-  const stripePromise = useMemo(
-    () => (stripeKey ? loadStripe(stripeKey) : null),
-    [stripeKey]
-  )
-  const paypalClientId = paymentConfig.paypalClientId
 
-  let content = children
-
-  if (paymentConfig.hasStripe && stripePromise) {
-    content = (
+  if (
+    isStripe(paymentSession?.paymentProvider?.code) &&
+    paymentSession &&
+    stripePromise
+  ) {
+    return (
       <StripeWrapper
         paymentSession={paymentSession}
         stripeKey={stripeKey}
         stripePromise={stripePromise}
       >
-        {content}
+        {children}
       </StripeWrapper>
     )
   }
 
   if (
     isPaypal(paymentSession?.paymentProvider?.code) &&
-    paypalClientId &&
+    paypalClientId !== undefined &&
     cart
   ) {
-    content = (
+    return (
       <PayPalScriptProvider
         options={{
           clientId: paypalClientId,
@@ -74,12 +64,12 @@ const PaymentWrapper: React.FC<PaymentWrapperProps> = ({
           components: "buttons",
         }}
       >
-        {content}
+        {children}
       </PayPalScriptProvider>
     )
   }
 
-  return <div>{content}</div>
+  return <div>{children}</div>
 }
 
 export default PaymentWrapper

@@ -45,6 +45,6 @@ export const initiatePaymentSession = async (cartId: string, paymentProviderId: 
     }
   );
 
-  revalidateTag("cart", "max");
+  revalidateTag("cart");
   return session;
 };

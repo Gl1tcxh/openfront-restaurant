@@ -10,26 +10,7 @@ import { useState } from "react"
 import { Loader2 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-
-const UPDATE_CART = `
-  mutation UpdateCart($cartId: ID!, $data: CartUpdateInput!) {
-    updateActiveCart(cartId: $cartId, data: $data) { id }
-  }
-`
-
-async function graphqlRequest(query: string, variables: any) {
-  const response = await fetch("/api/graphql", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ query, variables }),
-  })
-  const result = await response.json()
-  if (result.errors?.length) {
-    throw new Error(result.errors[0]?.message || "GraphQL error")
-  }
-  return result.data
-}
+import { setCheckoutDelivery } from "@/features/storefront/lib/data/cart"
 
 const Delivery = ({
   cart,
@@ -67,14 +48,15 @@ const Delivery = ({
     setIsLoading(true)
 
     try {
-      await graphqlRequest(UPDATE_CART, {
-        cartId: cart.id,
-        data: {
-          deliveryAddress: addressInfo.address,
-          deliveryCity: addressInfo.city,
-          deliveryZip: addressInfo.zip,
-        },
+      const result = await setCheckoutDelivery({
+        deliveryAddress: addressInfo.address,
+        deliveryCity: addressInfo.city,
+        deliveryZip: addressInfo.zip,
       })
+
+      if (!result.success) {
+        throw new Error(result.message || "Could not update delivery details")
+      }
 
       router.push(pathname + "?step=payment")
     } catch (err: any) {
