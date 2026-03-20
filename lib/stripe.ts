@@ -5,10 +5,7 @@ const getStripeClient = () => {
   if (!stripeKey) {
     throw new Error('Stripe secret key not configured. Set STRIPE_SECRET_KEY environment variable.');
   }
-  return new Stripe(stripeKey, {
-    apiVersion: '2023-10-16',
-    typescript: true,
-  });
+  return new Stripe(stripeKey);
 };
 
 // Lazy initialization - only create client when actually needed
