@@ -250,21 +250,18 @@ export const getStorefrontPaymentConfig = cache(async function (): Promise<Store
     const hasStripe = providers.some(
       (provider: any) =>
         provider?.createPaymentFunction === 'stripe' ||
-        provider?.code === 'pp_stripe' ||
         provider?.code?.startsWith('pp_stripe_')
     )
 
     const hasPayPal = providers.some(
       (provider: any) =>
         provider?.createPaymentFunction === 'paypal' ||
-        provider?.code === 'pp_paypal' ||
         provider?.code?.startsWith('pp_paypal')
     )
 
     const hasCash = providers.some(
       (provider: any) =>
         provider?.createPaymentFunction === 'manual' ||
-        provider?.code === 'pp_manual' ||
         provider?.code === 'pp_system_default'
     )
 

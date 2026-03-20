@@ -372,59 +372,94 @@ model Reservation {
 }
 
 model Payment {
-  id                String           @id @default(cuid())
-  amount            Int
-  data              Json?
-  currencyCode      String           @default("USD")
-  status            String           @default("pending")
-  paymentMethod     String?          @default("credit_card")
-  paymentProvider   PaymentProvider? @relation("Payment_paymentProvider", fields: [paymentProviderId], references: [id])
-  paymentProviderId String?          @map("paymentProvider")
-  providerPaymentId String           @default("")
-  cardLast4         String           @default("")
-  cardBrand         String           @default("")
-  tipAmount         Int?             @default(0)
-  isSplitPayment    Boolean          @default(false)
-  splitPaymentIndex Int?
-  splitTotal        Int?
-  processedAt       DateTime?
-  errorMessage      String           @default("")
-  notes             String           @default("")
-  order             RestaurantOrder? @relation("Payment_order", fields: [orderId], references: [id])
-  orderId           String?          @map("order")
-  processedBy       User?            @relation("Payment_processedBy", fields: [processedById], references: [id])
-  processedById     String?          @map("processedBy")
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @default(now()) @updatedAt
+  id                  String             @id @default(cuid())
+  amount              Int
+  data                Json?
+  currencyCode        String             @default("USD")
+  status              String             @default("pending")
+  paymentMethod       String?            @default("credit_card")
+  paymentProvider     PaymentProvider?   @relation("Payment_paymentProvider", fields: [paymentProviderId], references: [id])
+  paymentProviderId   String?            @map("paymentProvider")
+  providerPaymentId   String             @default("")
+  cardLast4           String             @default("")
+  cardBrand           String             @default("")
+  tipAmount           Int?               @default(0)
+  isSplitPayment      Boolean            @default(false)
+  splitPaymentIndex   Int?
+  splitTotal          Int?
+  processedAt         DateTime?
+  errorMessage        String             @default("")
+  notes               String             @default("")
+  order               RestaurantOrder?   @relation("Payment_order", fields: [orderId], references: [id])
+  orderId             String?            @map("order")
+  paymentCollection   PaymentCollection? @relation("Payment_paymentCollection", fields: [paymentCollectionId], references: [id])
+  paymentCollectionId String?            @map("paymentCollection")
+  processedBy         User?              @relation("Payment_processedBy", fields: [processedById], references: [id])
+  processedById       String?            @map("processedBy")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @default(now()) @updatedAt
 
   @@index([paymentProviderId])
   @@index([orderId])
+  @@index([paymentCollectionId])
   @@index([processedById])
 }
 
+model PaymentCollection {
+  id               String                            @id @default(cuid())
+  description      PaymentCollectionDescriptionType? @default(default)
+  amount           Int
+  authorizedAmount Int?                              @default(0)
+  refundedAmount   Int?                              @default(0)
+  metadata         Json?
+  paymentSessions  PaymentSession[]                  @relation("PaymentSession_paymentCollection")
+  payments         Payment[]                         @relation("Payment_paymentCollection")
+  cart             Cart?                             @relation("Cart_paymentCollection")
+  createdAt        DateTime                          @default(now())
+  updatedAt        DateTime                          @default(now()) @updatedAt
+}
+
+model PaymentSession {
+  id                  String             @id @default(cuid())
+  isSelected          Boolean            @default(false)
+  isInitiated         Boolean            @default(false)
+  amount              Int
+  data                Json?              @default("{}")
+  idempotencyKey      String             @default("")
+  paymentCollection   PaymentCollection? @relation("PaymentSession_paymentCollection", fields: [paymentCollectionId], references: [id])
+  paymentCollectionId String?            @map("paymentCollection")
+  paymentProvider     PaymentProvider?   @relation("PaymentSession_paymentProvider", fields: [paymentProviderId], references: [id])
+  paymentProviderId   String?            @map("paymentProvider")
+  paymentAuthorizedAt DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @default(now()) @updatedAt
+
+  @@index([idempotencyKey])
+  @@index([paymentCollectionId])
+  @@index([paymentProviderId])
+}
+
 model Cart {
-  id                String           @id @default(cuid())
-  user              User?            @relation("Cart_user", fields: [userId], references: [id])
-  userId            String?          @map("user")
-  items             CartItem[]       @relation("CartItem_cart")
-  orderType         String?          @default("pickup")
-  email             String           @default("")
-  customerName      String           @default("")
-  customerPhone     String           @default("")
-  deliveryAddress   String           @default("")
-  deliveryCity      String           @default("")
-  deliveryZip       String           @default("")
-  paymentData       Json?
-  paymentProvider   PaymentProvider? @relation("Cart_paymentProvider", fields: [paymentProviderId], references: [id])
-  paymentProviderId String?          @map("paymentProvider")
-  tipPercent        String?          @default("18")
-  order             RestaurantOrder? @relation("Cart_order", fields: [orderId], references: [id])
-  orderId           String?          @map("order")
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @default(now()) @updatedAt
+  id                  String             @id @default(cuid())
+  user                User?              @relation("Cart_user", fields: [userId], references: [id])
+  userId              String?            @map("user")
+  items               CartItem[]         @relation("CartItem_cart")
+  orderType           String?            @default("pickup")
+  email               String             @default("")
+  customerName        String             @default("")
+  customerPhone       String             @default("")
+  deliveryAddress     String             @default("")
+  deliveryCity        String             @default("")
+  deliveryZip         String             @default("")
+  paymentCollection   PaymentCollection? @relation("Cart_paymentCollection", fields: [paymentCollectionId], references: [id])
+  paymentCollectionId String?            @unique @map("paymentCollection")
+  tipPercent          String?            @default("18")
+  order               RestaurantOrder?   @relation("Cart_order", fields: [orderId], references: [id])
+  orderId             String?            @map("order")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @default(now()) @updatedAt
 
   @@index([userId])
-  @@index([paymentProviderId])
   @@index([orderId])
 }
 
@@ -443,22 +478,22 @@ model CartItem {
 }
 
 model PaymentProvider {
-  id                           String    @id @default(cuid())
-  name                         String    @default("")
-  code                         String    @unique @default("")
-  isInstalled                  Boolean   @default(true)
-  credentials                  Json?     @default("{}")
-  metadata                     Json?     @default("{}")
-  createPaymentFunction        String    @default("")
-  capturePaymentFunction       String    @default("")
-  refundPaymentFunction        String    @default("")
-  getPaymentStatusFunction     String    @default("")
-  generatePaymentLinkFunction  String    @default("")
-  handleWebhookFunction        String    @default("")
-  createdAt                    DateTime  @default(now())
-  updatedAt                    DateTime  @default(now()) @updatedAt
-  from_Payment_paymentProvider Payment[] @relation("Payment_paymentProvider")
-  from_Cart_paymentProvider    Cart[]    @relation("Cart_paymentProvider")
+  id                           String           @id @default(cuid())
+  name                         String           @default("")
+  code                         String           @unique @default("")
+  isInstalled                  Boolean          @default(true)
+  credentials                  Json?            @default("{}")
+  metadata                     Json?            @default("{}")
+  createPaymentFunction        String           @default("")
+  capturePaymentFunction       String           @default("")
+  refundPaymentFunction        String           @default("")
+  getPaymentStatusFunction     String           @default("")
+  generatePaymentLinkFunction  String           @default("")
+  handleWebhookFunction        String           @default("")
+  sessions                     PaymentSession[] @relation("PaymentSession_paymentProvider")
+  createdAt                    DateTime         @default(now())
+  updatedAt                    DateTime         @default(now()) @updatedAt
+  from_Payment_paymentProvider Payment[]        @relation("Payment_paymentProvider")
 }
 
 model ApiKey {
@@ -787,6 +822,11 @@ model PurchaseOrder {
 
   @@index([vendorId])
   @@index([createdById])
+}
+
+enum PaymentCollectionDescriptionType {
+  default
+  refund
 }
 
 enum ApiKeyStatusType {

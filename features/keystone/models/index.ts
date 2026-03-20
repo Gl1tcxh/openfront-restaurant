@@ -15,6 +15,8 @@ import { KitchenMessage } from './KitchenMessage';
 import { Recipe } from './Recipe';
 import { Reservation } from './Reservation';
 import { Payment } from './Payment';
+import { PaymentCollection } from './PaymentCollection';
+import { PaymentSession } from './PaymentSession';
 import { Cart } from './Cart';
 import { CartItem } from './CartItem';
 import { PaymentProvider } from './PaymentProvider';
@@ -56,6 +58,8 @@ export const models = {
   Recipe,
   Reservation,
   Payment,
+  PaymentCollection,
+  PaymentSession,
   Cart,
   CartItem,
   PaymentProvider,

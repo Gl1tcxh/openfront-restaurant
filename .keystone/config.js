@@ -456,7 +456,7 @@ module.exports = __toCommonJS(keystone_exports);
 
 // features/keystone/index.ts
 var import_auth = require("@keystone-6/auth");
-var import_core40 = require("@keystone-6/core");
+var import_core42 = require("@keystone-6/core");
 var import_config = require("dotenv/config");
 
 // features/keystone/models/User.ts
@@ -2214,6 +2214,13 @@ var Payment = (0, import_core17.list)({
         displayMode: "select"
       }
     }),
+    paymentCollection: (0, import_fields18.relationship)({
+      ref: "PaymentCollection.payments",
+      ui: {
+        displayMode: "select",
+        description: "Payment collection this payment belongs to"
+      }
+    }),
     processedBy: (0, import_fields18.relationship)({
       ref: "User",
       ui: {
@@ -2225,45 +2232,136 @@ var Payment = (0, import_core17.list)({
   }
 });
 
-// features/keystone/models/Cart.ts
+// features/keystone/models/PaymentCollection.ts
 var import_core18 = require("@keystone-6/core");
 var import_fields19 = require("@keystone-6/core/fields");
-var Cart = (0, import_core18.list)({
+var PaymentCollection = (0, import_core18.list)({
   access: {
     operation: {
-      query: () => true,
-      // Public read for storefront
-      create: () => true,
-      // Allow cart creation for guests
-      update: permissions.canManageCart,
-      delete: permissions.canManageCart
+      query: ({ session }) => permissions.canManageOrders({ session }),
+      create: ({ session }) => permissions.canManageOrders({ session }),
+      update: ({ session }) => permissions.canManageOrders({ session }),
+      delete: ({ session }) => permissions.canManageOrders({ session })
     }
   },
   fields: {
-    user: (0, import_fields19.relationship)({ ref: "User.carts" }),
-    items: (0, import_fields19.relationship)({ ref: "CartItem.cart", many: true }),
-    orderType: (0, import_fields19.select)({
+    description: (0, import_fields19.select)({
+      type: "enum",
+      options: [
+        { label: "Default", value: "default" },
+        { label: "Refund", value: "refund" }
+      ],
+      defaultValue: "default"
+    }),
+    amount: (0, import_fields19.integer)({
+      validation: { isRequired: true }
+    }),
+    authorizedAmount: (0, import_fields19.integer)({
+      defaultValue: 0
+    }),
+    refundedAmount: (0, import_fields19.integer)({
+      defaultValue: 0
+    }),
+    metadata: (0, import_fields19.json)(),
+    paymentSessions: (0, import_fields19.relationship)({
+      ref: "PaymentSession.paymentCollection",
+      many: true
+    }),
+    payments: (0, import_fields19.relationship)({
+      ref: "Payment.paymentCollection",
+      many: true
+    }),
+    cart: (0, import_fields19.relationship)({
+      ref: "Cart.paymentCollection"
+    }),
+    ...trackingFields
+  }
+});
+
+// features/keystone/models/PaymentSession.ts
+var import_core19 = require("@keystone-6/core");
+var import_fields20 = require("@keystone-6/core/fields");
+var PaymentSession = (0, import_core19.list)({
+  access: {
+    operation: {
+      query: ({ session }) => permissions.canManageOrders({ session }),
+      create: ({ session }) => permissions.canManageOrders({ session }),
+      update: ({ session }) => permissions.canManageOrders({ session }),
+      delete: ({ session }) => permissions.canManageOrders({ session })
+    }
+  },
+  fields: {
+    isSelected: (0, import_fields20.checkbox)({
+      defaultValue: false
+    }),
+    isInitiated: (0, import_fields20.checkbox)({
+      defaultValue: false
+    }),
+    amount: (0, import_fields20.integer)({
+      validation: { isRequired: true }
+    }),
+    data: (0, import_fields20.json)({
+      defaultValue: {}
+    }),
+    idempotencyKey: (0, import_fields20.text)({
+      isIndexed: true
+    }),
+    paymentCollection: (0, import_fields20.relationship)({
+      ref: "PaymentCollection.paymentSessions"
+    }),
+    paymentProvider: (0, import_fields20.relationship)({
+      ref: "PaymentProvider.sessions",
+      many: false
+    }),
+    paymentAuthorizedAt: (0, import_fields20.timestamp)(),
+    ...trackingFields
+  }
+});
+
+// features/keystone/models/Cart.ts
+var import_core20 = require("@keystone-6/core");
+var import_fields21 = require("@keystone-6/core/fields");
+var Cart = (0, import_core20.list)({
+  access: {
+    operation: {
+      query: ({ session }) => permissions.canManageOrders({ session }) || permissions.canReadOrders({ session }),
+      create: () => true,
+      update: permissions.canManageOrders,
+      delete: permissions.canManageOrders
+    },
+    filter: {
+      query: ({ session }) => {
+        if (!session) return false;
+        if (permissions.canManageOrders({ session })) return true;
+        return { user: { id: { equals: session.itemId } } };
+      },
+      update: ({ session }) => {
+        if (!session) return false;
+        if (permissions.canManageOrders({ session })) return true;
+        return { user: { id: { equals: session.itemId } } };
+      }
+    }
+  },
+  fields: {
+    user: (0, import_fields21.relationship)({ ref: "User.carts" }),
+    items: (0, import_fields21.relationship)({ ref: "CartItem.cart", many: true }),
+    orderType: (0, import_fields21.select)({
       options: [
         { label: "Pickup", value: "pickup" },
         { label: "Delivery", value: "delivery" }
       ],
       defaultValue: "pickup"
     }),
-    // Customer info (set during checkout, persists across steps)
-    email: (0, import_fields19.text)(),
-    customerName: (0, import_fields19.text)(),
-    customerPhone: (0, import_fields19.text)(),
-    // Delivery address (set during checkout)
-    deliveryAddress: (0, import_fields19.text)(),
-    deliveryCity: (0, import_fields19.text)(),
-    deliveryZip: (0, import_fields19.text)(),
-    // Payment session data (like OpenFront's PaymentSession.data)
-    // Stores: { providerCode, paymentIntentId, clientSecret, orderId, ... }
-    paymentData: (0, import_fields19.json)(),
-    // Payment provider used for this cart's session
-    paymentProvider: (0, import_fields19.relationship)({ ref: "PaymentProvider" }),
-    // Tip and totals (set during checkout)
-    tipPercent: (0, import_fields19.select)({
+    email: (0, import_fields21.text)(),
+    customerName: (0, import_fields21.text)(),
+    customerPhone: (0, import_fields21.text)(),
+    deliveryAddress: (0, import_fields21.text)(),
+    deliveryCity: (0, import_fields21.text)(),
+    deliveryZip: (0, import_fields21.text)(),
+    paymentCollection: (0, import_fields21.relationship)({
+      ref: "PaymentCollection.cart"
+    }),
+    tipPercent: (0, import_fields21.select)({
       options: [
         { label: "0%", value: "0" },
         { label: "15%", value: "15" },
@@ -2273,11 +2371,10 @@ var Cart = (0, import_core18.list)({
       ],
       defaultValue: "18"
     }),
-    // Link to order once completed (like OpenFront's cart.order)
-    order: (0, import_fields19.relationship)({ ref: "RestaurantOrder" }),
-    subtotal: (0, import_fields19.virtual)({
-      field: import_core18.graphql.field({
-        type: import_core18.graphql.Int,
+    order: (0, import_fields21.relationship)({ ref: "RestaurantOrder" }),
+    subtotal: (0, import_fields21.virtual)({
+      field: import_core20.graphql.field({
+        type: import_core20.graphql.Int,
         async resolve(item, args, context) {
           const cart = await context.sudo().query.Cart.findOne({
             where: { id: item.id },
@@ -2296,9 +2393,9 @@ var Cart = (0, import_core18.list)({
 });
 
 // features/keystone/models/CartItem.ts
-var import_core19 = require("@keystone-6/core");
-var import_fields20 = require("@keystone-6/core/fields");
-var CartItem = (0, import_core19.list)({
+var import_core21 = require("@keystone-6/core");
+var import_fields22 = require("@keystone-6/core/fields");
+var CartItem = (0, import_core21.list)({
   access: {
     operation: {
       query: () => true,
@@ -2310,18 +2407,18 @@ var CartItem = (0, import_core19.list)({
     }
   },
   fields: {
-    cart: (0, import_fields20.relationship)({ ref: "Cart.items" }),
-    menuItem: (0, import_fields20.relationship)({ ref: "MenuItem" }),
-    quantity: (0, import_fields20.integer)({ defaultValue: 1, validation: { min: 1 } }),
-    modifiers: (0, import_fields20.relationship)({ ref: "MenuItemModifier", many: true }),
-    specialInstructions: (0, import_fields20.text)()
+    cart: (0, import_fields22.relationship)({ ref: "Cart.items" }),
+    menuItem: (0, import_fields22.relationship)({ ref: "MenuItem" }),
+    quantity: (0, import_fields22.integer)({ defaultValue: 1, validation: { min: 1 } }),
+    modifiers: (0, import_fields22.relationship)({ ref: "MenuItemModifier", many: true }),
+    specialInstructions: (0, import_fields22.text)()
   }
 });
 
 // features/keystone/models/PaymentProvider.ts
-var import_core20 = require("@keystone-6/core");
-var import_fields21 = require("@keystone-6/core/fields");
-var PaymentProvider = (0, import_core20.list)({
+var import_core22 = require("@keystone-6/core");
+var import_fields23 = require("@keystone-6/core/fields");
+var PaymentProvider = (0, import_core22.list)({
   access: {
     operation: {
       query: () => true,
@@ -2337,10 +2434,10 @@ var PaymentProvider = (0, import_core20.list)({
     }
   },
   fields: {
-    name: (0, import_fields21.text)({
+    name: (0, import_fields23.text)({
       validation: { isRequired: true }
     }),
-    code: (0, import_fields21.text)({
+    code: (0, import_fields23.text)({
       isIndexed: "unique",
       validation: {
         isRequired: true,
@@ -2350,59 +2447,63 @@ var PaymentProvider = (0, import_core20.list)({
         }
       }
     }),
-    isInstalled: (0, import_fields21.checkbox)({
+    isInstalled: (0, import_fields23.checkbox)({
       defaultValue: true
     }),
-    credentials: (0, import_fields21.json)({
+    credentials: (0, import_fields23.json)({
       defaultValue: {}
     }),
-    metadata: (0, import_fields21.json)({
+    metadata: (0, import_fields23.json)({
       defaultValue: {}
     }),
-    createPaymentFunction: (0, import_fields21.text)({
+    createPaymentFunction: (0, import_fields23.text)({
       validation: { isRequired: true },
       ui: {
         description: "Name of the adapter function to create payments"
       }
     }),
-    capturePaymentFunction: (0, import_fields21.text)({
+    capturePaymentFunction: (0, import_fields23.text)({
       validation: { isRequired: true },
       ui: {
         description: "Name of the adapter function to capture payments"
       }
     }),
-    refundPaymentFunction: (0, import_fields21.text)({
+    refundPaymentFunction: (0, import_fields23.text)({
       validation: { isRequired: true },
       ui: {
         description: "Name of the adapter function to refund payments"
       }
     }),
-    getPaymentStatusFunction: (0, import_fields21.text)({
+    getPaymentStatusFunction: (0, import_fields23.text)({
       validation: { isRequired: true },
       ui: {
         description: "Name of the adapter function to check payment status"
       }
     }),
-    generatePaymentLinkFunction: (0, import_fields21.text)({
+    generatePaymentLinkFunction: (0, import_fields23.text)({
       validation: { isRequired: true },
       ui: {
         description: "Name of the adapter function to generate payment dashboard links"
       }
     }),
-    handleWebhookFunction: (0, import_fields21.text)({
+    handleWebhookFunction: (0, import_fields23.text)({
       validation: { isRequired: true },
       ui: {
         description: "Name of the adapter function to handle provider webhooks"
       }
+    }),
+    sessions: (0, import_fields23.relationship)({
+      ref: "PaymentSession.paymentProvider",
+      many: true
     }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/ApiKey.ts
-var import_fields22 = require("@keystone-6/core/fields");
-var import_core21 = require("@keystone-6/core");
-var ApiKey = (0, import_core21.list)({
+var import_fields24 = require("@keystone-6/core/fields");
+var import_core23 = require("@keystone-6/core");
+var ApiKey = (0, import_core23.list)({
   access: {
     operation: {
       query: isSignedIn,
@@ -2434,13 +2535,13 @@ var ApiKey = (0, import_core21.list)({
     }
   },
   fields: {
-    name: (0, import_fields22.text)({
+    name: (0, import_fields24.text)({
       validation: { isRequired: true },
       ui: {
         description: "A descriptive name for this API key (e.g. 'POS Integration')"
       }
     }),
-    tokenSecret: (0, import_fields22.password)({
+    tokenSecret: (0, import_fields24.password)({
       validation: { isRequired: true },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -2449,7 +2550,7 @@ var ApiKey = (0, import_core21.list)({
         description: "Secure API key token (hashed and never displayed)"
       }
     }),
-    tokenPreview: (0, import_fields22.text)({
+    tokenPreview: (0, import_fields24.text)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" },
@@ -2457,13 +2558,13 @@ var ApiKey = (0, import_core21.list)({
         description: "Preview of the API key (actual key is hidden)"
       }
     }),
-    scopes: (0, import_fields22.json)({
+    scopes: (0, import_fields24.json)({
       defaultValue: [],
       ui: {
         description: "Array of scopes for this API key"
       }
     }),
-    status: (0, import_fields22.select)({
+    status: (0, import_fields24.select)({
       type: "enum",
       options: [
         { label: "Active", value: "active" },
@@ -2475,19 +2576,19 @@ var ApiKey = (0, import_core21.list)({
         description: "Current status of this API key"
       }
     }),
-    expiresAt: (0, import_fields22.timestamp)({
+    expiresAt: (0, import_fields24.timestamp)({
       ui: {
         description: "When this API key expires (optional - leave blank for no expiration)"
       }
     }),
-    lastUsedAt: (0, import_fields22.timestamp)({
+    lastUsedAt: (0, import_fields24.timestamp)({
       ui: {
         createView: { fieldMode: "hidden" },
         itemView: { fieldMode: "read" },
         description: "Last time this API key was used"
       }
     }),
-    usageCount: (0, import_fields22.json)({
+    usageCount: (0, import_fields24.json)({
       defaultValue: { total: 0, daily: {} },
       ui: {
         createView: { fieldMode: "hidden" },
@@ -2495,14 +2596,14 @@ var ApiKey = (0, import_core21.list)({
         description: "Usage statistics for this API key"
       }
     }),
-    restrictedToIPs: (0, import_fields22.json)({
+    restrictedToIPs: (0, import_fields24.json)({
       defaultValue: [],
       ui: {
         description: "Optional: Restrict this key to specific IP addresses (array of IPs)"
       }
     }),
     ...trackingFields,
-    user: (0, import_fields22.relationship)({
+    user: (0, import_fields24.relationship)({
       ref: "User.apiKeys",
       ui: {
         createView: { fieldMode: "hidden" },
@@ -2520,9 +2621,9 @@ var ApiKey = (0, import_core21.list)({
 });
 
 // features/keystone/models/Discount.ts
-var import_core22 = require("@keystone-6/core");
-var import_fields23 = require("@keystone-6/core/fields");
-var Discount = (0, import_core22.list)({
+var import_core24 = require("@keystone-6/core");
+var import_fields25 = require("@keystone-6/core/fields");
+var Discount = (0, import_core24.list)({
   access: {
     operation: {
       query: permissions.canReadDiscounts,
@@ -2537,32 +2638,32 @@ var Discount = (0, import_core22.list)({
     }
   },
   fields: {
-    code: (0, import_fields23.text)({
+    code: (0, import_fields25.text)({
       validation: { isRequired: true },
       isIndexed: "unique"
     }),
-    isDynamic: (0, import_fields23.checkbox)(),
-    isDisabled: (0, import_fields23.checkbox)(),
-    stackable: (0, import_fields23.checkbox)({
+    isDynamic: (0, import_fields25.checkbox)(),
+    isDisabled: (0, import_fields25.checkbox)(),
+    stackable: (0, import_fields25.checkbox)({
       defaultValue: false
     }),
-    startsAt: (0, import_fields23.timestamp)({
+    startsAt: (0, import_fields25.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true }
     }),
-    endsAt: (0, import_fields23.timestamp)(),
-    metadata: (0, import_fields23.json)(),
-    usageLimit: (0, import_fields23.integer)(),
-    usageCount: (0, import_fields23.integer)({
+    endsAt: (0, import_fields25.timestamp)(),
+    metadata: (0, import_fields25.json)(),
+    usageLimit: (0, import_fields25.integer)(),
+    usageCount: (0, import_fields25.integer)({
       defaultValue: 0,
       validation: { isRequired: true }
     }),
-    validDuration: (0, import_fields23.text)(),
+    validDuration: (0, import_fields25.text)(),
     ...trackingFields,
-    discountRule: (0, import_fields23.relationship)({
+    discountRule: (0, import_fields25.relationship)({
       ref: "DiscountRule.discounts"
     }),
-    orders: (0, import_fields23.relationship)({
+    orders: (0, import_fields25.relationship)({
       ref: "RestaurantOrder.discounts",
       many: true
     })
@@ -2570,9 +2671,9 @@ var Discount = (0, import_core22.list)({
 });
 
 // features/keystone/models/DiscountRule.ts
-var import_core23 = require("@keystone-6/core");
-var import_fields24 = require("@keystone-6/core/fields");
-var DiscountRule = (0, import_core23.list)({
+var import_core25 = require("@keystone-6/core");
+var import_fields26 = require("@keystone-6/core/fields");
+var DiscountRule = (0, import_core25.list)({
   access: {
     operation: {
       query: permissions.canReadDiscounts,
@@ -2587,8 +2688,8 @@ var DiscountRule = (0, import_core23.list)({
     }
   },
   fields: {
-    description: (0, import_fields24.text)(),
-    type: (0, import_fields24.select)({
+    description: (0, import_fields26.text)(),
+    type: (0, import_fields26.select)({
       type: "enum",
       options: [
         { label: "Fixed", value: "fixed" },
@@ -2597,18 +2698,18 @@ var DiscountRule = (0, import_core23.list)({
       ],
       validation: { isRequired: true }
     }),
-    value: (0, import_fields24.integer)({
+    value: (0, import_fields26.integer)({
       validation: { isRequired: true }
     }),
-    allocation: (0, import_fields24.select)({
+    allocation: (0, import_fields26.select)({
       type: "enum",
       options: [
         { label: "Total", value: "total" },
         { label: "Item", value: "item" }
       ]
     }),
-    metadata: (0, import_fields24.json)(),
-    discounts: (0, import_fields24.relationship)({
+    metadata: (0, import_fields26.json)(),
+    discounts: (0, import_fields26.relationship)({
       ref: "Discount.discountRule",
       many: true
     }),
@@ -2617,9 +2718,9 @@ var DiscountRule = (0, import_core23.list)({
 });
 
 // features/keystone/models/GiftCard.ts
-var import_core24 = require("@keystone-6/core");
-var import_fields25 = require("@keystone-6/core/fields");
-var GiftCard = (0, import_core24.list)({
+var import_core26 = require("@keystone-6/core");
+var import_fields27 = require("@keystone-6/core/fields");
+var GiftCard = (0, import_core26.list)({
   access: {
     operation: {
       query: permissions.canReadGiftCards,
@@ -2634,24 +2735,24 @@ var GiftCard = (0, import_core24.list)({
     }
   },
   fields: {
-    code: (0, import_fields25.text)({
+    code: (0, import_fields27.text)({
       validation: { isRequired: true },
       isIndexed: "unique"
     }),
-    value: (0, import_fields25.integer)({
+    value: (0, import_fields27.integer)({
       validation: { isRequired: true }
     }),
-    balance: (0, import_fields25.integer)({
+    balance: (0, import_fields27.integer)({
       validation: { isRequired: true }
     }),
-    isDisabled: (0, import_fields25.checkbox)(),
-    endsAt: (0, import_fields25.timestamp)(),
-    metadata: (0, import_fields25.json)(),
+    isDisabled: (0, import_fields27.checkbox)(),
+    endsAt: (0, import_fields27.timestamp)(),
+    metadata: (0, import_fields27.json)(),
     ...trackingFields,
-    order: (0, import_fields25.relationship)({
+    order: (0, import_fields27.relationship)({
       ref: "RestaurantOrder.giftCards"
     }),
-    giftCardTransactions: (0, import_fields25.relationship)({
+    giftCardTransactions: (0, import_fields27.relationship)({
       ref: "GiftCardTransaction.giftCard",
       many: true
     })
@@ -2659,9 +2760,9 @@ var GiftCard = (0, import_core24.list)({
 });
 
 // features/keystone/models/GiftCardTransaction.ts
-var import_core25 = require("@keystone-6/core");
-var import_fields26 = require("@keystone-6/core/fields");
-var GiftCardTransaction = (0, import_core25.list)({
+var import_core27 = require("@keystone-6/core");
+var import_fields28 = require("@keystone-6/core/fields");
+var GiftCardTransaction = (0, import_core27.list)({
   access: {
     operation: {
       query: permissions.canReadGiftCards,
@@ -2676,23 +2777,23 @@ var GiftCardTransaction = (0, import_core25.list)({
     }
   },
   fields: {
-    amount: (0, import_fields26.integer)({
+    amount: (0, import_fields28.integer)({
       validation: { isRequired: true }
     }),
     ...trackingFields,
-    giftCard: (0, import_fields26.relationship)({
+    giftCard: (0, import_fields28.relationship)({
       ref: "GiftCard.giftCardTransactions"
     }),
-    order: (0, import_fields26.relationship)({
+    order: (0, import_fields28.relationship)({
       ref: "RestaurantOrder"
     })
   }
 });
 
 // features/keystone/models/KitchenStation.ts
-var import_core26 = require("@keystone-6/core");
-var import_fields27 = require("@keystone-6/core/fields");
-var KitchenStation = (0, import_core26.list)({
+var import_core28 = require("@keystone-6/core");
+var import_fields29 = require("@keystone-6/core/fields");
+var KitchenStation = (0, import_core28.list)({
   access: {
     operation: {
       query: permissions.canReadKitchen,
@@ -2707,26 +2808,26 @@ var KitchenStation = (0, import_core26.list)({
     }
   },
   fields: {
-    name: (0, import_fields27.text)({
+    name: (0, import_fields29.text)({
       validation: { isRequired: true },
       ui: {
         description: "Station name (e.g., Grill, Fryer, Salad, Expo)"
       }
     }),
-    displayOrder: (0, import_fields27.integer)({
+    displayOrder: (0, import_fields29.integer)({
       defaultValue: 0,
       ui: {
         description: "Order in which stations are displayed (lower numbers first)"
       }
     }),
-    isActive: (0, import_fields27.checkbox)({
+    isActive: (0, import_fields29.checkbox)({
       defaultValue: true,
       ui: {
         description: "Whether this station is currently active"
       }
     }),
     // Relationships
-    assignedStaff: (0, import_fields27.relationship)({
+    assignedStaff: (0, import_fields29.relationship)({
       ref: "User",
       many: true,
       ui: {
@@ -2736,11 +2837,11 @@ var KitchenStation = (0, import_core26.list)({
         description: "Staff members assigned to this station"
       }
     }),
-    tickets: (0, import_fields27.relationship)({
+    tickets: (0, import_fields29.relationship)({
       ref: "KitchenTicket.station",
       many: true
     }),
-    prepStations: (0, import_fields27.relationship)({
+    prepStations: (0, import_fields29.relationship)({
       ref: "PrepStation.station",
       many: true
     })
@@ -2748,9 +2849,9 @@ var KitchenStation = (0, import_core26.list)({
 });
 
 // features/keystone/models/PrepStation.ts
-var import_core27 = require("@keystone-6/core");
-var import_fields28 = require("@keystone-6/core/fields");
-var PrepStation = (0, import_core27.list)({
+var import_core29 = require("@keystone-6/core");
+var import_fields30 = require("@keystone-6/core/fields");
+var PrepStation = (0, import_core29.list)({
   access: {
     operation: {
       query: permissions.canReadKitchen,
@@ -2766,21 +2867,21 @@ var PrepStation = (0, import_core27.list)({
     labelField: "menuItem"
   },
   fields: {
-    menuItem: (0, import_fields28.relationship)({
+    menuItem: (0, import_fields30.relationship)({
       ref: "MenuItem",
       ui: {
         displayMode: "select",
         description: "Menu item to be prepared at this station"
       }
     }),
-    station: (0, import_fields28.relationship)({
+    station: (0, import_fields30.relationship)({
       ref: "KitchenStation.prepStations",
       ui: {
         displayMode: "select",
         description: "Kitchen station for preparation"
       }
     }),
-    preparationTime: (0, import_fields28.integer)({
+    preparationTime: (0, import_fields30.integer)({
       defaultValue: 15,
       ui: {
         description: "Expected preparation time in minutes"
@@ -2790,9 +2891,9 @@ var PrepStation = (0, import_core27.list)({
 });
 
 // features/keystone/models/KitchenTicket.ts
-var import_core28 = require("@keystone-6/core");
-var import_fields29 = require("@keystone-6/core/fields");
-var KitchenTicket = (0, import_core28.list)({
+var import_core30 = require("@keystone-6/core");
+var import_fields31 = require("@keystone-6/core/fields");
+var KitchenTicket = (0, import_core30.list)({
   access: {
     operation: {
       query: permissions.canReadKitchen,
@@ -2807,7 +2908,7 @@ var KitchenTicket = (0, import_core28.list)({
     }
   },
   fields: {
-    status: (0, import_fields29.select)({
+    status: (0, import_fields31.select)({
       type: "string",
       options: [
         { label: "New", value: "new" },
@@ -2819,13 +2920,13 @@ var KitchenTicket = (0, import_core28.list)({
       defaultValue: "new",
       validation: { isRequired: true }
     }),
-    priority: (0, import_fields29.integer)({
+    priority: (0, import_fields31.integer)({
       defaultValue: 0,
       ui: {
         description: "Priority level (higher numbers = higher priority)"
       }
     }),
-    ticketType: (0, import_fields29.select)({
+    ticketType: (0, import_fields31.select)({
       type: "string",
       options: [
         { label: "Prep", value: "prep" },
@@ -2836,53 +2937,53 @@ var KitchenTicket = (0, import_core28.list)({
         description: "Whether this ticket is shown in prep or expediter context"
       }
     }),
-    items: (0, import_fields29.json)({
+    items: (0, import_fields31.json)({
       ui: {
         description: "Order items for this ticket (JSON array)"
       }
     }),
-    firedAt: (0, import_fields29.timestamp)({
+    firedAt: (0, import_fields31.timestamp)({
       defaultValue: { kind: "now" },
       ui: {
         description: "When the ticket was sent to the kitchen"
       }
     }),
-    startedAt: (0, import_fields29.timestamp)({
+    startedAt: (0, import_fields31.timestamp)({
       ui: {
         description: "When kitchen staff started working on this ticket"
       }
     }),
-    completedAt: (0, import_fields29.timestamp)({
+    completedAt: (0, import_fields31.timestamp)({
       ui: {
         description: "When all items were completed"
       }
     }),
-    servedAt: (0, import_fields29.timestamp)({
+    servedAt: (0, import_fields31.timestamp)({
       ui: {
         description: "When the items were served to the customer"
       }
     }),
-    recalledAt: (0, import_fields29.timestamp)({
+    recalledAt: (0, import_fields31.timestamp)({
       ui: {
         description: "When the ticket was recalled back into preparation"
       }
     }),
     // Relationships
-    order: (0, import_fields29.relationship)({
+    order: (0, import_fields31.relationship)({
       ref: "RestaurantOrder",
       ui: {
         displayMode: "select",
         description: "Restaurant order this ticket belongs to"
       }
     }),
-    station: (0, import_fields29.relationship)({
+    station: (0, import_fields31.relationship)({
       ref: "KitchenStation.tickets",
       ui: {
         displayMode: "select",
         description: "Kitchen station assigned to this ticket"
       }
     }),
-    orderItems: (0, import_fields29.relationship)({
+    orderItems: (0, import_fields31.relationship)({
       ref: "OrderItem.kitchenTickets",
       many: true,
       ui: {
@@ -2890,7 +2991,7 @@ var KitchenTicket = (0, import_core28.list)({
         description: "Normalized order items included in this ticket"
       }
     }),
-    preparedBy: (0, import_fields29.relationship)({
+    preparedBy: (0, import_fields31.relationship)({
       ref: "User",
       ui: {
         displayMode: "select",
@@ -2901,9 +3002,9 @@ var KitchenTicket = (0, import_core28.list)({
 });
 
 // features/keystone/models/Vendor.ts
-var import_core29 = require("@keystone-6/core");
-var import_fields30 = require("@keystone-6/core/fields");
-var Vendor = (0, import_core29.list)({
+var import_core31 = require("@keystone-6/core");
+var import_fields32 = require("@keystone-6/core/fields");
+var Vendor = (0, import_core31.list)({
   access: {
     operation: {
       query: permissions.canReadVendors,
@@ -2918,18 +3019,18 @@ var Vendor = (0, import_core29.list)({
     }
   },
   fields: {
-    name: (0, import_fields30.text)({
+    name: (0, import_fields32.text)({
       validation: { isRequired: true },
       ui: {
         description: "Vendor company name"
       }
     }),
-    contact: (0, import_fields30.text)({
+    contact: (0, import_fields32.text)({
       ui: {
         description: "Primary contact person"
       }
     }),
-    email: (0, import_fields30.text)({
+    email: (0, import_fields32.text)({
       validation: {
         match: {
           regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -2940,23 +3041,23 @@ var Vendor = (0, import_core29.list)({
         description: "Vendor email address"
       }
     }),
-    phone: (0, import_fields30.text)({
+    phone: (0, import_fields32.text)({
       ui: {
         description: "Vendor phone number"
       }
     }),
-    paymentTerms: (0, import_fields30.text)({
+    paymentTerms: (0, import_fields32.text)({
       ui: {
         description: "Payment terms (e.g., Net 30, COD)"
       }
     }),
-    leadTime: (0, import_fields30.integer)({
+    leadTime: (0, import_fields32.integer)({
       ui: {
         description: "Lead time in days for orders"
       }
     }),
     // Relationships
-    ingredients: (0, import_fields30.relationship)({
+    ingredients: (0, import_fields32.relationship)({
       ref: "Ingredient.vendor",
       many: true
     })
@@ -2964,9 +3065,9 @@ var Vendor = (0, import_core29.list)({
 });
 
 // features/keystone/models/InventoryLocation.ts
-var import_core30 = require("@keystone-6/core");
-var import_fields31 = require("@keystone-6/core/fields");
-var InventoryLocation = (0, import_core30.list)({
+var import_core32 = require("@keystone-6/core");
+var import_fields33 = require("@keystone-6/core/fields");
+var InventoryLocation = (0, import_core32.list)({
   access: {
     operation: {
       query: permissions.canReadInventory,
@@ -2981,26 +3082,26 @@ var InventoryLocation = (0, import_core30.list)({
     }
   },
   fields: {
-    name: (0, import_fields31.text)({
+    name: (0, import_fields33.text)({
       validation: { isRequired: true },
       ui: {
         description: "Storage location name (e.g., Walk-in, Freezer, Dry Storage)"
       }
     }),
-    description: (0, import_fields31.text)({
+    description: (0, import_fields33.text)({
       ui: {
         displayMode: "textarea",
         description: "Description of the storage location"
       }
     }),
-    isActive: (0, import_fields31.checkbox)({
+    isActive: (0, import_fields33.checkbox)({
       defaultValue: true,
       ui: {
         description: "Whether this location is currently in use"
       }
     }),
     // Relationships
-    ingredients: (0, import_fields31.relationship)({
+    ingredients: (0, import_fields33.relationship)({
       ref: "Ingredient.location",
       many: true
     })
@@ -3008,9 +3109,9 @@ var InventoryLocation = (0, import_core30.list)({
 });
 
 // features/keystone/models/Ingredient.ts
-var import_core31 = require("@keystone-6/core");
-var import_fields32 = require("@keystone-6/core/fields");
-var Ingredient = (0, import_core31.list)({
+var import_core33 = require("@keystone-6/core");
+var import_fields34 = require("@keystone-6/core/fields");
+var Ingredient = (0, import_core33.list)({
   access: {
     operation: {
       query: permissions.canReadInventory,
@@ -3025,13 +3126,13 @@ var Ingredient = (0, import_core31.list)({
     }
   },
   fields: {
-    name: (0, import_fields32.text)({
+    name: (0, import_fields34.text)({
       validation: { isRequired: true },
       ui: {
         description: "Ingredient name"
       }
     }),
-    unit: (0, import_fields32.select)({
+    unit: (0, import_fields34.select)({
       type: "string",
       options: [
         { label: "Kilogram", value: "kg" },
@@ -3049,7 +3150,7 @@ var Ingredient = (0, import_core31.list)({
         description: "Unit of measurement"
       }
     }),
-    category: (0, import_fields32.select)({
+    category: (0, import_fields34.select)({
       type: "string",
       options: [
         { label: "Produce", value: "produce" },
@@ -3065,7 +3166,7 @@ var Ingredient = (0, import_core31.list)({
         description: "Ingredient category"
       }
     }),
-    currentStock: (0, import_fields32.decimal)({
+    currentStock: (0, import_fields34.decimal)({
       precision: 10,
       scale: 2,
       defaultValue: "0.00",
@@ -3074,60 +3175,60 @@ var Ingredient = (0, import_core31.list)({
         description: "Current stock quantity"
       }
     }),
-    parLevel: (0, import_fields32.decimal)({
+    parLevel: (0, import_fields34.decimal)({
       precision: 10,
       scale: 2,
       ui: {
         description: "Ideal stock level to maintain"
       }
     }),
-    reorderPoint: (0, import_fields32.decimal)({
+    reorderPoint: (0, import_fields34.decimal)({
       precision: 10,
       scale: 2,
       ui: {
         description: "Stock level at which to reorder"
       }
     }),
-    reorderQuantity: (0, import_fields32.decimal)({
+    reorderQuantity: (0, import_fields34.decimal)({
       precision: 10,
       scale: 2,
       ui: {
         description: "Quantity to order when restocking"
       }
     }),
-    costPerUnit: (0, import_fields32.decimal)({
+    costPerUnit: (0, import_fields34.decimal)({
       precision: 10,
       scale: 2,
       ui: {
         description: "Cost per unit in dollars"
       }
     }),
-    expirationDate: (0, import_fields32.timestamp)({
+    expirationDate: (0, import_fields34.timestamp)({
       ui: {
         description: "Expiration date for perishable items"
       }
     }),
-    sku: (0, import_fields32.text)({
+    sku: (0, import_fields34.text)({
       ui: {
         description: "SKU or product code"
       }
     }),
     // Relationships
-    vendor: (0, import_fields32.relationship)({
+    vendor: (0, import_fields34.relationship)({
       ref: "Vendor.ingredients",
       ui: {
         displayMode: "select",
         description: "Primary vendor for this ingredient"
       }
     }),
-    location: (0, import_fields32.relationship)({
+    location: (0, import_fields34.relationship)({
       ref: "InventoryLocation.ingredients",
       ui: {
         displayMode: "select",
         description: "Storage location"
       }
     }),
-    stockMovements: (0, import_fields32.relationship)({
+    stockMovements: (0, import_fields34.relationship)({
       ref: "StockMovement.ingredient",
       many: true
     })
@@ -3135,9 +3236,9 @@ var Ingredient = (0, import_core31.list)({
 });
 
 // features/keystone/models/StockMovement.ts
-var import_core32 = require("@keystone-6/core");
-var import_fields33 = require("@keystone-6/core/fields");
-var StockMovement = (0, import_core32.list)({
+var import_core34 = require("@keystone-6/core");
+var import_fields35 = require("@keystone-6/core/fields");
+var StockMovement = (0, import_core34.list)({
   access: {
     operation: {
       query: permissions.canReadInventory,
@@ -3152,7 +3253,7 @@ var StockMovement = (0, import_core32.list)({
     }
   },
   fields: {
-    type: (0, import_fields33.select)({
+    type: (0, import_fields35.select)({
       type: "string",
       options: [
         { label: "Sale", value: "sale" },
@@ -3168,7 +3269,7 @@ var StockMovement = (0, import_core32.list)({
         description: "Type of stock movement"
       }
     }),
-    quantity: (0, import_fields33.decimal)({
+    quantity: (0, import_fields35.decimal)({
       precision: 10,
       scale: 2,
       validation: { isRequired: true },
@@ -3176,28 +3277,28 @@ var StockMovement = (0, import_core32.list)({
         description: "Quantity moved (positive for additions, negative for reductions)"
       }
     }),
-    reason: (0, import_fields33.text)({
+    reason: (0, import_fields35.text)({
       ui: {
         displayMode: "textarea",
         description: "Reason for the stock movement"
       }
     }),
     // Relationships
-    ingredient: (0, import_fields33.relationship)({
+    ingredient: (0, import_fields35.relationship)({
       ref: "Ingredient.stockMovements",
       ui: {
         displayMode: "select",
         description: "Ingredient this movement affects"
       }
     }),
-    createdBy: (0, import_fields33.relationship)({
+    createdBy: (0, import_fields35.relationship)({
       ref: "User",
       ui: {
         displayMode: "select",
         description: "Staff member who recorded this movement"
       }
     }),
-    order: (0, import_fields33.relationship)({
+    order: (0, import_fields35.relationship)({
       ref: "RestaurantOrder",
       ui: {
         displayMode: "select",
@@ -3209,9 +3310,9 @@ var StockMovement = (0, import_core32.list)({
 });
 
 // features/keystone/models/StoreSettings.ts
-var import_core33 = require("@keystone-6/core");
-var import_fields34 = require("@keystone-6/core/fields");
-var StoreSettings = (0, import_core33.list)({
+var import_core35 = require("@keystone-6/core");
+var import_fields36 = require("@keystone-6/core/fields");
+var StoreSettings = (0, import_core35.list)({
   access: {
     operation: {
       query: () => true,
@@ -3232,42 +3333,42 @@ var StoreSettings = (0, import_core33.list)({
   },
   fields: {
     // Basic Info
-    name: (0, import_fields34.text)({
+    name: (0, import_fields36.text)({
       validation: { isRequired: true },
       ui: { description: "Restaurant name" }
     }),
-    tagline: (0, import_fields34.text)({
+    tagline: (0, import_fields36.text)({
       ui: { description: "Short tagline (e.g., 'Artisan Burgers & Craft Sides')" }
     }),
     // Contact
-    address: (0, import_fields34.text)({
+    address: (0, import_fields36.text)({
       ui: { description: "Full street address" }
     }),
-    phone: (0, import_fields34.text)({
+    phone: (0, import_fields36.text)({
       ui: { description: "Phone number" }
     }),
-    email: (0, import_fields34.text)({
+    email: (0, import_fields36.text)({
       ui: { description: "Contact email" }
     }),
     // Localization
-    currencyCode: (0, import_fields34.text)({
+    currencyCode: (0, import_fields36.text)({
       defaultValue: "USD",
       ui: { description: "ISO 4217 currency code (e.g. USD, EUR, JPY)" }
     }),
-    locale: (0, import_fields34.text)({
+    locale: (0, import_fields36.text)({
       defaultValue: "en-US",
       ui: { description: "Locale used for formatting numbers/dates (e.g. en-US)" }
     }),
-    timezone: (0, import_fields34.text)({
+    timezone: (0, import_fields36.text)({
       defaultValue: "America/New_York",
       ui: { description: "IANA timezone (e.g. America/New_York)" }
     }),
-    countryCode: (0, import_fields34.text)({
+    countryCode: (0, import_fields36.text)({
       defaultValue: "US",
       ui: { description: "Primary storefront country code (ISO 3166-1 alpha-2)" }
     }),
     // Hours (stored as JSON for flexibility)
-    hours: (0, import_fields34.json)({
+    hours: (0, import_fields36.json)({
       defaultValue: {
         monday: "11:00 AM - 10:00 PM",
         tuesday: "11:00 AM - 10:00 PM",
@@ -3280,63 +3381,63 @@ var StoreSettings = (0, import_core33.list)({
       ui: { description: "Operating hours by day of week" }
     }),
     // Tax
-    taxRate: (0, import_fields34.decimal)({
+    taxRate: (0, import_fields36.decimal)({
       precision: 5,
       scale: 2,
       defaultValue: "8.75",
       ui: { description: "Tax rate percentage (e.g. 8.75 for 8.75%)" }
     }),
     // Delivery/Pickup Settings
-    deliveryFee: (0, import_fields34.decimal)({
+    deliveryFee: (0, import_fields36.decimal)({
       precision: 10,
       scale: 2,
       defaultValue: "4.99",
       ui: { description: "Delivery fee amount" }
     }),
-    deliveryMinimum: (0, import_fields34.decimal)({
+    deliveryMinimum: (0, import_fields36.decimal)({
       precision: 10,
       scale: 2,
       defaultValue: "15.00",
       ui: { description: "Minimum order for delivery" }
     }),
-    pickupDiscount: (0, import_fields34.integer)({
+    pickupDiscount: (0, import_fields36.integer)({
       defaultValue: 10,
       ui: { description: "Pickup discount percentage" }
     }),
-    estimatedDelivery: (0, import_fields34.text)({
+    estimatedDelivery: (0, import_fields36.text)({
       defaultValue: "30-45 min",
       ui: { description: "Estimated delivery time" }
     }),
-    estimatedPickup: (0, import_fields34.text)({
+    estimatedPickup: (0, import_fields36.text)({
       defaultValue: "15-20 min",
       ui: { description: "Estimated pickup time" }
     }),
     // Hero/Branding
-    heroHeadline: (0, import_fields34.text)({
+    heroHeadline: (0, import_fields36.text)({
       defaultValue: "Thoughtfully crafted burgers.",
       ui: { description: "Main hero headline" }
     }),
-    heroSubheadline: (0, import_fields34.text)({
+    heroSubheadline: (0, import_fields36.text)({
       defaultValue: "Premium ingredients from local farms, bold flavors, and a commitment to quality in every bite.",
       ui: { description: "Hero subheadline/description" }
     }),
-    heroTagline: (0, import_fields34.text)({
+    heroTagline: (0, import_fields36.text)({
       defaultValue: "Locally Sourced \xB7 Made Fresh Daily",
       ui: { description: "Small tagline above headline" }
     }),
     // Promo Banner
-    promoBanner: (0, import_fields34.text)({
+    promoBanner: (0, import_fields36.text)({
       defaultValue: "Free pickup discount \xB7 10% off all pickup orders",
       ui: { description: "Promotional banner text at top of page" }
     }),
     // Social/Reviews (optional display data)
-    rating: (0, import_fields34.decimal)({
+    rating: (0, import_fields36.decimal)({
       precision: 2,
       scale: 1,
       defaultValue: "4.8",
       ui: { description: "Average rating to display" }
     }),
-    reviewCount: (0, import_fields34.integer)({
+    reviewCount: (0, import_fields36.integer)({
       defaultValue: 0,
       ui: { description: "Number of reviews to display" }
     })
@@ -3344,9 +3445,9 @@ var StoreSettings = (0, import_core33.list)({
 });
 
 // features/keystone/models/WaitlistEntry.ts
-var import_core34 = require("@keystone-6/core");
-var import_fields35 = require("@keystone-6/core/fields");
-var WaitlistEntry = (0, import_core34.list)({
+var import_core36 = require("@keystone-6/core");
+var import_fields37 = require("@keystone-6/core/fields");
+var WaitlistEntry = (0, import_core36.list)({
   access: {
     operation: {
       query: permissions.canReadKitchen,
@@ -3362,27 +3463,27 @@ var WaitlistEntry = (0, import_core34.list)({
     labelField: "customerName"
   },
   fields: {
-    customerName: (0, import_fields35.text)({
+    customerName: (0, import_fields37.text)({
       validation: { isRequired: true }
     }),
-    phoneNumber: (0, import_fields35.text)({
+    phoneNumber: (0, import_fields37.text)({
       validation: { isRequired: true },
       ui: {
         description: "Phone number for SMS notifications"
       }
     }),
-    partySize: (0, import_fields35.integer)({
+    partySize: (0, import_fields37.integer)({
       validation: { isRequired: true, min: 1 },
       defaultValue: 2
     }),
-    quotedWaitTime: (0, import_fields35.integer)({
+    quotedWaitTime: (0, import_fields37.integer)({
       validation: { min: 0 },
       defaultValue: 15,
       ui: {
         description: "Quoted wait time in minutes"
       }
     }),
-    status: (0, import_fields35.select)({
+    status: (0, import_fields37.select)({
       type: "string",
       options: [
         { label: "Waiting", value: "waiting" },
@@ -3396,35 +3497,35 @@ var WaitlistEntry = (0, import_core34.list)({
         displayMode: "segmented-control"
       }
     }),
-    addedAt: (0, import_fields35.timestamp)({
+    addedAt: (0, import_fields37.timestamp)({
       defaultValue: { kind: "now" },
       validation: { isRequired: true }
     }),
-    notifiedAt: (0, import_fields35.timestamp)({
+    notifiedAt: (0, import_fields37.timestamp)({
       ui: {
         description: "When the customer was notified their table is ready"
       }
     }),
-    seatedAt: (0, import_fields35.timestamp)({
+    seatedAt: (0, import_fields37.timestamp)({
       ui: {
         description: "When the customer was actually seated"
       }
     }),
-    notes: (0, import_fields35.text)({
+    notes: (0, import_fields37.text)({
       ui: {
         displayMode: "textarea",
         description: "Special requests, high chair needed, etc."
       }
     }),
     // Relationships
-    table: (0, import_fields35.relationship)({
+    table: (0, import_fields37.relationship)({
       ref: "Table",
       ui: {
         displayMode: "select",
         description: "Table assigned when seated"
       }
     }),
-    addedBy: (0, import_fields35.relationship)({
+    addedBy: (0, import_fields37.relationship)({
       ref: "User",
       ui: {
         displayMode: "select",
@@ -3437,9 +3538,9 @@ var WaitlistEntry = (0, import_core34.list)({
 });
 
 // features/keystone/models/Shift.ts
-var import_core35 = require("@keystone-6/core");
-var import_fields36 = require("@keystone-6/core/fields");
-var Shift = (0, import_core35.list)({
+var import_core37 = require("@keystone-6/core");
+var import_fields38 = require("@keystone-6/core/fields");
+var Shift = (0, import_core37.list)({
   access: {
     operation: {
       query: permissions.canReadStaff,
@@ -3454,13 +3555,13 @@ var Shift = (0, import_core35.list)({
     }
   },
   fields: {
-    startTime: (0, import_fields36.timestamp)({
+    startTime: (0, import_fields38.timestamp)({
       validation: { isRequired: true }
     }),
-    endTime: (0, import_fields36.timestamp)({
+    endTime: (0, import_fields38.timestamp)({
       validation: { isRequired: true }
     }),
-    role: (0, import_fields36.select)({
+    role: (0, import_fields38.select)({
       type: "string",
       options: [
         { label: "Server", value: "server" },
@@ -3474,7 +3575,7 @@ var Shift = (0, import_core35.list)({
       defaultValue: "server",
       validation: { isRequired: true }
     }),
-    status: (0, import_fields36.select)({
+    status: (0, import_fields38.select)({
       type: "string",
       options: [
         { label: "Scheduled", value: "scheduled" },
@@ -3485,179 +3586,16 @@ var Shift = (0, import_core35.list)({
       ],
       defaultValue: "scheduled"
     }),
-    hourlyRate: (0, import_fields36.decimal)({
+    hourlyRate: (0, import_fields38.decimal)({
       precision: 10,
       scale: 2,
       ui: { description: "Hourly rate for this shift" }
     }),
-    clockIn: (0, import_fields36.timestamp)({
+    clockIn: (0, import_fields38.timestamp)({
       ui: { description: "Actual clock in time" }
     }),
-    clockOut: (0, import_fields36.timestamp)({
+    clockOut: (0, import_fields38.timestamp)({
       ui: { description: "Actual clock out time" }
-    }),
-    notes: (0, import_fields36.text)({
-      ui: { displayMode: "textarea" }
-    }),
-    hoursWorked: (0, import_fields36.virtual)({
-      field: import_core35.graphql.field({
-        type: import_core35.graphql.Float,
-        resolve(item) {
-          if (!item.clockIn || !item.clockOut) return null;
-          const start = new Date(item.clockIn);
-          const end = new Date(item.clockOut);
-          return Math.round((end.getTime() - start.getTime()) / 36e5 * 100) / 100;
-        }
-      })
-    }),
-    laborCost: (0, import_fields36.virtual)({
-      field: import_core35.graphql.field({
-        type: import_core35.graphql.Float,
-        resolve(item) {
-          if (!item.clockIn || !item.clockOut || !item.hourlyRate) return null;
-          const start = new Date(item.clockIn);
-          const end = new Date(item.clockOut);
-          const hours = (end.getTime() - start.getTime()) / 36e5;
-          return Math.round(hours * parseFloat(item.hourlyRate) * 100) / 100;
-        }
-      })
-    }),
-    // Relationships
-    staff: (0, import_fields36.relationship)({
-      ref: "User",
-      ui: {
-        displayMode: "select",
-        labelField: "name"
-      }
-    }),
-    ...trackingFields
-  }
-});
-
-// features/keystone/models/TipPool.ts
-var import_core36 = require("@keystone-6/core");
-var import_fields37 = require("@keystone-6/core/fields");
-var TipPool = (0, import_core36.list)({
-  access: {
-    operation: {
-      query: permissions.canReadStaff,
-      create: permissions.canManageStaff,
-      update: permissions.canManageStaff,
-      delete: permissions.canManageStaff
-    }
-  },
-  ui: {
-    listView: {
-      initialColumns: ["date", "tipPoolType", "totalTips", "status"]
-    }
-  },
-  fields: {
-    date: (0, import_fields37.timestamp)({
-      validation: { isRequired: true },
-      ui: { description: "Date this tip pool is for" }
-    }),
-    tipPoolType: (0, import_fields37.select)({
-      type: "string",
-      options: [
-        { label: "Individual", value: "individual" },
-        { label: "Pool by Role", value: "pool_by_role" },
-        { label: "House Pool", value: "house_pool" }
-      ],
-      defaultValue: "individual"
-    }),
-    totalTips: (0, import_fields37.integer)({
-      defaultValue: 0,
-      validation: { isRequired: true },
-      ui: { description: "Total tips in cents" }
-    }),
-    cashTips: (0, import_fields37.integer)({
-      defaultValue: 0,
-      ui: { description: "Cash tips in cents" }
-    }),
-    creditTips: (0, import_fields37.integer)({
-      defaultValue: 0,
-      ui: { description: "Credit tips in cents" }
-    }),
-    distributions: (0, import_fields37.json)({
-      ui: {
-        description: "Array of { staffId, staffName, role, hoursWorked, amount }"
-      }
-    }),
-    status: (0, import_fields37.select)({
-      type: "string",
-      options: [
-        { label: "Open", value: "open" },
-        { label: "Calculated", value: "calculated" },
-        { label: "Distributed", value: "distributed" }
-      ],
-      defaultValue: "open"
-    }),
-    notes: (0, import_fields37.text)({
-      ui: { displayMode: "textarea" }
-    }),
-    // Relationships
-    createdBy: (0, import_fields37.relationship)({
-      ref: "User",
-      ui: {
-        displayMode: "select",
-        labelField: "name"
-      }
-    }),
-    ...trackingFields
-  }
-});
-
-// features/keystone/models/TimeEntry.ts
-var import_core37 = require("@keystone-6/core");
-var import_fields38 = require("@keystone-6/core/fields");
-var TimeEntry = (0, import_core37.list)({
-  access: {
-    operation: {
-      query: permissions.canReadStaff,
-      create: permissions.canManageStaff,
-      update: permissions.canManageStaff,
-      delete: permissions.canManageStaff
-    }
-  },
-  ui: {
-    listView: {
-      initialColumns: ["staff", "clockIn", "clockOut", "role", "hoursWorked"]
-    }
-  },
-  fields: {
-    clockIn: (0, import_fields38.timestamp)({
-      validation: { isRequired: true }
-    }),
-    clockOut: (0, import_fields38.timestamp)(),
-    role: (0, import_fields38.select)({
-      type: "string",
-      options: [
-        { label: "Server", value: "server" },
-        { label: "Bartender", value: "bartender" },
-        { label: "Host", value: "host" },
-        { label: "Busser", value: "busser" },
-        { label: "Cook", value: "cook" },
-        { label: "Dishwasher", value: "dishwasher" },
-        { label: "Manager", value: "manager" }
-      ],
-      defaultValue: "server"
-    }),
-    hourlyRate: (0, import_fields38.decimal)({
-      precision: 10,
-      scale: 2,
-      ui: { description: "Hourly rate at time of clock in" }
-    }),
-    tips: (0, import_fields38.decimal)({
-      precision: 10,
-      scale: 2,
-      defaultValue: "0.00",
-      ui: { description: "Tips earned during this shift" }
-    }),
-    breakMinutes: (0, import_fields38.decimal)({
-      precision: 5,
-      scale: 0,
-      defaultValue: "0",
-      ui: { description: "Break time in minutes" }
     }),
     notes: (0, import_fields38.text)({
       ui: { displayMode: "textarea" }
@@ -3669,9 +3607,7 @@ var TimeEntry = (0, import_core37.list)({
           if (!item.clockIn || !item.clockOut) return null;
           const start = new Date(item.clockIn);
           const end = new Date(item.clockOut);
-          const breakMins = parseFloat(item.breakMinutes || "0");
-          const totalMins = (end.getTime() - start.getTime()) / 6e4 - breakMins;
-          return Math.round(totalMins / 60 * 100) / 100;
+          return Math.round((end.getTime() - start.getTime()) / 36e5 * 100) / 100;
         }
       })
     }),
@@ -3682,8 +3618,7 @@ var TimeEntry = (0, import_core37.list)({
           if (!item.clockIn || !item.clockOut || !item.hourlyRate) return null;
           const start = new Date(item.clockIn);
           const end = new Date(item.clockOut);
-          const breakMins = parseFloat(item.breakMinutes || "0");
-          const hours = ((end.getTime() - start.getTime()) / 6e4 - breakMins) / 60;
+          const hours = (end.getTime() - start.getTime()) / 36e5;
           return Math.round(hours * parseFloat(item.hourlyRate) * 100) / 100;
         }
       })
@@ -3700,10 +3635,176 @@ var TimeEntry = (0, import_core37.list)({
   }
 });
 
-// features/keystone/models/WasteLog.ts
+// features/keystone/models/TipPool.ts
 var import_core38 = require("@keystone-6/core");
 var import_fields39 = require("@keystone-6/core/fields");
-var WasteLog = (0, import_core38.list)({
+var TipPool = (0, import_core38.list)({
+  access: {
+    operation: {
+      query: permissions.canReadStaff,
+      create: permissions.canManageStaff,
+      update: permissions.canManageStaff,
+      delete: permissions.canManageStaff
+    }
+  },
+  ui: {
+    listView: {
+      initialColumns: ["date", "tipPoolType", "totalTips", "status"]
+    }
+  },
+  fields: {
+    date: (0, import_fields39.timestamp)({
+      validation: { isRequired: true },
+      ui: { description: "Date this tip pool is for" }
+    }),
+    tipPoolType: (0, import_fields39.select)({
+      type: "string",
+      options: [
+        { label: "Individual", value: "individual" },
+        { label: "Pool by Role", value: "pool_by_role" },
+        { label: "House Pool", value: "house_pool" }
+      ],
+      defaultValue: "individual"
+    }),
+    totalTips: (0, import_fields39.integer)({
+      defaultValue: 0,
+      validation: { isRequired: true },
+      ui: { description: "Total tips in cents" }
+    }),
+    cashTips: (0, import_fields39.integer)({
+      defaultValue: 0,
+      ui: { description: "Cash tips in cents" }
+    }),
+    creditTips: (0, import_fields39.integer)({
+      defaultValue: 0,
+      ui: { description: "Credit tips in cents" }
+    }),
+    distributions: (0, import_fields39.json)({
+      ui: {
+        description: "Array of { staffId, staffName, role, hoursWorked, amount }"
+      }
+    }),
+    status: (0, import_fields39.select)({
+      type: "string",
+      options: [
+        { label: "Open", value: "open" },
+        { label: "Calculated", value: "calculated" },
+        { label: "Distributed", value: "distributed" }
+      ],
+      defaultValue: "open"
+    }),
+    notes: (0, import_fields39.text)({
+      ui: { displayMode: "textarea" }
+    }),
+    // Relationships
+    createdBy: (0, import_fields39.relationship)({
+      ref: "User",
+      ui: {
+        displayMode: "select",
+        labelField: "name"
+      }
+    }),
+    ...trackingFields
+  }
+});
+
+// features/keystone/models/TimeEntry.ts
+var import_core39 = require("@keystone-6/core");
+var import_fields40 = require("@keystone-6/core/fields");
+var TimeEntry = (0, import_core39.list)({
+  access: {
+    operation: {
+      query: permissions.canReadStaff,
+      create: permissions.canManageStaff,
+      update: permissions.canManageStaff,
+      delete: permissions.canManageStaff
+    }
+  },
+  ui: {
+    listView: {
+      initialColumns: ["staff", "clockIn", "clockOut", "role", "hoursWorked"]
+    }
+  },
+  fields: {
+    clockIn: (0, import_fields40.timestamp)({
+      validation: { isRequired: true }
+    }),
+    clockOut: (0, import_fields40.timestamp)(),
+    role: (0, import_fields40.select)({
+      type: "string",
+      options: [
+        { label: "Server", value: "server" },
+        { label: "Bartender", value: "bartender" },
+        { label: "Host", value: "host" },
+        { label: "Busser", value: "busser" },
+        { label: "Cook", value: "cook" },
+        { label: "Dishwasher", value: "dishwasher" },
+        { label: "Manager", value: "manager" }
+      ],
+      defaultValue: "server"
+    }),
+    hourlyRate: (0, import_fields40.decimal)({
+      precision: 10,
+      scale: 2,
+      ui: { description: "Hourly rate at time of clock in" }
+    }),
+    tips: (0, import_fields40.decimal)({
+      precision: 10,
+      scale: 2,
+      defaultValue: "0.00",
+      ui: { description: "Tips earned during this shift" }
+    }),
+    breakMinutes: (0, import_fields40.decimal)({
+      precision: 5,
+      scale: 0,
+      defaultValue: "0",
+      ui: { description: "Break time in minutes" }
+    }),
+    notes: (0, import_fields40.text)({
+      ui: { displayMode: "textarea" }
+    }),
+    hoursWorked: (0, import_fields40.virtual)({
+      field: import_core39.graphql.field({
+        type: import_core39.graphql.Float,
+        resolve(item) {
+          if (!item.clockIn || !item.clockOut) return null;
+          const start = new Date(item.clockIn);
+          const end = new Date(item.clockOut);
+          const breakMins = parseFloat(item.breakMinutes || "0");
+          const totalMins = (end.getTime() - start.getTime()) / 6e4 - breakMins;
+          return Math.round(totalMins / 60 * 100) / 100;
+        }
+      })
+    }),
+    laborCost: (0, import_fields40.virtual)({
+      field: import_core39.graphql.field({
+        type: import_core39.graphql.Float,
+        resolve(item) {
+          if (!item.clockIn || !item.clockOut || !item.hourlyRate) return null;
+          const start = new Date(item.clockIn);
+          const end = new Date(item.clockOut);
+          const breakMins = parseFloat(item.breakMinutes || "0");
+          const hours = ((end.getTime() - start.getTime()) / 6e4 - breakMins) / 60;
+          return Math.round(hours * parseFloat(item.hourlyRate) * 100) / 100;
+        }
+      })
+    }),
+    // Relationships
+    staff: (0, import_fields40.relationship)({
+      ref: "User",
+      ui: {
+        displayMode: "select",
+        labelField: "name"
+      }
+    }),
+    ...trackingFields
+  }
+});
+
+// features/keystone/models/WasteLog.ts
+var import_core40 = require("@keystone-6/core");
+var import_fields41 = require("@keystone-6/core/fields");
+var WasteLog = (0, import_core40.list)({
   access: {
     operation: {
       query: permissions.canReadKitchen,
@@ -3718,13 +3819,13 @@ var WasteLog = (0, import_core38.list)({
     }
   },
   fields: {
-    quantity: (0, import_fields39.decimal)({
+    quantity: (0, import_fields41.decimal)({
       precision: 10,
       scale: 2,
       validation: { isRequired: true },
       ui: { description: "Amount wasted" }
     }),
-    reason: (0, import_fields39.select)({
+    reason: (0, import_fields41.select)({
       type: "string",
       options: [
         { label: "Spoilage", value: "spoilage" },
@@ -3738,9 +3839,9 @@ var WasteLog = (0, import_core38.list)({
       defaultValue: "spoilage",
       validation: { isRequired: true }
     }),
-    cost: (0, import_fields39.virtual)({
-      field: import_core38.graphql.field({
-        type: import_core38.graphql.Float,
+    cost: (0, import_fields41.virtual)({
+      field: import_core40.graphql.field({
+        type: import_core40.graphql.Float,
         async resolve(item, args, context) {
           if (!item.ingredientId || !item.quantity) return 0;
           const ingredient = await context.sudo().query.Ingredient.findOne({
@@ -3752,17 +3853,17 @@ var WasteLog = (0, import_core38.list)({
         }
       })
     }),
-    notes: (0, import_fields39.text)({
+    notes: (0, import_fields41.text)({
       ui: { displayMode: "textarea" }
     }),
     // Relationships
-    ingredient: (0, import_fields39.relationship)({
+    ingredient: (0, import_fields41.relationship)({
       ref: "Ingredient",
       ui: {
         displayMode: "select"
       }
     }),
-    loggedBy: (0, import_fields39.relationship)({
+    loggedBy: (0, import_fields41.relationship)({
       ref: "User",
       ui: {
         displayMode: "select",
@@ -3774,9 +3875,9 @@ var WasteLog = (0, import_core38.list)({
 });
 
 // features/keystone/models/PurchaseOrder.ts
-var import_core39 = require("@keystone-6/core");
-var import_fields40 = require("@keystone-6/core/fields");
-var PurchaseOrder = (0, import_core39.list)({
+var import_core41 = require("@keystone-6/core");
+var import_fields42 = require("@keystone-6/core/fields");
+var PurchaseOrder = (0, import_core41.list)({
   access: {
     operation: {
       query: permissions.canReadInventory,
@@ -3792,21 +3893,21 @@ var PurchaseOrder = (0, import_core39.list)({
     labelField: "poNumber"
   },
   fields: {
-    poNumber: (0, import_fields40.text)({
+    poNumber: (0, import_fields42.text)({
       validation: { isRequired: true },
       isIndexed: "unique"
     }),
-    orderDate: (0, import_fields40.timestamp)({
+    orderDate: (0, import_fields42.timestamp)({
       validation: { isRequired: true },
       defaultValue: { kind: "now" }
     }),
-    expectedDelivery: (0, import_fields40.timestamp)({
+    expectedDelivery: (0, import_fields42.timestamp)({
       ui: { description: "Expected delivery date" }
     }),
-    receivedDate: (0, import_fields40.timestamp)({
+    receivedDate: (0, import_fields42.timestamp)({
       ui: { description: "Actual received date" }
     }),
-    status: (0, import_fields40.select)({
+    status: (0, import_fields42.select)({
       type: "string",
       options: [
         { label: "Draft", value: "draft" },
@@ -3818,14 +3919,14 @@ var PurchaseOrder = (0, import_core39.list)({
       ],
       defaultValue: "draft"
     }),
-    lineItems: (0, import_fields40.json)({
+    lineItems: (0, import_fields42.json)({
       ui: {
         description: "Array of { ingredientId, ingredientName, quantity, unit, unitCost, totalCost }"
       }
     }),
-    totalCost: (0, import_fields40.virtual)({
-      field: import_core39.graphql.field({
-        type: import_core39.graphql.Float,
+    totalCost: (0, import_fields42.virtual)({
+      field: import_core41.graphql.field({
+        type: import_core41.graphql.Float,
         resolve(item) {
           if (!item.lineItems) return 0;
           const items = item.lineItems;
@@ -3833,17 +3934,17 @@ var PurchaseOrder = (0, import_core39.list)({
         }
       })
     }),
-    notes: (0, import_fields40.text)({
+    notes: (0, import_fields42.text)({
       ui: { displayMode: "textarea" }
     }),
     // Relationships
-    vendor: (0, import_fields40.relationship)({
+    vendor: (0, import_fields42.relationship)({
       ref: "Vendor",
       ui: {
         displayMode: "select"
       }
     }),
-    createdBy: (0, import_fields40.relationship)({
+    createdBy: (0, import_fields42.relationship)({
       ref: "User",
       ui: {
         displayMode: "select",
@@ -3873,6 +3974,8 @@ var models = {
   Recipe,
   Reservation,
   Payment,
+  PaymentCollection,
+  PaymentSession,
   Cart,
   CartItem,
   PaymentProvider,
@@ -4019,11 +4122,11 @@ async function executeAdapterFunction({ provider, functionName, args }) {
     );
   }
 }
-async function createPayment({ provider, order, amount, currency }) {
+async function createPayment({ provider, cart, order, amount, currency }) {
   return executeAdapterFunction({
     provider,
     functionName: "createPaymentFunction",
-    args: { order, amount, currency }
+    args: { cart, order, amount, currency }
   });
 }
 async function capturePayment2({ provider, paymentId, amount }) {
@@ -4084,12 +4187,17 @@ async function processPayment(root, args, context) {
         error: "Order is already completed"
       };
     }
-    const providerCode = paymentMethod === "cash" ? "pp_manual" : ["credit_card", "debit_card", "apple_pay", "google_pay"].includes(
+    const providerCode = paymentMethod === "cash" ? "pp_system_default" : ["credit_card", "debit_card", "apple_pay", "google_pay"].includes(
       paymentMethod
-    ) ? "pp_stripe" : null;
-    const provider = providerCode ? await context.db.PaymentProvider.findOne({
-      where: { code: providerCode }
-    }) : null;
+    ) ? "pp_stripe_stripe" : null;
+    const providers = providerCode ? await context.query.PaymentProvider.findMany({
+      where: {
+        code: { equals: providerCode },
+        isInstalled: { equals: true }
+      },
+      query: "id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction credentials metadata"
+    }) : [];
+    const provider = providers[0] || null;
     let clientSecret = null;
     let providerPaymentId = null;
     let paymentStatus = "pending";
@@ -4104,7 +4212,7 @@ async function processPayment(root, args, context) {
       clientSecret = providerResponse?.clientSecret || null;
       providerPaymentId = providerResponse?.paymentIntentId || providerResponse?.orderId || providerResponse?.paymentId || null;
       paymentStatus = providerResponse?.status || "pending";
-      usesStripe = provider.code === "pp_stripe" && !!providerPaymentId;
+      usesStripe = provider.code === "pp_stripe_stripe" && !!providerPaymentId;
     } else {
       const paymentIntent = await createPaymentIntent({
         amount,
@@ -4722,303 +4830,6 @@ async function voidOrder(root, args, context) {
   }
 }
 
-// features/keystone/mutations/createStorefrontOrder.ts
-var PAYMENT_METHOD_PROVIDER_MAP = {
-  card: "pp_stripe",
-  paypal: "pp_paypal",
-  cash: "pp_manual"
-};
-var CLIENT_SIDE_PROVIDERS = /* @__PURE__ */ new Set(["paypal", "cash"]);
-async function createStorefrontOrder(root, args, context) {
-  const sudoContext = context.sudo();
-  try {
-    const {
-      orderType,
-      customerInfo,
-      deliveryAddress,
-      items,
-      subtotal,
-      tax,
-      tip,
-      total,
-      currencyCode,
-      specialInstructions,
-      paymentMethod = "card"
-    } = args;
-    console.log({ customerInfo });
-    if (!customerInfo?.name || !customerInfo?.email || !customerInfo?.phone) {
-      return {
-        success: false,
-        orderId: null,
-        orderNumber: null,
-        clientSecret: null,
-        secretKey: null,
-        error: "Customer information is required"
-      };
-    }
-    if (!items || items.length === 0) {
-      return {
-        success: false,
-        orderId: null,
-        orderNumber: null,
-        clientSecret: null,
-        secretKey: null,
-        error: "Order must contain at least one item"
-      };
-    }
-    const providerCode = PAYMENT_METHOD_PROVIDER_MAP[paymentMethod] || "pp_stripe";
-    const providers = await sudoContext.query.PaymentProvider.findMany({
-      where: { code: { equals: providerCode }, isInstalled: { equals: true } },
-      query: "id code isInstalled createPaymentFunction capturePaymentFunction"
-    });
-    const paymentProvider = providers[0];
-    if (!paymentProvider) {
-      return {
-        success: false,
-        orderId: null,
-        orderNumber: null,
-        clientSecret: null,
-        secretKey: null,
-        error: `${providerCode} payment provider not configured`
-      };
-    }
-    const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
-    const orderTypeMap = {
-      pickup: "takeout",
-      delivery: "delivery"
-    };
-    const dbOrderType = orderTypeMap[orderType] || "takeout";
-    const customerNote = `Customer: ${customerInfo.name}, Email: ${customerInfo.email}, Phone: ${customerInfo.phone}`;
-    const deliveryNote = deliveryAddress ? `
-Delivery: ${deliveryAddress.address}, ${deliveryAddress.city} ${deliveryAddress.zip}` : "";
-    const fullInstructions = `${customerNote}${deliveryNote}${specialInstructions ? "\n" + specialInstructions : ""}`;
-    const customerId = context.session?.itemId;
-    const dbPaymentMethodMap = {
-      card: "credit_card",
-      paypal: "paypal",
-      cash: "cash"
-    };
-    const dbPaymentMethod = dbPaymentMethodMap[paymentMethod] || "credit_card";
-    const order = await sudoContext.query.RestaurantOrder.createOne({
-      data: {
-        orderNumber,
-        orderType: dbOrderType,
-        orderSource: "online",
-        status: "open",
-        guestCount: 1,
-        specialInstructions: fullInstructions,
-        subtotal: parseInt(subtotal),
-        tax: parseInt(tax),
-        tip: parseInt(tip),
-        total: parseInt(total),
-        currencyCode: currencyCode || "USD",
-        customer: customerId ? { connect: { id: customerId } } : void 0,
-        customerName: customerInfo.name,
-        customerEmail: customerInfo.email,
-        customerPhone: customerInfo.phone,
-        deliveryAddress: deliveryAddress?.address,
-        deliveryCity: deliveryAddress?.city,
-        deliveryZip: deliveryAddress?.zip
-      },
-      query: "id orderNumber secretKey"
-    });
-    for (const item of items) {
-      await sudoContext.query.OrderItem.createOne({
-        data: {
-          quantity: item.quantity,
-          price: Math.round(item.price),
-          specialInstructions: item.specialInstructions || "",
-          order: { connect: { id: order.id } },
-          menuItem: { connect: { id: item.menuItemId } },
-          appliedModifiers: item.modifierIds?.length ? { connect: item.modifierIds.map((id) => ({ id })) } : void 0
-        },
-        query: "id"
-      });
-    }
-    const amountInCents = parseInt(total);
-    const normalizedCurrency = (currencyCode || "USD").toLowerCase();
-    let clientSecret = null;
-    if (CLIENT_SIDE_PROVIDERS.has(paymentMethod)) {
-      await sudoContext.query.Payment.createOne({
-        data: {
-          amount: amountInCents,
-          status: "pending",
-          paymentMethod: dbPaymentMethod,
-          currencyCode: currencyCode || "USD",
-          tipAmount: parseInt(tip),
-          data: {},
-          order: { connect: { id: order.id } },
-          paymentProvider: { connect: { id: paymentProvider.id } }
-        },
-        query: "id"
-      });
-    } else {
-      const sessionData = await createPayment({
-        provider: paymentProvider,
-        order,
-        amount: amountInCents,
-        currency: normalizedCurrency
-      });
-      clientSecret = sessionData.clientSecret;
-      await sudoContext.query.Payment.createOne({
-        data: {
-          amount: amountInCents,
-          status: "pending",
-          paymentMethod: dbPaymentMethod,
-          currencyCode: currencyCode || "USD",
-          tipAmount: parseInt(tip),
-          data: {
-            paymentIntentId: sessionData.paymentIntentId,
-            clientSecret: sessionData.clientSecret
-          },
-          providerPaymentId: sessionData.paymentIntentId,
-          order: { connect: { id: order.id } },
-          paymentProvider: { connect: { id: paymentProvider.id } }
-        },
-        query: "id"
-      });
-    }
-    return {
-      success: true,
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      clientSecret,
-      secretKey: order.secretKey,
-      error: null
-    };
-  } catch (error) {
-    console.error("Error creating storefront order:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return {
-      success: false,
-      orderId: null,
-      orderNumber: null,
-      clientSecret: null,
-      secretKey: null,
-      error: errorMessage
-    };
-  }
-}
-
-// features/keystone/mutations/completeStorefrontOrder.ts
-async function completeStorefrontOrder(root, args, context) {
-  const sudoContext = context.sudo();
-  try {
-    const { orderId } = args;
-    const order = await sudoContext.query.RestaurantOrder.findOne({
-      where: { id: orderId },
-      query: "id orderNumber status"
-    });
-    if (!order) {
-      return {
-        success: false,
-        orderNumber: null,
-        error: "Order not found"
-      };
-    }
-    const payments = await sudoContext.query.Payment.findMany({
-      where: { order: { id: { equals: orderId } } },
-      query: `
-        id
-        status
-        data
-        providerPaymentId
-        paymentProvider {
-          id
-          code
-          capturePaymentFunction
-          getPaymentStatusFunction
-        }
-      `
-    });
-    const payment = payments[0];
-    if (!payment) {
-      return {
-        success: false,
-        orderNumber: null,
-        error: "Payment record not found"
-      };
-    }
-    const paymentIntentId = payment.data?.paymentIntentId || payment.providerPaymentId;
-    if (!paymentIntentId) {
-      await sudoContext.query.Payment.updateOne({
-        where: { id: payment.id },
-        data: { status: "succeeded", processedAt: (/* @__PURE__ */ new Date()).toISOString() }
-      });
-      await sudoContext.query.RestaurantOrder.updateOne({
-        where: { id: orderId },
-        data: { status: "sent_to_kitchen" }
-      });
-      return { success: true, orderNumber: order.orderNumber, error: null };
-    }
-    if (!payment.paymentProvider) {
-      return {
-        success: false,
-        orderNumber: null,
-        error: "Payment provider not found"
-      };
-    }
-    const paymentStatus = await getPaymentStatus({
-      provider: payment.paymentProvider,
-      paymentId: paymentIntentId
-    });
-    let paymentSucceeded = false;
-    if (paymentStatus.status === "succeeded") {
-      paymentSucceeded = true;
-    } else if (paymentStatus.status === "requires_capture") {
-      const captureResult = await capturePayment2({
-        provider: payment.paymentProvider,
-        paymentId: payment.stripePaymentIntentId
-      });
-      paymentSucceeded = captureResult.status === "succeeded";
-    }
-    if (!paymentSucceeded) {
-      await sudoContext.query.Payment.updateOne({
-        where: { id: payment.id },
-        data: {
-          status: "failed",
-          errorMessage: `Payment status: ${paymentStatus.status}`
-        }
-      });
-      return {
-        success: false,
-        orderNumber: null,
-        error: `Payment not successful. Status: ${paymentStatus.status}`
-      };
-    }
-    await sudoContext.query.Payment.updateOne({
-      where: { id: payment.id },
-      data: {
-        status: "succeeded",
-        processedAt: (/* @__PURE__ */ new Date()).toISOString(),
-        data: {
-          ...payment.data,
-          chargeId: paymentStatus.data?.latest_charge || ""
-        }
-      }
-    });
-    await sudoContext.query.RestaurantOrder.updateOne({
-      where: { id: orderId },
-      data: {
-        status: "sent_to_kitchen"
-      }
-    });
-    return {
-      success: true,
-      orderNumber: order.orderNumber,
-      error: null
-    };
-  } catch (error) {
-    console.error("Error completing storefront order:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return {
-      success: false,
-      orderNumber: null,
-      error: errorMessage
-    };
-  }
-}
-
 // features/keystone/mutations/initiatePaymentSession.ts
 async function initiatePaymentSession(root, { cartId, paymentProviderId }, context) {
   const sudoContext = context.sudo();
@@ -5027,62 +4838,127 @@ async function initiatePaymentSession(root, { cartId, paymentProviderId }, conte
     query: `
       id
       subtotal
-      orderType
-      paymentData
+      paymentCollection {
+        id
+        amount
+        paymentSessions {
+          id
+          isSelected
+          isInitiated
+          paymentProvider {
+            id
+            code
+          }
+          data
+        }
+      }
     `
   });
-  if (!cart) throw new Error("Cart not found");
+  if (!cart) {
+    throw new Error("Cart not found");
+  }
   const provider = await sudoContext.query.PaymentProvider.findOne({
     where: { code: paymentProviderId },
     query: `
-      id code isInstalled
-      createPaymentFunction capturePaymentFunction
-      refundPaymentFunction getPaymentStatusFunction
-      generatePaymentLinkFunction credentials
+      id
+      code
+      isInstalled
+      createPaymentFunction
+      capturePaymentFunction
+      refundPaymentFunction
+      getPaymentStatusFunction
+      generatePaymentLinkFunction
+      credentials
     `
   });
   if (!provider || !provider.isInstalled) {
     throw new Error(`Payment provider ${paymentProviderId} not found or not installed`);
   }
+  if (!cart.paymentCollection) {
+    cart.paymentCollection = await sudoContext.query.PaymentCollection.createOne({
+      data: {
+        cart: { connect: { id: cart.id } },
+        amount: cart.subtotal || 0,
+        description: "default"
+      },
+      query: "id"
+    });
+  }
+  const existingSession = cart.paymentCollection?.paymentSessions?.find(
+    (s) => s.paymentProvider.code === provider.code && !s.isInitiated
+  );
+  if (existingSession) {
+    const otherSessions = cart.paymentCollection.paymentSessions.filter(
+      (s) => s.id !== existingSession.id && s.isSelected
+    );
+    for (const session of otherSessions) {
+      await sudoContext.query.PaymentSession.updateOne({
+        where: { id: session.id },
+        data: { isSelected: false }
+      });
+    }
+    await sudoContext.query.PaymentSession.updateOne({
+      where: { id: existingSession.id },
+      data: { isSelected: true }
+    });
+    return existingSession;
+  }
   const amount = cart.subtotal || 0;
   const settings = await sudoContext.query.StoreSettings.findOne({
     where: { id: "1" },
-    query: "currencyCode"
+    query: `currencyCode`
   });
   const currency = (settings?.currencyCode || "USD").toLowerCase();
-  const isManualProvider = paymentProviderId === "pp_manual" || paymentProviderId === "pp_system_default";
-  let sessionData;
-  if (isManualProvider) {
-    sessionData = { providerCode: paymentProviderId };
-  } else {
-    sessionData = await createPayment({
+  const isManualProvider = provider.code === "pp_system_default";
+  let sessionData = { providerCode: provider.code };
+  if (!isManualProvider) {
+    const createdSessionData = await createPayment({
       provider,
-      order: { id: cartId },
-      // pass cartId as order context for adapter metadata
+      cart,
       amount,
       currency
     });
-    sessionData.providerCode = paymentProviderId;
+    sessionData = {
+      ...createdSessionData,
+      providerCode: provider.code
+    };
   }
-  await sudoContext.query.Cart.updateOne({
-    where: { id: cartId },
+  const existingSelectedSessions = cart.paymentCollection.paymentSessions?.filter(
+    (s) => s.isSelected
+  ) || [];
+  for (const session of existingSelectedSessions) {
+    await sudoContext.query.PaymentSession.updateOne({
+      where: { id: session.id },
+      data: { isSelected: false }
+    });
+  }
+  const newSession = await sudoContext.query.PaymentSession.createOne({
     data: {
-      paymentData: sessionData,
-      paymentProvider: { connect: { id: provider.id } }
-    }
+      paymentCollection: { connect: { id: cart.paymentCollection.id } },
+      paymentProvider: { connect: { id: provider.id } },
+      amount,
+      isSelected: true,
+      isInitiated: false,
+      data: sessionData
+    },
+    query: `
+      id
+      data
+      amount
+      isInitiated
+      isSelected
+      paymentProvider {
+        id
+        code
+      }
+    `
   });
-  return {
-    id: cartId,
-    // using cartId as session identifier
-    data: sessionData,
-    amount
-  };
+  return newSession;
 }
 
 // features/keystone/mutations/completeActiveCart.ts
-async function completeActiveCart(root, { cartId }, context) {
+async function completeActiveCart(root, { cartId, paymentSessionId }, context) {
   const sudoContext = context.sudo();
-  const userId = context.session?.itemId;
   const cart = await sudoContext.query.Cart.findOne({
     where: { id: cartId },
     query: `
@@ -5096,19 +4972,32 @@ async function completeActiveCart(root, { cartId }, context) {
       deliveryCity
       deliveryZip
       tipPercent
-      paymentData
       user { id }
-      paymentProvider {
-        id code
-        capturePaymentFunction
-        getPaymentStatusFunction
+      paymentCollection {
+        id
+        amount
+        paymentSessions {
+          id
+          isSelected
+          isInitiated
+          amount
+          data
+          paymentProvider {
+            id
+            code
+            capturePaymentFunction
+            getPaymentStatusFunction
+          }
+        }
       }
       items {
         id
         quantity
         specialInstructions
         menuItem {
-          id name price
+          id
+          name
+          price
           menuItemImages(take: 1) {
             id
             image { url }
@@ -5116,36 +5005,52 @@ async function completeActiveCart(root, { cartId }, context) {
           }
         }
         modifiers {
-          id name priceAdjustment
+          id
+          name
+          priceAdjustment
         }
       }
     `
   });
   if (!cart) throw new Error("Cart not found");
   if (!cart.items?.length) throw new Error("Cart is empty");
-  const paymentData = cart.paymentData;
-  const providerCode = paymentData?.providerCode;
-  const paymentIntentId = paymentData?.paymentIntentId;
-  const isManual = providerCode === "pp_manual" || providerCode === "pp_system_default";
+  const selectedSession = paymentSessionId ? cart.paymentCollection?.paymentSessions?.find(
+    (session) => session.id === paymentSessionId
+  ) : cart.paymentCollection?.paymentSessions?.find((session) => session.isSelected);
+  if (!selectedSession) {
+    throw new Error("No selected payment session found for this cart.");
+  }
+  const sessionData = selectedSession.data || {};
+  const paymentData = selectedSession.data || null;
+  const providerCode = selectedSession.paymentProvider?.code || sessionData?.providerCode;
+  const providerPaymentId = sessionData?.paymentIntentId || sessionData?.orderId;
+  const paymentProvider = selectedSession.paymentProvider;
+  if (!paymentProvider) {
+    throw new Error("Selected payment session is missing payment provider information.");
+  }
+  const isManual = providerCode === "pp_system_default";
   let paymentResult = {
     status: "manual_pending",
     paymentIntentId: null
   };
-  if (!isManual && paymentIntentId && cart.paymentProvider) {
+  if (!isManual) {
+    if (!providerPaymentId) {
+      throw new Error("Selected payment session is missing provider payment data.");
+    }
     const status = await getPaymentStatus({
-      provider: cart.paymentProvider,
-      paymentId: paymentIntentId
+      provider: paymentProvider,
+      paymentId: providerPaymentId
     });
     if (status.status === "succeeded") {
-      paymentResult = { status: "succeeded", paymentIntentId };
+      paymentResult = { status: "succeeded", paymentIntentId: providerPaymentId };
     } else if (status.status === "requires_capture") {
       const captured = await capturePayment2({
-        provider: cart.paymentProvider,
-        paymentId: paymentIntentId
+        provider: paymentProvider,
+        paymentId: providerPaymentId
       });
       paymentResult = {
         status: captured.status === "succeeded" ? "succeeded" : "failed",
-        paymentIntentId
+        paymentIntentId: providerPaymentId
       };
     } else {
       throw new Error(`Payment not successful. Status: ${status.status}`);
@@ -5172,7 +5077,7 @@ async function completeActiveCart(root, { cartId }, context) {
     delivery: "delivery"
   };
   const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
-  const customerId = cart.user?.id || userId;
+  const customerId = cart.user?.id;
   const secretKey = !customerId ? require("crypto").randomBytes(32).toString("hex") : void 0;
   const order = await sudoContext.query.RestaurantOrder.createOne({
     data: {
@@ -5195,7 +5100,7 @@ async function completeActiveCart(root, { cartId }, context) {
       deliveryZip: cart.deliveryZip || void 0,
       secretKey
     },
-    query: "id orderNumber secretKey"
+    query: "id orderNumber secretKey status"
   });
   for (const item of cart.items) {
     const modTotal = item.modifiers?.reduce(
@@ -5215,25 +5120,32 @@ async function completeActiveCart(root, { cartId }, context) {
     });
   }
   const paymentMethodMap = {
-    pp_stripe: "credit_card",
-    pp_paypal: "paypal",
-    pp_manual: "cash",
+    pp_stripe_stripe: "credit_card",
+    pp_paypal_paypal: "paypal",
     pp_system_default: "cash"
   };
-  await sudoContext.query.Payment.createOne({
+  const payment = await sudoContext.query.Payment.createOne({
     data: {
       amount: total,
       status: paymentResult.status === "succeeded" ? "succeeded" : "pending",
-      paymentMethod: paymentMethodMap[providerCode || "pp_manual"] || "cash",
+      paymentMethod: paymentMethodMap[providerCode || "pp_system_default"] || "cash",
       currencyCode,
       tipAmount: tip,
       providerPaymentId: paymentResult.paymentIntentId || void 0,
       data: paymentData || {},
       processedAt: paymentResult.status === "succeeded" ? (/* @__PURE__ */ new Date()).toISOString() : void 0,
       order: { connect: { id: order.id } },
-      paymentProvider: cart.paymentProvider ? { connect: { id: cart.paymentProvider.id } } : void 0
+      paymentProvider: { connect: { id: paymentProvider.id } }
     }
   });
+  if (cart.paymentCollection?.id) {
+    await sudoContext.query.PaymentCollection.updateOne({
+      where: { id: cart.paymentCollection.id },
+      data: {
+        payments: { connect: [{ id: payment.id }] }
+      }
+    });
+  }
   await sudoContext.query.Cart.updateOne({
     where: { id: cartId },
     data: {
@@ -5258,6 +5170,13 @@ async function activeCart(root, { cartId }, context) {
       id
       orderType
       subtotal
+      email
+      customerName
+      customerPhone
+      deliveryAddress
+      deliveryCity
+      deliveryZip
+      tipPercent
       items {
         id
         quantity
@@ -5281,14 +5200,48 @@ async function activeCart(root, { cartId }, context) {
           priceAdjustment
         }
       }
+      paymentCollection {
+        id
+        paymentSessions {
+          id
+          isSelected
+          isInitiated
+          amount
+          data
+          paymentProvider {
+            id
+            code
+          }
+        }
+      }
+      order {
+        id
+      }
     `
   });
-  return cart || null;
+  if (!cart) {
+    return null;
+  }
+  const settings = await sudoContext.query.StoreSettings.findOne({
+    where: { id: "1" },
+    query: `currencyCode`
+  });
+  return {
+    ...cart,
+    currencyCode: settings?.currencyCode || "USD"
+  };
 }
 
 // features/keystone/mutations/updateActiveCart.ts
 async function updateActiveCart(root, { cartId, data }, context) {
   const sudoContext = context.sudo();
+  const existingCart = await sudoContext.query.Cart.findOne({
+    where: { id: cartId },
+    query: `id`
+  });
+  if (!existingCart) {
+    throw new Error("Cart not found");
+  }
   return await sudoContext.db.Cart.updateOne({
     where: { id: cartId },
     data
@@ -5448,6 +5401,22 @@ async function getCustomerOrders(root, { limit = 10, offset = 0 }, context) {
     `
   });
   return orders;
+}
+
+// features/keystone/queries/activeCartPaymentProviders.ts
+async function activeCartPaymentProviders(root, _args, context) {
+  const providers = await context.sudo().query.PaymentProvider.findMany({
+    where: {
+      isInstalled: { equals: true }
+    },
+    query: `
+      id
+      name
+      code
+      isInstalled
+    `
+  });
+  return providers;
 }
 
 // features/keystone/mutations/tableManagement.ts
@@ -5947,30 +5916,11 @@ function extendGraphqlSchema(baseSchema) {
         onboardingStatus: String
       }
 
-      input CustomerInfoInput {
-        name: String!
-        email: String!
-        phone: String!
-      }
-
-      input DeliveryAddressInput {
-        address: String!
-        city: String!
-        zip: String!
-      }
-
-      input StorefrontOrderItemInput {
-        menuItemId: String!
-        quantity: Int!
-        price: Int!
-        specialInstructions: String
-        modifierIds: [String!]
-      }
-
       type Query {
         redirectToInit: Boolean
         getPaymentStatus(paymentIntentId: String!): GetPaymentStatusResult
-        activeCart(cartId: ID): Cart
+        activeCart(cartId: ID!): JSON
+        activeCartPaymentProviders: [PaymentProvider!]
         getCustomerOrder(orderId: ID!, secretKey: String): JSON
         getCustomerOrders(limit: Int, offset: Int): JSON
       }
@@ -6024,24 +5974,6 @@ function extendGraphqlSchema(baseSchema) {
           managerId: String
         ): VoidCompResult
 
-        createStorefrontOrder(
-          orderType: String!
-          customerInfo: CustomerInfoInput!
-          deliveryAddress: DeliveryAddressInput
-          items: [StorefrontOrderItemInput!]!
-          subtotal: Int!
-          tax: Int!
-          tip: Int!
-          total: Int!
-          currencyCode: String
-          specialInstructions: String
-          paymentMethod: String
-        ): CreateStorefrontOrderResult
-
-        completeStorefrontOrder(
-          orderId: String!
-        ): CompleteStorefrontOrderResult
-
         initiatePaymentSession(
           cartId: ID!
           paymentProviderId: String!
@@ -6049,6 +5981,7 @@ function extendGraphqlSchema(baseSchema) {
 
         completeActiveCart(
           cartId: ID!
+          paymentSessionId: ID
         ): RestaurantOrder
 
         transferTable(
@@ -6122,25 +6055,10 @@ function extendGraphqlSchema(baseSchema) {
         error: String
       }
 
-      type CreateStorefrontOrderResult {
-        success: Boolean!
-        orderId: String
-        orderNumber: String
-        clientSecret: String
-        secretKey: String
-        error: String
-      }
-
       type InitiatePaymentSessionResult {
         id: ID!
         data: JSON
         amount: Int
-      }
-
-      type CompleteStorefrontOrderResult {
-        success: Boolean!
-        orderNumber: String
-        error: String
       }
 
       type TableManagementResult {
@@ -6175,6 +6093,7 @@ function extendGraphqlSchema(baseSchema) {
         redirectToInit: redirectToInit_default,
         getPaymentStatus: getPaymentStatus2,
         activeCart,
+        activeCartPaymentProviders,
         getCustomerOrder,
         getCustomerOrders
       },
@@ -6190,8 +6109,6 @@ function extendGraphqlSchema(baseSchema) {
         voidOrderItem,
         compOrderItem,
         voidOrder,
-        createStorefrontOrder,
-        completeStorefrontOrder,
         initiatePaymentSession,
         completeActiveCart,
         transferTable,
@@ -6455,7 +6372,7 @@ var { withAuth } = (0, import_auth.createAuth)({
   `
 });
 var keystone_default = withAuth(
-  (0, import_core40.config)({
+  (0, import_core42.config)({
     db: {
       provider: "postgresql",
       url: databaseURL

@@ -1,50 +1,43 @@
+import { notFound } from "next/navigation";
+import Wrapper from "@/features/storefront/modules/checkout/components/payment-wrapper";
+import CheckoutForm from "@/features/storefront/modules/checkout/components/checkout-form";
+import CheckoutSummary from "@/features/storefront/modules/checkout/components/checkout-summary";
+import { retrieveCart } from "@/features/storefront/lib/data/cart";
+import { getUser } from "@/features/storefront/lib/data/user";
+import React from "react"
 import Link from "next/link"
-import { ChevronDown, Loader2 } from "lucide-react"
-import { CheckoutForm } from "@/features/storefront/modules/checkout/components/checkout-form"
-import { getStoreSettings, getStorefrontPaymentConfig } from "@/features/storefront/lib/data/menu"
-import { getUser } from "@/features/storefront/lib/data/user"
-import { fetchCart } from "@/features/storefront/lib/data"
-import { Suspense } from "react"
 
 export const metadata = {
   title: "Checkout",
-}
+};
+
+const fetchCartData = async () => {
+  const cart = await retrieveCart();
+  if (!cart) {
+    return notFound();
+  }
+  return cart;
+};
 
 export async function CheckoutPage() {
-  const [storeSettings, paymentConfig, user, cart] = await Promise.all([
-    getStoreSettings(),
-    getStorefrontPaymentConfig(),
-    getUser(),
-    fetchCart(),
-  ])
-
-  if (!cart || !cart.items?.length) {
-    return (
-      <div className="flex flex-col gap-4 items-center justify-center min-h-[calc(100vh-64px)]">
-        <h1 className="text-2xl font-semibold text-foreground">Your cart is empty</h1>
-        <p className="text-xs font-normal text-foreground">Add some items to your cart before checking out.</p>
-        <Link href="/" className="text-primary hover:underline">Browse Menu</Link>
-      </div>
-    )
-  }
+  const cart = await fetchCartData();
+  const customer = await getUser();
 
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    }>
-      <CheckoutForm
-        cart={cart}
-        storeInfo={storeSettings}
-        paymentConfig={paymentConfig}
-        user={user}
-      />
-    </Suspense>
-  )
+    <div className="grid grid-cols-1 sm:grid-cols-[1fr_416px] max-w-[1440px] w-full mx-auto px-6 gap-y-8 sm:gap-x-12 xl:gap-x-40 py-12">
+      <Wrapper cart={cart}>
+        <CheckoutForm cart={cart} customer={customer} />
+      </Wrapper>
+      <CheckoutSummary cart={cart} />
+    </div>
+  );
 }
 
-export function CheckoutLayout({ children }: { children: React.ReactNode }) {
+export function CheckoutLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <div className="w-full bg-background relative">
       <div className="h-16 bg-background border-b">
@@ -54,7 +47,6 @@ export function CheckoutLayout({ children }: { children: React.ReactNode }) {
             className="text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center gap-x-2 uppercase flex-1 basis-0 min-w-0"
             data-testid="back-to-menu-link"
           >
-            <ChevronDown className="rotate-90 shrink-0" size={16} />
             <span className="mt-px hidden lg:block text-xs font-medium leading-5 truncate">Back to menu</span>
             <span className="mt-px hidden sm:block lg:hidden text-xs font-medium leading-5 truncate">Back</span>
           </Link>
@@ -62,9 +54,7 @@ export function CheckoutLayout({ children }: { children: React.ReactNode }) {
           <div className="flex-1 basis-0" />
         </nav>
       </div>
-      <div className="relative" data-testid="checkout-container">
-        {children}
-      </div>
+      <div className="relative" data-testid="checkout-container">{children}</div>
     </div>
   )
 }

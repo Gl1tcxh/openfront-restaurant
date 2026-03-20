@@ -212,7 +212,7 @@ export default function CartDropdown({ cart, currencyCode, locale, user }: CartD
                   className="w-full h-12 bg-foreground text-background hover:bg-foreground/90 uppercase tracking-widest text-xs"
                   onClick={() => {
                     setIsCartOpen(false)
-                    router.push("/checkout")
+                    router.push("/checkout?step=contact")
                   }}
                 >
                   Checkout

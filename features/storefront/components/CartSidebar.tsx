@@ -8,6 +8,7 @@ import { useCartData, useRemoveCartItem, useUpdateCartItemQuantity, useClearCart
 import { type StoreInfo, type MenuItem } from "@/features/storefront/lib/store-data"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatCurrency } from "@/features/storefront/lib/currency"
+import { calculateRestaurantCheckoutTotals } from "@/features/storefront/lib/checkout-totals"
 
 interface CartSidebarProps {
   orderType: "pickup" | "delivery"
@@ -18,7 +19,6 @@ interface CartSidebarProps {
   onOpenChange: (open: boolean) => void
 }
 
-// Helper function to get image URL
 function getImageUrl(item: MenuItem): string {
   const firstImage = item.menuItemImages?.[0]
   if (firstImage?.image?.url) return firstImage.image.url
@@ -33,10 +33,14 @@ export function CartSidebar({ orderType, onOrderTypeChange, onCheckout, storeInf
   const updateQuantityMutation = useUpdateCartItemQuantity()
   const clearCart = useClearCart()
 
-  const deliveryFee = orderType === "delivery" ? storeInfo.deliveryFee : 0
-  const discount = orderType === "pickup" ? subtotal * (storeInfo.pickupDiscount / 100) : 0
-  const tax = (subtotal - discount) * 0.0875
-  const total = subtotal - discount + deliveryFee + tax
+  const { deliveryFee, pickupDiscount: discount, tax, total } = calculateRestaurantCheckoutTotals({
+    subtotal,
+    orderType,
+    tipPercent: 0,
+    deliveryFee: Number(storeInfo.deliveryFee || 0),
+    pickupDiscountPercent: Number(storeInfo.pickupDiscount || 0),
+    taxRate: 8.75,
+  })
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>

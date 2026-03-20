@@ -1,47 +1,36 @@
 "use server";
 
 import { gql } from "graphql-request";
+import { revalidateTag } from "next/cache";
 import { openfrontClient } from "../config";
-import { getAuthHeaders } from "./cookies";
+import { getAuthHeaders, getCartId, removeCartId } from "./cookies";
 
 const CART_QUERY = gql`
-  query GetCart($cartId: ID) {
-    cart: activeCart(cartId: $cartId) {
-      id
-      orderType
-      subtotal
-      items {
-        id
-        quantity
-        specialInstructions
-        menuItem {
-          id
-          name
-          price
-          menuItemImages(take: 1) {
-            id
-            image {
-              url
-            }
-            imagePath
-            altText
-          }
-        }
-        modifiers {
-          id
-          name
-          priceAdjustment
-        }
-      }
-    }
+  query GetCart($cartId: ID!) {
+    activeCart(cartId: $cartId)
   }
 `;
+
+export async function retrieveCart() {
+  const cartId = await getCartId();
+  if (!cartId) return null;
+
+  const { activeCart } = await openfrontClient.request(
+    CART_QUERY,
+    { cartId },
+    {}
+  );
+
+  if (!activeCart) return null;
+
+  return activeCart;
+}
 
 export async function fetchCart(cartId?: string) {
   if (!cartId) return null;
   const headers = await getAuthHeaders();
-  const { cart } = await openfrontClient.request(CART_QUERY, { cartId }, headers);
-  return cart;
+  const { activeCart } = await openfrontClient.request(CART_QUERY, { cartId }, headers);
+  return activeCart;
 }
 
 export async function createCart(orderType: string = "pickup") {
@@ -52,12 +41,16 @@ export async function createCart(orderType: string = "pickup") {
       }
     }
   `;
-  
+
   const headers = await getAuthHeaders();
-  const { createCart } = await openfrontClient.request(CREATE_CART_MUTATION, {
-    data: { orderType }
-  }, headers);
-  
+  const { createCart } = await openfrontClient.request(
+    CREATE_CART_MUTATION,
+    {
+      data: { orderType }
+    },
+    headers
+  );
+
   return createCart;
 }
 
@@ -147,11 +140,50 @@ export async function removeLineItem(params: {
   return removeCartItem;
 }
 
-// Aliases to match cart-client.ts names for flexibility
 export async function updateCartItemQuantity(params: { cartItemId: string; quantity: number }) {
   return updateLineItem({ cartId: "", lineId: params.cartItemId, quantity: params.quantity });
 }
 
 export async function removeCartItem(cartItemId: string) {
   return removeLineItem({ cartId: "", lineId: cartItemId });
+}
+
+export async function placeOrder(paymentSessionId?: string) {
+  const cartId = await getCartId();
+  if (!cartId) throw new Error("No cartId cookie found");
+
+  const headers = await getAuthHeaders();
+  const { completeActiveCart } = await openfrontClient.request(
+    gql`
+      mutation CompleteActiveCart($cartId: ID!, $paymentSessionId: ID) {
+        completeActiveCart(cartId: $cartId, paymentSessionId: $paymentSessionId) {
+          id
+          orderNumber
+          secretKey
+          status
+        }
+      }
+    `,
+    {
+      cartId,
+      paymentSessionId,
+    },
+    headers
+  );
+
+  if (completeActiveCart?.id) {
+    await removeCartId();
+    revalidateTag("cart", "max");
+
+    const secretKeyParam = completeActiveCart.secretKey
+      ? `?secretKey=${completeActiveCart.secretKey}`
+      : "";
+
+    return {
+      success: true,
+      redirectTo: `/order/confirmed/${completeActiveCart.id}${secretKeyParam}`,
+    };
+  }
+
+  return completeActiveCart;
 }

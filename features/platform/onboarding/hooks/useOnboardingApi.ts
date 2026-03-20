@@ -301,7 +301,7 @@ export function useOnboardingApi({
     const providers = [
       {
         name: 'Stripe',
-        code: 'pp_stripe',
+        code: 'pp_stripe_stripe',
         isInstalled: true,
         createPaymentFunction: 'stripe',
         capturePaymentFunction: 'stripe',
@@ -312,7 +312,7 @@ export function useOnboardingApi({
       },
       {
         name: 'PayPal',
-        code: 'pp_paypal',
+        code: 'pp_paypal_paypal',
         isInstalled: true,
         createPaymentFunction: 'paypal',
         capturePaymentFunction: 'paypal',
@@ -323,7 +323,7 @@ export function useOnboardingApi({
       },
       {
         name: 'Manual / Cash',
-        code: 'pp_manual',
+        code: 'pp_system_default',
         isInstalled: true,
         createPaymentFunction: 'manual',
         capturePaymentFunction: 'manual',

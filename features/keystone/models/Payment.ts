@@ -172,6 +172,14 @@ export const Payment = list({
       },
     }),
 
+    paymentCollection: relationship({
+      ref: "PaymentCollection.payments",
+      ui: {
+        displayMode: "select",
+        description: "Payment collection this payment belongs to",
+      },
+    }),
+
     processedBy: relationship({
       ref: "User",
       ui: {

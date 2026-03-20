@@ -1,5 +1,5 @@
 import { list } from "@keystone-6/core";
-import { text, checkbox, json } from "@keystone-6/core/fields";
+import { text, checkbox, json, relationship } from "@keystone-6/core/fields";
 
 import { isSignedIn, permissions } from "../access";
 import { trackingFields } from "./trackingFields";
@@ -77,6 +77,10 @@ export const PaymentProvider = list({
       ui: {
         description: "Name of the adapter function to handle provider webhooks",
       },
+    }),
+    sessions: relationship({
+      ref: "PaymentSession.paymentProvider",
+      many: true,
     }),
     ...trackingFields,
   },

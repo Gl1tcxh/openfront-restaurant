@@ -5,8 +5,6 @@ import updateActiveUser from "./updateActiveUser";
 import processPayment, { capturePaymentMutation, getPaymentStatus } from "./processPayment";
 import { splitCheckByItem, splitCheckByGuest } from "./splitCheck";
 import { voidOrderItem, compOrderItem, voidOrder } from "./voidComp";
-import createStorefrontOrder from "./createStorefrontOrder";
-import completeStorefrontOrder from "./completeStorefrontOrder";
 import initiatePaymentSession from "./initiatePaymentSession";
 import completeActiveCart from "./completeActiveCart";
 import activeCart from "./activeCart";
@@ -15,6 +13,7 @@ import updateCartItemQuantity from "./updateCartItemQuantity";
 import removeCartItem from "./removeCartItem";
 import getCustomerOrder from "./getCustomerOrder";
 import getCustomerOrders from "./getCustomerOrders";
+import activeCartPaymentProviders from "../queries/activeCartPaymentProviders";
 import { transferTable, combineTables } from "./tableManagement";
 import { fireCourse, recallCourse } from "./courseManagement";
 import { syncKitchenTickets, updateKitchenTicketStatus, fulfillKitchenTicketItem } from "./kdsTickets";
@@ -34,30 +33,11 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         onboardingStatus: String
       }
 
-      input CustomerInfoInput {
-        name: String!
-        email: String!
-        phone: String!
-      }
-
-      input DeliveryAddressInput {
-        address: String!
-        city: String!
-        zip: String!
-      }
-
-      input StorefrontOrderItemInput {
-        menuItemId: String!
-        quantity: Int!
-        price: Int!
-        specialInstructions: String
-        modifierIds: [String!]
-      }
-
       type Query {
         redirectToInit: Boolean
         getPaymentStatus(paymentIntentId: String!): GetPaymentStatusResult
-        activeCart(cartId: ID): Cart
+        activeCart(cartId: ID!): JSON
+        activeCartPaymentProviders: [PaymentProvider!]
         getCustomerOrder(orderId: ID!, secretKey: String): JSON
         getCustomerOrders(limit: Int, offset: Int): JSON
       }
@@ -111,24 +91,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
           managerId: String
         ): VoidCompResult
 
-        createStorefrontOrder(
-          orderType: String!
-          customerInfo: CustomerInfoInput!
-          deliveryAddress: DeliveryAddressInput
-          items: [StorefrontOrderItemInput!]!
-          subtotal: Int!
-          tax: Int!
-          tip: Int!
-          total: Int!
-          currencyCode: String
-          specialInstructions: String
-          paymentMethod: String
-        ): CreateStorefrontOrderResult
-
-        completeStorefrontOrder(
-          orderId: String!
-        ): CompleteStorefrontOrderResult
-
         initiatePaymentSession(
           cartId: ID!
           paymentProviderId: String!
@@ -136,6 +98,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
 
         completeActiveCart(
           cartId: ID!
+          paymentSessionId: ID
         ): RestaurantOrder
 
         transferTable(
@@ -209,25 +172,10 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         error: String
       }
 
-      type CreateStorefrontOrderResult {
-        success: Boolean!
-        orderId: String
-        orderNumber: String
-        clientSecret: String
-        secretKey: String
-        error: String
-      }
-
       type InitiatePaymentSessionResult {
         id: ID!
         data: JSON
         amount: Int
-      }
-
-      type CompleteStorefrontOrderResult {
-        success: Boolean!
-        orderNumber: String
-        error: String
       }
 
       type TableManagementResult {
@@ -262,6 +210,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         redirectToInit,
         getPaymentStatus,
         activeCart,
+        activeCartPaymentProviders,
         getCustomerOrder,
         getCustomerOrders,
       },
@@ -277,8 +226,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         voidOrderItem,
         compOrderItem,
         voidOrder,
-        createStorefrontOrder,
-        completeStorefrontOrder,
         initiatePaymentSession,
         completeActiveCart,
         transferTable,

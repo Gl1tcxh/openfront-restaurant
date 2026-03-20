@@ -4,34 +4,8 @@ import { gql } from "graphql-request";
 import { openfrontClient } from "../config";
 
 const CART_QUERY = gql`
-  query GetCart($cartId: ID) {
-    cart: activeCart(cartId: $cartId) {
-      id
-      orderType
-      subtotal
-      items {
-        id
-        quantity
-        specialInstructions
-        menuItem {
-          id
-          name
-          price
-          menuItemImages(take: 1) {
-            id
-            image {
-              url
-            }
-            imagePath
-          }
-        }
-        modifiers {
-          id
-          name
-          priceAdjustment
-        }
-      }
-    }
+  query GetCart($cartId: ID!) {
+    activeCart(cartId: $cartId)
   }
 `;
 
@@ -48,19 +22,19 @@ export async function fetchCart(cartId?: string) {
     const resolvedCartId = cartId || getCartId();
     if (!resolvedCartId) return null;
 
-    const { cart } = await openfrontClient.request<{ cart: any }>(
+    const { activeCart } = await openfrontClient.request<{ activeCart: any }>(
       CART_QUERY,
       { cartId: resolvedCartId }
     );
 
-    if (!cart) {
+    if (!activeCart) {
       if (typeof window !== "undefined") {
         document.cookie = "_restaurant_cart_id=; path=/; max-age=-1";
       }
       return null;
     }
 
-    return cart;
+    return activeCart;
   } catch (error) {
     console.error('Error fetching cart:', error);
     if (typeof window !== "undefined") {

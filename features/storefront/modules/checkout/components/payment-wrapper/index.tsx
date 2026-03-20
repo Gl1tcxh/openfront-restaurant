@@ -7,10 +7,21 @@ import { PayPalScriptProvider } from "@paypal/react-paypal-js"
 import { isStripe, isPaypal } from "@/features/storefront/lib/constants"
 
 interface PaymentWrapperProps {
-  paymentMethod?: string;
-  clientSecret?: string;
-  currency?: string;
-  children: React.ReactNode;
+  cart: {
+    paymentCollection?: {
+      paymentSessions?: {
+        isSelected: boolean;
+        paymentProvider?: {
+          code: string;
+        };
+        data?: {
+          clientSecret?: string;
+        }
+      }[];
+    };
+    currencyCode?: string;
+  };
+  children: React.ReactNode
 }
 
 const stripeKey = process.env.NEXT_PUBLIC_STRIPE_KEY
@@ -18,16 +29,19 @@ const stripePromise = stripeKey ? loadStripe(stripeKey) : null
 
 const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
 
-const PaymentWrapper: React.FC<PaymentWrapperProps> = ({ 
-  paymentMethod,
-  clientSecret,
-  currency = "usd",
-  children 
-}) => {
-  if (isStripe(paymentMethod) && stripePromise && clientSecret) {
+const PaymentWrapper: React.FC<PaymentWrapperProps> = ({ cart, children }) => {
+  const paymentSession = cart.paymentCollection?.paymentSessions?.find(
+    (s) => s.isSelected
+  )
+
+  if (
+    isStripe(paymentSession?.paymentProvider?.code) &&
+    paymentSession &&
+    stripePromise
+  ) {
     return (
       <StripeWrapper
-        clientSecret={clientSecret}
+        paymentSession={paymentSession}
         stripeKey={stripeKey}
         stripePromise={stripePromise}
       >
@@ -36,13 +50,17 @@ const PaymentWrapper: React.FC<PaymentWrapperProps> = ({
     )
   }
 
-  if (isPaypal(paymentMethod) && paypalClientId) {
+  if (
+    isPaypal(paymentSession?.paymentProvider?.code) &&
+    paypalClientId !== undefined &&
+    cart
+  ) {
     return (
       <PayPalScriptProvider
         options={{
           clientId: paypalClientId,
-          currency: currency.toUpperCase(),
-          intent: "capture",
+          currency: (cart.currencyCode || "USD").toUpperCase(),
+          intent: "authorize",
           components: "buttons",
         }}
       >

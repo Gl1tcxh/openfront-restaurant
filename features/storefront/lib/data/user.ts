@@ -392,11 +392,11 @@ export async function createGuestUser(params: {
   email: string;
   name: string;
   phone?: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; userId?: string }> {
   try {
     // 1. Already authenticated?
     const existing = await getUser();
-    if (existing) return { success: true };
+    if (existing) return { success: true, userId: existing.id };
 
     const { email, name, phone } = params;
 
@@ -457,7 +457,8 @@ export async function createGuestUser(params: {
       (revalidateTag as any)("auth");
     }
 
-    return { success: true };
+    const authenticatedUser = await getUser();
+    return { success: true, userId: authenticatedUser?.id || guestUser.id };
   } catch (error: any) {
     // 5. Unique constraint → email already has an account
     const msg = error instanceof Error ? error.message : String(error);

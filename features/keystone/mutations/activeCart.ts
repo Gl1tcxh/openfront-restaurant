@@ -13,6 +13,13 @@ export default async function activeCart(root: any, { cartId }: { cartId?: strin
       id
       orderType
       subtotal
+      email
+      customerName
+      customerPhone
+      deliveryAddress
+      deliveryCity
+      deliveryZip
+      tipPercent
       items {
         id
         quantity
@@ -36,8 +43,37 @@ export default async function activeCart(root: any, { cartId }: { cartId?: strin
           priceAdjustment
         }
       }
+      paymentCollection {
+        id
+        paymentSessions {
+          id
+          isSelected
+          isInitiated
+          amount
+          data
+          paymentProvider {
+            id
+            code
+          }
+        }
+      }
+      order {
+        id
+      }
     `
   });
 
-  return cart || null;
+  if (!cart) {
+    return null;
+  }
+
+  const settings = await sudoContext.query.StoreSettings.findOne({
+    where: { id: "1" },
+    query: `currencyCode`,
+  });
+
+  return {
+    ...cart,
+    currencyCode: settings?.currencyCode || "USD",
+  };
 }

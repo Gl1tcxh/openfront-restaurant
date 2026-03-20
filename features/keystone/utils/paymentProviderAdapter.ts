@@ -32,11 +32,11 @@ export async function executeAdapterFunction({ provider, functionName, args }: {
   }
 }
 
-export async function createPayment({ provider, order, amount, currency }: { provider: any; order: any; amount: number; currency: string }) {
+export async function createPayment({ provider, cart, order, amount, currency }: { provider: any; cart?: any; order?: any; amount: number; currency: string }) {
   return executeAdapterFunction({
     provider,
     functionName: "createPaymentFunction",
-    args: { order, amount, currency },
+    args: { cart, order, amount, currency },
   });
 }
 

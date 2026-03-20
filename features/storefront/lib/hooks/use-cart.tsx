@@ -84,19 +84,44 @@ export function useAddItemToCart() {
       const existingCartId = getCartId()
       let cartId = existingCartId || ""
 
+      // If no cart ID, create a new cart
       if (!cartId) {
         const newCart = await createCart(params.orderType || "pickup")
         cartId = newCart.id
         setCartIdCookie(cartId)
       }
 
-      return addToCart({
-        cartId,
-        menuItemId: params.menuItem.id,
-        quantity: params.quantity,
-        modifierIds: params.modifiers.map((m) => m.modifierId),
-        specialInstructions: params.specialInstructions,
-      })
+      // Try to add to cart. If cart doesn't exist (DB reset, expired, etc.),
+      // clear cookie, create new cart, and retry (like OpenFront's getOrSetCart)
+      try {
+        return await addToCart({
+          cartId,
+          menuItemId: params.menuItem.id,
+          quantity: params.quantity,
+          modifierIds: params.modifiers.map((m) => m.modifierId),
+          specialInstructions: params.specialInstructions,
+        })
+      } catch (error: any) {
+        // If cart doesn't exist or access denied, create new cart and retry
+        const errorMessage = error?.message || String(error)
+        if (errorMessage.includes("Access denied") || errorMessage.includes("not exist") || errorMessage.includes("Cart not found")) {
+          // Clear stale cookie and create new cart
+          removeCartIdCookie()
+          const newCart = await createCart(params.orderType || "pickup")
+          cartId = newCart.id
+          setCartIdCookie(cartId)
+
+          // Retry with new cart
+          return addToCart({
+            cartId,
+            menuItemId: params.menuItem.id,
+            quantity: params.quantity,
+            modifierIds: params.modifiers.map((m) => m.modifierId),
+            specialInstructions: params.specialInstructions,
+          })
+        }
+        throw error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cart.active() })
@@ -108,7 +133,20 @@ export function useRemoveCartItem() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (cartItemId: string) => removeCartItem(cartItemId),
+    mutationFn: async (cartItemId: string) => {
+      try {
+        return await removeCartItem(cartItemId)
+      } catch (error: any) {
+        // If cart doesn't exist, clear cookie and return silently
+        const errorMessage = error?.message || String(error)
+        if (errorMessage.includes("Access denied") || errorMessage.includes("not exist")) {
+          removeCartIdCookie()
+          queryClient.removeQueries({ queryKey: queryKeys.cart.active() })
+          return null
+        }
+        throw error
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cart.active() })
     },
@@ -119,7 +157,20 @@ export function useUpdateCartItemQuantity() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (params: { cartItemId: string; quantity: number }) => updateCartItemQuantity(params),
+    mutationFn: async (params: { cartItemId: string; quantity: number }) => {
+      try {
+        return await updateCartItemQuantity(params)
+      } catch (error: any) {
+        // If cart doesn't exist, clear cookie and return silently
+        const errorMessage = error?.message || String(error)
+        if (errorMessage.includes("Access denied") || errorMessage.includes("not exist")) {
+          removeCartIdCookie()
+          queryClient.removeQueries({ queryKey: queryKeys.cart.active() })
+          return null
+        }
+        throw error
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cart.active() })
     },

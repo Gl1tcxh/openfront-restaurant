@@ -71,18 +71,24 @@ export default async function processPayment(
 
     const providerCode =
       paymentMethod === "cash"
-        ? "pp_manual"
+        ? "pp_system_default"
         : ["credit_card", "debit_card", "apple_pay", "google_pay"].includes(
             paymentMethod
           )
-          ? "pp_stripe"
+          ? "pp_stripe_stripe"
           : null;
 
-    const provider = providerCode
-      ? await context.db.PaymentProvider.findOne({
-          where: { code: providerCode },
+    const providers = providerCode
+      ? await context.query.PaymentProvider.findMany({
+          where: {
+            code: { equals: providerCode },
+            isInstalled: { equals: true },
+          },
+          query: "id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction credentials metadata",
         })
-      : null;
+      : [];
+
+    const provider = providers[0] || null;
 
     let clientSecret: string | null = null;
     let providerPaymentId: string | null = null;
@@ -104,7 +110,7 @@ export default async function processPayment(
         providerResponse?.paymentId ||
         null;
       paymentStatus = providerResponse?.status || "pending";
-      usesStripe = provider.code === "pp_stripe" && !!providerPaymentId;
+      usesStripe = provider.code === "pp_stripe_stripe" && !!providerPaymentId;
     } else {
       // Create the Stripe PaymentIntent (legacy fallback)
       const paymentIntent = await createPaymentIntent({

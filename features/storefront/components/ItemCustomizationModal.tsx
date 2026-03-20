@@ -179,13 +179,36 @@ export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "
         setCartIdCookie(cartId)
       }
 
-      await addToCart({
-        cartId: cartId,
-        menuItemId: item.id,
-        quantity,
-        modifierIds: selectedModifiers.map((m) => m.modifierId),
-        specialInstructions: specialInstructions || undefined,
-      })
+      try {
+        await addToCart({
+          cartId: cartId,
+          menuItemId: item.id,
+          quantity,
+          modifierIds: selectedModifiers.map((m) => m.modifierId),
+          specialInstructions: specialInstructions || undefined,
+        })
+      } catch (error: any) {
+        // If cart doesn't exist (DB reset, expired, etc.), create new cart and retry
+        const errorMessage = error?.message || String(error)
+        if (errorMessage.includes("Access denied") || errorMessage.includes("not exist") || errorMessage.includes("Cart not found")) {
+          // Clear stale cookie and create new cart
+          document.cookie = "_restaurant_cart_id=; path=/; max-age=-1"
+          const newCart = await createCart(orderType)
+          cartId = newCart.id
+          setCartIdCookie(cartId)
+
+          // Retry with new cart
+          await addToCart({
+            cartId: cartId,
+            menuItemId: item.id,
+            quantity,
+            modifierIds: selectedModifiers.map((m) => m.modifierId),
+            specialInstructions: specialInstructions || undefined,
+          })
+        } else {
+          throw error
+        }
+      }
 
       router.refresh()
       onAdded?.()

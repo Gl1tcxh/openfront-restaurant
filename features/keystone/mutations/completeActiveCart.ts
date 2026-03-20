@@ -1,33 +1,22 @@
 /**
- * completeActiveCart — Restaurant version of OpenFront's completeActiveCart.
- *
- * OpenFront: verifies payment → creates Order from Cart → creates Payment record.
- * Restaurant: same, but creates RestaurantOrder + OrderItems + Payment.
- *
- * Flow:
- *   1. Load cart with items, customer info, paymentData, paymentProvider
- *   2. Verify / capture payment via adapter (skip for cash)
- *   3. Create RestaurantOrder from cart data
- *   4. Create OrderItems from cart items (snapshot menuItem data)
- *   5. Create Payment record with data: json()
- *   6. Link cart → order, return completed order
+ * completeActiveCart aligned to the active selected payment-session flow.
+ * Selected PaymentSession is the only payment source of truth.
  */
 import type { Context } from ".keystone/types";
 import { getPaymentStatus, capturePayment } from "../utils/paymentProviderAdapter";
 
 interface CompleteActiveCartArgs {
   cartId: string;
+  paymentSessionId?: string;
 }
 
 export default async function completeActiveCart(
   root: any,
-  { cartId }: CompleteActiveCartArgs,
+  { cartId, paymentSessionId }: CompleteActiveCartArgs,
   context: Context
 ) {
   const sudoContext = context.sudo();
-  const userId = context.session?.itemId;
 
-  // ── 1. Load cart ────────────────────────────────────────────────
   const cart = await sudoContext.query.Cart.findOne({
     where: { id: cartId },
     query: `
@@ -41,19 +30,32 @@ export default async function completeActiveCart(
       deliveryCity
       deliveryZip
       tipPercent
-      paymentData
       user { id }
-      paymentProvider {
-        id code
-        capturePaymentFunction
-        getPaymentStatusFunction
+      paymentCollection {
+        id
+        amount
+        paymentSessions {
+          id
+          isSelected
+          isInitiated
+          amount
+          data
+          paymentProvider {
+            id
+            code
+            capturePaymentFunction
+            getPaymentStatusFunction
+          }
+        }
       }
       items {
         id
         quantity
         specialInstructions
         menuItem {
-          id name price
+          id
+          name
+          price
           menuItemImages(take: 1) {
             id
             image { url }
@@ -61,7 +63,9 @@ export default async function completeActiveCart(
           }
         }
         modifiers {
-          id name priceAdjustment
+          id
+          name
+          priceAdjustment
         }
       }
     `,
@@ -70,34 +74,53 @@ export default async function completeActiveCart(
   if (!cart) throw new Error("Cart not found");
   if (!cart.items?.length) throw new Error("Cart is empty");
 
-  const paymentData = cart.paymentData as Record<string, any> | null;
-  const providerCode = paymentData?.providerCode as string | undefined;
-  const paymentIntentId = paymentData?.paymentIntentId as string | undefined;
+  const selectedSession = paymentSessionId
+    ? cart.paymentCollection?.paymentSessions?.find(
+        (session: any) => session.id === paymentSessionId
+      )
+    : cart.paymentCollection?.paymentSessions?.find((session: any) => session.isSelected);
 
-  // ── 2. Verify / capture payment ─────────────────────────────────
-  const isManual = providerCode === "pp_manual" || providerCode === "pp_system_default";
+  if (!selectedSession) {
+    throw new Error("No selected payment session found for this cart.");
+  }
+
+  const sessionData = (selectedSession.data || {}) as Record<string, any>;
+  const paymentData = selectedSession.data || null;
+
+  const providerCode = selectedSession.paymentProvider?.code || sessionData?.providerCode;
+  const providerPaymentId = sessionData?.paymentIntentId || sessionData?.orderId;
+  const paymentProvider = selectedSession.paymentProvider;
+
+  if (!paymentProvider) {
+    throw new Error("Selected payment session is missing payment provider information.");
+  }
+
+  const isManual = providerCode === "pp_system_default";
   let paymentResult: { status: string; paymentIntentId: string | null } = {
     status: "manual_pending",
     paymentIntentId: null,
   };
 
-  if (!isManual && paymentIntentId && cart.paymentProvider) {
-    // Stripe / PayPal — verify with provider (same as OpenFront's handlePaidOrder)
+  if (!isManual) {
+    if (!providerPaymentId) {
+      throw new Error("Selected payment session is missing provider payment data.");
+    }
+
     const status = await getPaymentStatus({
-      provider: cart.paymentProvider,
-      paymentId: paymentIntentId,
+      provider: paymentProvider,
+      paymentId: providerPaymentId,
     });
 
     if (status.status === "succeeded") {
-      paymentResult = { status: "succeeded", paymentIntentId };
+      paymentResult = { status: "succeeded", paymentIntentId: providerPaymentId };
     } else if (status.status === "requires_capture") {
       const captured = await capturePayment({
-        provider: cart.paymentProvider,
-        paymentId: paymentIntentId,
+        provider: paymentProvider,
+        paymentId: providerPaymentId,
       });
       paymentResult = {
         status: captured.status === "succeeded" ? "succeeded" : "failed",
-        paymentIntentId,
+        paymentIntentId: providerPaymentId,
       };
     } else {
       throw new Error(`Payment not successful. Status: ${status.status}`);
@@ -108,12 +131,10 @@ export default async function completeActiveCart(
     }
   }
 
-  // ── 3. Compute totals ───────────────────────────────────────────
   const subtotal = cart.subtotal || 0;
   const tipPercent = parseInt(cart.tipPercent || "0", 10);
   const tip = Math.round(subtotal * (tipPercent / 100));
 
-  // Get store settings for tax rate + currency
   const settings = await sudoContext.query.StoreSettings.findOne({
     where: { id: "1" },
     query: "taxRate currencyCode pickupDiscount",
@@ -122,21 +143,16 @@ export default async function completeActiveCart(
   const currencyCode = settings?.currencyCode || "USD";
   const storePickupDiscount = parseInt(settings?.pickupDiscount || "10", 10);
   const tax = Math.round(subtotal * (taxRate / 100));
-
-  // Pickup discount
   const pickupDiscount = cart.orderType === "pickup" ? Math.round(subtotal * (storePickupDiscount / 100)) : 0;
   const total = subtotal - pickupDiscount + tax + tip;
 
-  // ── 4. Create RestaurantOrder ───────────────────────────────────
   const orderTypeMap: Record<string, string> = {
     pickup: "takeout",
     delivery: "delivery",
   };
 
   const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
-  const customerId = cart.user?.id || userId;
-
-  // Generate secretKey for guest orders (same as OpenFront)
+  const customerId = cart.user?.id;
   const secretKey = !customerId
     ? require("crypto").randomBytes(32).toString("hex")
     : undefined;
@@ -162,10 +178,9 @@ export default async function completeActiveCart(
       deliveryZip: cart.deliveryZip || undefined,
       secretKey,
     },
-    query: "id orderNumber secretKey",
+    query: "id orderNumber secretKey status",
   });
 
-  // ── 5. Create OrderItems (snapshot cart items) ──────────────────
   for (const item of cart.items) {
     const modTotal =
       item.modifiers?.reduce(
@@ -188,19 +203,17 @@ export default async function completeActiveCart(
     });
   }
 
-  // ── 6. Create Payment record ────────────────────────────────────
   const paymentMethodMap: Record<string, string> = {
-    pp_stripe: "credit_card",
-    pp_paypal: "paypal",
-    pp_manual: "cash",
+    pp_stripe_stripe: "credit_card",
+    pp_paypal_paypal: "paypal",
     pp_system_default: "cash",
   };
 
-  await sudoContext.query.Payment.createOne({
+  const payment = await sudoContext.query.Payment.createOne({
     data: {
       amount: total,
       status: paymentResult.status === "succeeded" ? "succeeded" : "pending",
-      paymentMethod: paymentMethodMap[providerCode || "pp_manual"] || "cash",
+      paymentMethod: paymentMethodMap[providerCode || "pp_system_default"] || "cash",
       currencyCode,
       tipAmount: tip,
       providerPaymentId: paymentResult.paymentIntentId || undefined,
@@ -210,13 +223,19 @@ export default async function completeActiveCart(
           ? new Date().toISOString()
           : undefined,
       order: { connect: { id: order.id } },
-      paymentProvider: cart.paymentProvider
-        ? { connect: { id: cart.paymentProvider.id } }
-        : undefined,
+      paymentProvider: { connect: { id: paymentProvider.id } },
     },
   });
 
-  // ── 7. Link cart → order (like OpenFront) ───────────────────────
+  if (cart.paymentCollection?.id) {
+    await sudoContext.query.PaymentCollection.updateOne({
+      where: { id: cart.paymentCollection.id },
+      data: {
+        payments: { connect: [{ id: payment.id }] },
+      },
+    });
+  }
+
   await sudoContext.query.Cart.updateOne({
     where: { id: cartId },
     data: {
@@ -224,7 +243,6 @@ export default async function completeActiveCart(
     },
   });
 
-  // Return order (same shape OpenFront returns from completeActiveCart)
   return await sudoContext.query.RestaurantOrder.findOne({
     where: { id: order.id },
     query: "id orderNumber secretKey status",
