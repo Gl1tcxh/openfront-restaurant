@@ -1,4 +1,5 @@
-# Openfront Restaurant
+![openfront-restaurant](https://github.com/user-attachments/assets/72d52854-0594-4bb8-b3b3-13ab2d3e01a0)
+
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fopenshiporg%2Fopenfront-restaurant&env=SESSION_SECRET&products=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22group%22%3A%22postgres%22%7D%5D)
 
@@ -18,9 +19,7 @@ https://github.com/user-attachments/assets/da9b16f0-1f47-4d00-8499-e1df3c9c41b1
 | **User** | `craft@openship.org` |
 | **Password** | `xZZ8nqW&!KT1^S6b45c^gwmv51Y50y!y@a*` |
 
-[Watch full demo on YouTube →](#)
-
-[Learn more →](https://openship.org/openfront-restaurant)
+[Learn more →](https://openship.org/products/openfront-restaurant)
 
 [Documentation →](https://docs.openship.org/docs/openfront/restaurant/)
 
