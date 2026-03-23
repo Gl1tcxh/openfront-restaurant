@@ -7,7 +7,7 @@
 Openfront Restaurant is a specialized version of the Openfront platform designed specifically for the food and beverage industry. It provides a complete suite of tools for restaurant management, including Point of Sale (POS), Kitchen Display Systems (KDS), table management, menu engineering, and waitlist handling.
 
 ## Demo
-
+https://github.com/user-attachments/assets/3a36f04a-ea23-4c2d-882f-3048b5deb844
 | | |
 |---|---|
 | **Storefront** | [craft-burgers.openship.org](https://craft-burgers.openship.org) |
