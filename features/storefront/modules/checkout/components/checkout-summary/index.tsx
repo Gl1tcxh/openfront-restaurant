@@ -1,4 +1,3 @@
-import Divider from "@/features/storefront/modules/common/components/divider"
 import { getStoreSettings } from "@/features/storefront/lib/data/menu"
 import { formatCurrency } from "@/features/storefront/lib/currency"
 import { calculateRestaurantCheckoutTotals } from "@/features/storefront/lib/checkout-totals"
@@ -29,74 +28,71 @@ const CheckoutSummary = async ({ cart }: { cart: any }) => {
   })
 
   return (
-    <div className="sticky top-0 flex flex-col-reverse sm:flex-col gap-y-8 py-8 sm:py-0">
-      <div className="w-full bg-background flex flex-col">
-        <Divider className="my-6 sm:hidden" />
-        <h2 className="flex flex-row text-3xl font-medium items-baseline">
-          Order Summary
-        </h2>
-        <Divider className="my-6" />
+    <div className="sticky top-20 flex flex-col-reverse sm:flex-col gap-y-8 py-8 sm:py-0">
+      <div className="w-full flex flex-col">
+        <div className="rounded-2xl border border-border/50 bg-card p-6">
+          <h2 className="font-serif font-bold text-xl tracking-tight mb-5">
+            Order Summary
+          </h2>
 
-        <div className="flex flex-col gap-y-4">
-          {items.map((item: any) => {
-            const itemPrice = item.menuItem?.price || 0
-            const modifierPrice = (item.modifiers || []).reduce((s: number, m: any) => s + (m.priceAdjustment || 0), 0)
-            const lineTotal = (itemPrice + modifierPrice) * item.quantity
+          <div className="flex flex-col gap-y-3 pb-5 border-b border-border/50">
+            {items.map((item: any) => {
+              const itemPrice = item.menuItem?.price || 0
+              const modifierPrice = (item.modifiers || []).reduce((s: number, m: any) => s + (m.priceAdjustment || 0), 0)
+              const lineTotal = (itemPrice + modifierPrice) * item.quantity
 
-            return (
-              <div key={item.id} className="flex items-start justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-md bg-muted text-sm font-medium">
-                    {item.quantity}x
+              return (
+                <div key={item.id} className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-warm-100 text-warm-800 text-xs font-bold shrink-0">
+                      {item.quantity}×
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-medium leading-snug">{item.menuItem?.name}</span>
+                      {item.modifiers?.length > 0 && (
+                        <span className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                          {item.modifiers.map((m: any) => m.name).join(", ")}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">{item.menuItem?.name}</span>
-                    {item.modifiers?.length > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        {item.modifiers.map((m: any) => m.name).join(", ")}
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-sm font-medium tabular-nums shrink-0">{formatCurrency(lineTotal, currencyConfig)}</span>
                 </div>
-                <span className="text-sm">{formatCurrency(lineTotal, currencyConfig)}</span>
+              )
+            })}
+          </div>
+
+          <div className="flex flex-col gap-y-2 pt-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="tabular-nums">{formatCurrency(subtotal, currencyConfig)}</span>
+            </div>
+            {pickupDiscount > 0 && (
+              <div className="flex items-center justify-between text-sm text-green-600">
+                <span>Pickup Discount</span>
+                <span className="tabular-nums">-{formatCurrency(pickupDiscount, currencyConfig)}</span>
               </div>
-            )
-          })}
-        </div>
-
-        <Divider className="my-6" />
-
-        <div className="flex flex-col gap-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span>{formatCurrency(subtotal, currencyConfig)}</span>
-          </div>
-          {pickupDiscount > 0 && (
-            <div className="flex items-center justify-between text-sm text-primary">
-              <span>Pickup Discount</span>
-              <span>-{formatCurrency(pickupDiscount, currencyConfig)}</span>
-            </div>
-          )}
-          {deliveryFee > 0 && (
+            )}
+            {deliveryFee > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Delivery Fee</span>
+                <span className="tabular-nums">{formatCurrency(deliveryFee, currencyConfig)}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Delivery Fee</span>
-              <span>{formatCurrency(deliveryFee, currencyConfig)}</span>
+              <span className="text-muted-foreground">Tax</span>
+              <span className="tabular-nums">{formatCurrency(tax, currencyConfig)}</span>
             </div>
-          )}
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Tax</span>
-            <span>{formatCurrency(tax, currencyConfig)}</span>
-          </div>
-          {tipPercent > 0 && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Tip ({tipPercent}%)</span>
-              <span>{formatCurrency(tip, currencyConfig)}</span>
+            {tipPercent > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Tip ({tipPercent}%)</span>
+                <span className="tabular-nums">{formatCurrency(tip, currencyConfig)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-3 border-t border-border/50">
+              <span className="font-serif font-bold text-lg">Total</span>
+              <span className="font-serif font-bold text-lg tabular-nums">{formatCurrency(total, currencyConfig)}</span>
             </div>
-          )}
-          <Divider className="my-2" />
-          <div className="flex items-center justify-between text-base font-semibold">
-            <span>Total</span>
-            <span>{formatCurrency(total, currencyConfig)}</span>
           </div>
         </div>
       </div>

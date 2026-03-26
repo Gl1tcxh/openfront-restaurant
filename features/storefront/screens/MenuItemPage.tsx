@@ -52,18 +52,19 @@ export default async function MenuItemPage(props: Props) {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-6xl flex-col px-6 py-8 md:px-8 lg:px-10 lg:py-12">
+      <div className="mx-auto w-full max-w-6xl px-6 py-8 md:px-8 lg:px-10 lg:py-12">
         <Link
           href="/"
-          className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-8 inline-flex items-center gap-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground group"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           Back to Menu
         </Link>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_460px] lg:items-start">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start">
+          {/* Image */}
           <section>
-            <div className="relative aspect-[0.95] overflow-hidden rounded-2xl bg-muted ring-1 ring-border shadow-md shadow-foreground/5">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-muted shadow-lg shadow-foreground/5">
               <Image
                 src={getMenuItemImageUrl(item)}
                 alt={item.name}
@@ -71,82 +72,86 @@ export default async function MenuItemPage(props: Props) {
                 className="object-cover"
                 priority
               />
+              {item.featured && (
+                <span className="absolute left-4 top-4 rounded-full bg-warm-500 text-white px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em]">
+                  Featured
+                </span>
+              )}
             </div>
           </section>
 
+          {/* Details sidebar */}
           <section className="space-y-6">
             <div>
-              <div className="mb-4 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              <div className="mb-3 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 {item.mealPeriods?.[0] ? (
-                  <span>{item.mealPeriods[0].replace(/_/g, " ")}</span>
+                  <span className="bg-muted rounded-full px-3 py-1">{item.mealPeriods[0].replace(/_/g, " ")}</span>
                 ) : null}
                 {item.category && typeof item.category === "object" ? (
-                  <>
-                    <span>•</span>
-                    <span>{item.category.name}</span>
-                  </>
+                  <span className="bg-muted rounded-full px-3 py-1">{item.category.name}</span>
                 ) : null}
               </div>
-              <h1 className="font-serif text-4xl leading-[0.95] tracking-tight md:text-5xl">
+              <h1 className="font-serif font-bold text-4xl leading-[0.95] tracking-tight md:text-5xl">
                 {item.name}
               </h1>
-              <p className="mt-4 text-2xl font-semibold text-foreground">
+              <p className="mt-4 text-2xl font-semibold text-foreground tabular-nums">
                 {formatCurrency(item.price, currencyConfig)}
               </p>
               {description && (
-                <p className="mt-5 max-w-2xl text-base leading-8 text-muted-foreground">
+                <p className="mt-4 max-w-2xl text-[15px] leading-7 text-muted-foreground">
                   {description}
                 </p>
               )}
             </div>
 
-            <div className="rounded-2xl bg-card p-5 ring-1 ring-border shadow-md shadow-foreground/5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            {/* At a Glance */}
+            <div className="rounded-2xl bg-muted/60 p-5 border border-border/50">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground mb-4">
                 At a Glance
               </p>
-              <div className="mt-4 grid gap-4 border-t border-border pt-4 sm:grid-cols-3">
-                <div>
-                  <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-                    <Clock3 className="h-4 w-4" />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.22em]">
-                      Prep
-                    </span>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-background flex items-center justify-center border border-border/50">
+                    <Clock3 className="h-4 w-4 text-warm-600" />
                   </div>
-                  <p className="text-lg font-semibold text-foreground">
-                    {item.prepTime ? `${item.prepTime} min` : "House made"}
-                  </p>
+                  <div>
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground block">Prep</span>
+                    <p className="text-sm font-semibold text-foreground">
+                      {item.prepTime ? `${item.prepTime} min` : "House made"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-                    <Flame className="h-4 w-4" />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.22em]">
-                      Calories
-                    </span>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-background flex items-center justify-center border border-border/50">
+                    <Flame className="h-4 w-4 text-warm-600" />
                   </div>
-                  <p className="text-lg font-semibold text-foreground">
-                    {item.calories ? `${item.calories}` : "Seasonal"}
-                  </p>
+                  <div>
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground block">Calories</span>
+                    <p className="text-sm font-semibold text-foreground">
+                      {item.calories ? `${item.calories}` : "Seasonal"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-                    <Tag className="h-4 w-4" />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.22em]">
-                      Station
-                    </span>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-background flex items-center justify-center border border-border/50">
+                    <Tag className="h-4 w-4 text-warm-600" />
                   </div>
-                  <p className="text-lg font-semibold text-foreground">
-                    {item.kitchenStation ? item.kitchenStation : "Chef line"}
-                  </p>
+                  <div>
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground block">Station</span>
+                    <p className="text-sm font-semibold text-foreground capitalize">
+                      {item.kitchenStation ? item.kitchenStation : "Chef line"}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {(item.dietaryFlags?.length || item.allergens?.length) && (
-                <div className="mt-4 border-t border-border pt-4">
+              {(item.dietaryFlags?.length > 0 || item.allergens?.length > 0) && (
+                <div className="mt-4 pt-4 border-t border-border/50">
                   <div className="flex flex-wrap gap-2">
                     {item.dietaryFlags?.map((flag: string) => (
                       <span
                         key={flag}
-                        className="rounded-full border bg-background px-3 py-1.5 text-sm text-muted-foreground"
+                        className="rounded-full bg-warm-100 text-warm-800 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider"
                       >
                         {flag.replace(/_/g, " ")}
                       </span>
@@ -154,7 +159,7 @@ export default async function MenuItemPage(props: Props) {
                     {item.allergens?.map((allergen: string) => (
                       <span
                         key={allergen}
-                        className="rounded-full border bg-background px-3 py-1.5 text-sm text-muted-foreground"
+                        className="rounded-full bg-background border border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground"
                       >
                         {allergen.replace(/_/g, " ")}
                       </span>
@@ -164,13 +169,14 @@ export default async function MenuItemPage(props: Props) {
               )}
             </div>
 
-            <div className="rounded-2xl bg-card ring-1 ring-border shadow-md shadow-foreground/5">
+            {/* Customize & Add to Cart */}
+            <div className="rounded-2xl bg-card border border-border/60 shadow-sm overflow-hidden">
               <div className="px-5 pt-5 md:px-6">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                  Customize
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Customize Your Order
                 </p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Choose your modifiers and send the finished order straight to the cart.
+                <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                  Select modifiers and add to your cart.
                 </p>
               </div>
               <MenuItemPurchaseForm

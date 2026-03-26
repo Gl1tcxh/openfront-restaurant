@@ -73,39 +73,65 @@ export function StoreInfoBar({ storeInfo }: StoreInfoBarProps) {
   }
 
   // Get current day's open/close summary
-  const getOpenStatusSummary = () => {
+  const getOpenStatus = () => {
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
     const today = days[new Date().getDay()]
     const parsed = parseHours(storeInfo.hours?.[today as keyof typeof storeInfo.hours])
 
     if (!parsed || parsed.enabled === false || !parsed.ranges?.length) {
-      return "Closed today"
+      return { isOpen: false, text: "Closed today" }
     }
 
     const first = parsed.ranges[0]
-    return `Open ${formatDisplayTime(first.open)} – ${formatDisplayTime(first.close)}`
+    return { isOpen: true, text: `${formatDisplayTime(first.open)} – ${formatDisplayTime(first.close)}` }
   }
 
+  const status = getOpenStatus()
+
   return (
-    <div className="border-b border-border">
-      <div className="container mx-auto px-6 py-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-sm text-muted-foreground">
-            <span>{storeInfo.address}</span>
-            <span className="hidden md:inline">·</span>
-            <span>{storeInfo.phone}</span>
-            <span className="hidden md:inline">·</span>
-            <span>{getOpenStatusSummary()}</span>
+    <div className="bg-muted/50">
+      <div className="container mx-auto px-6 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            {/* Open/Closed badge */}
+            <div className="inline-flex items-center gap-2 rounded-full bg-background px-3 py-1.5 border border-border/60 shadow-sm">
+              <div className={cn(
+                "h-2 w-2 rounded-full",
+                status.isOpen ? "bg-green-500" : "bg-red-400"
+              )} />
+              <span className="text-xs font-medium">
+                {status.isOpen ? "Open" : "Closed"}
+              </span>
+              <span className="text-xs text-muted-foreground">{status.text}</span>
+            </div>
+
+            {storeInfo.address && (
+              <span className="text-[13px] text-muted-foreground">{storeInfo.address}</span>
+            )}
+
+            {storeInfo.phone && (
+              <>
+                <span className="text-muted-foreground/40 hidden sm:inline">·</span>
+                <span className="text-[13px] text-muted-foreground">{storeInfo.phone}</span>
+              </>
+            )}
           </div>
+
           {storeInfo.rating && storeInfo.reviewCount ? (
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">{storeInfo.rating}</span>
-              <span className="text-primary">★★★★★</span>
-              <span className="text-muted-foreground">({storeInfo.reviewCount.toLocaleString()})</span>
+              <div className="flex items-center gap-1">
+                <span className="text-warm-500 text-base">★</span>
+                <span className="font-semibold">{storeInfo.rating}</span>
+              </div>
+              <span className="text-muted-foreground text-[13px]">({storeInfo.reviewCount.toLocaleString()} reviews)</span>
             </div>
           ) : null}
         </div>
       </div>
     </div>
   )
+}
+
+function cn(...classes: (string | boolean | undefined)[]) {
+  return classes.filter(Boolean).join(" ")
 }

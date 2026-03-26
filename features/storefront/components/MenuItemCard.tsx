@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
 import type { MenuItem } from "@/features/storefront/lib/store-data"
 import { formatCurrency } from "@/features/storefront/lib/currency"
 import {
@@ -20,55 +20,66 @@ interface MenuItemCardProps {
 
 export function MenuItemCard({ item, onQuickView, currencyCode = "USD", locale = "en-US" }: MenuItemCardProps) {
   const badgeLabel = item.featured ? "Featured" : item.popular ? "Popular" : null
+  const description = getMenuItemDescriptionText(item.description)
 
   return (
-    <article className="group flex h-full flex-col rounded-2xl bg-card p-3 ring-1 ring-border shadow-md shadow-foreground/5 transition-all duration-200 hover:-translate-y-0.5">
-      <Link href={getMenuItemHref(item.id)} className="block">
-        <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-xl bg-muted">
-          <Image
-            src={getMenuItemImageUrl(item)}
-            alt={item.name}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-          />
-          {badgeLabel && (
-            <span className="absolute right-3 top-3 rounded-full border bg-background/95 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground">
-              {badgeLabel}
-            </span>
-          )}
-        </div>
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <h3 className="font-serif text-[1.8rem] leading-none tracking-tight text-foreground transition-colors group-hover:text-primary">
-              {item.name}
-            </h3>
-            <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted-foreground">
-              {getMenuItemDescriptionText(item.description)}
-            </p>
-          </div>
-          <span className="shrink-0 pt-0.5 text-xl font-semibold tracking-tight text-foreground">
-            {formatCurrency(item.price, { currencyCode, locale })}
+    <article className="group relative flex flex-col sm:flex-row rounded-2xl bg-card border border-border/60 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-foreground/5 hover:border-border">
+      {/* Image — links to detail page */}
+      <Link href={getMenuItemHref(item.id)} className="relative sm:w-44 sm:min-h-[160px] aspect-[16/10] sm:aspect-auto overflow-hidden bg-muted shrink-0">
+        <Image
+          src={getMenuItemImageUrl(item)}
+          alt={item.name}
+          fill
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        {badgeLabel && (
+          <span className="absolute left-3 top-3 rounded-full bg-warm-500 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em]">
+            {badgeLabel}
           </span>
-        </div>
+        )}
       </Link>
 
-      <div className="mt-5 flex items-center gap-2">
-        <Button
-          type="button"
-          className="h-11 flex-[1.3] rounded-xl px-4 text-sm font-semibold"
-          onClick={() => onQuickView(item)}
-        >
-          Quick View
-        </Button>
-        <Button
-          asChild
-          variant="outline"
-          className="h-11 flex-1 rounded-xl px-4 text-sm font-semibold"
-        >
-          <Link href={getMenuItemHref(item.id)}>
-            Details
-          </Link>
-        </Button>
+      {/* Content */}
+      <div className="flex flex-1 flex-col justify-between p-4 sm:p-5 min-w-0">
+        <div>
+          <div className="flex items-start justify-between gap-3 mb-1.5">
+            <Link href={getMenuItemHref(item.id)} className="hover:text-warm-700 transition-colors">
+              <h3 className="font-serif font-semibold text-xl leading-tight tracking-tight text-foreground group-hover:text-warm-700 transition-colors">
+                {item.name}
+              </h3>
+            </Link>
+            <span className="shrink-0 text-lg font-semibold text-foreground tabular-nums">
+              {formatCurrency(item.price, { currencyCode, locale })}
+            </span>
+          </div>
+          {description && (
+            <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
+              {description}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/40">
+          <div className="flex items-center gap-2">
+            {item.calories > 0 && (
+              <span className="text-[11px] font-medium text-muted-foreground bg-muted rounded-full px-2.5 py-1">
+                {item.calories} cal
+              </span>
+            )}
+            {item.dietaryFlags?.slice(0, 2).map((flag: string) => (
+              <span key={flag} className="text-[11px] font-medium text-muted-foreground bg-muted rounded-full px-2.5 py-1">
+                {flag.replace(/_/g, " ")}
+              </span>
+            ))}
+          </div>
+          <button
+            onClick={() => onQuickView(item)}
+            className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-700 hover:text-warm-900 transition-colors bg-warm-100 hover:bg-warm-200 rounded-full px-3 py-1.5"
+          >
+            <Plus className="h-3 w-3" />
+            Add to order
+          </button>
+        </div>
       </div>
     </article>
   )

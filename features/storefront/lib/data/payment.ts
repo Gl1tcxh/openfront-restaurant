@@ -2,7 +2,7 @@
 import { gql } from "graphql-request";
 import { openfrontClient } from "../config";
 import { cache } from "react";
-import { revalidateTag } from "next/cache";
+import { updateTag } from "next/cache";
 import { getAuthHeaders } from "./cookies";
 
 export const listCartPaymentMethods = cache(async function () {
@@ -47,6 +47,6 @@ export const initiatePaymentSession = async (cartId: string, paymentProviderId: 
     await getAuthHeaders()
   );
 
-  revalidateTag("cart");
+  updateTag("cart");
   return session;
 };

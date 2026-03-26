@@ -26,8 +26,8 @@ function StorefrontContent({ categories, menuItems, featuredItems, storeInfo }: 
     const categoryId = typeof item.category === 'object' && item.category?.id
       ? item.category.id
       : typeof item.category === 'string'
-      ? item.category
-      : "uncategorized"
+        ? item.category
+        : "uncategorized"
     if (!acc[categoryId]) {
       acc[categoryId] = []
     }
@@ -76,29 +76,36 @@ function StorefrontContent({ categories, menuItems, featuredItems, storeInfo }: 
 
   return (
     <div className="flex flex-col">
-      <div className="sticky top-[65px] z-40 bg-background border-b border-border">
+      <HeroBanner onOrderNow={() => handleCategoryChange(categories[1]?.id || "all")} storeInfo={storeInfo} />
+      <StoreInfoBar storeInfo={storeInfo} />
+
+      <div className="sticky top-[72px] z-40">
         <CategoryNav
           categories={categories}
           activeCategory={activeCategory}
           onCategoryChange={handleCategoryChange}
         />
       </div>
-      <HeroBanner onOrderNow={() => handleCategoryChange(categories[1]?.id || "all")} storeInfo={storeInfo} />
-      <StoreInfoBar storeInfo={storeInfo} />
 
-      <main className="container mx-auto px-6 py-12">
-        <div className="space-y-16">
+      <main className="container mx-auto px-6 py-12 md:py-16">
+        <div className="space-y-16 md:space-y-20">
           {/* Featured Section */}
           {featuredItems.length > 0 && (
             <section
               ref={(el: HTMLDivElement | null) => { sectionRefs.current["featured"] = el }}
               className="scroll-mt-44"
             >
-              <div className="mb-6 flex items-baseline justify-between border-b border-border pb-4">
-                <h2 className="font-serif text-3xl md:text-4xl">Featured</h2>
-                <span className="text-sm text-muted-foreground">{featuredItems.length} items</span>
+              <div className="mb-8 flex items-end justify-between">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-warm-100 px-3 py-1 mb-3">
+                    <span className="text-[11px] font-bold tracking-[0.15em] uppercase text-warm-700">Chef's Selection</span>
+                  </div>
+                  <h2 className="font-serif font-bold text-3xl md:text-4xl tracking-tight">Featured</h2>
+                  <div className="mt-2 h-0.5 w-12 bg-warm-500 rounded-full" />
+                </div>
+                <span className="text-[13px] font-medium text-muted-foreground">{featuredItems.length} items</span>
               </div>
-              <div className="grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {featuredItems.map((item) => (
                   <MenuItemCard
                     key={item.id}

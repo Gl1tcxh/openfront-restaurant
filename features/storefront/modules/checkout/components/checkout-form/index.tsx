@@ -26,20 +26,20 @@ export default async function CheckoutForm({ cart, customer }: CheckoutFormProps
 
   return (
     <div>
-      <div className="w-full grid grid-cols-1 gap-y-8">
-        <div>
+      <div className="w-full grid grid-cols-1 gap-y-2">
+        <div className="rounded-2xl border border-border/50 bg-card p-6 md:p-8">
           <Contact cart={cart} customer={customer} />
         </div>
 
-        <div>
+        <div className="rounded-2xl border border-border/50 bg-card p-6 md:p-8">
           <Delivery cart={cart} customer={customer} storeSettings={storeSettings} />
         </div>
 
-        <div>
+        <div className="rounded-2xl border border-border/50 bg-card p-6 md:p-8">
           <Payment cart={cart} availablePaymentMethods={availablePaymentMethods} />
         </div>
 
-        <div>
+        <div className="rounded-2xl border border-border/50 bg-card p-6 md:p-8">
           <Review cart={cart} storeSettings={storeSettings} />
         </div>
       </div>

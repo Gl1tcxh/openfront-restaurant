@@ -10,43 +10,48 @@ export default async function Nav() {
   const currencyConfig = getCurrencyConfig(storeSettings || undefined)
 
   return (
-    <div className="sticky top-0 z-50 bg-background">
-      <header className="bg-background/95 backdrop-blur-sm">
+    <div className="sticky top-0 z-50">
+      <header className="bg-background/80 backdrop-blur-xl border-b border-border/50">
         {storeSettings?.promoBanner && (
-          <div className="border-b border-border">
-            <div className="container mx-auto px-6 py-2">
-              <p className="text-center text-xs tracking-widest uppercase text-muted-foreground">
+          <div className="bg-primary text-primary-foreground">
+            <div className="container mx-auto px-6 py-2.5">
+              <p className="text-center text-[11px] font-medium tracking-[0.2em] uppercase">
                 {storeSettings.promoBanner}
               </p>
             </div>
           </div>
         )}
 
-        <div className="border-b border-border">
-          <div className="container mx-auto px-6">
-            <div className="flex items-center justify-between h-16">
-              {/* Logo */}
-              <a href="/" className="flex items-center gap-2">
-                <span className="font-serif text-2xl tracking-tight">{storeName}</span>
+        <div className="container mx-auto px-6">
+          <div className="flex items-center justify-between h-[72px]">
+            {/* Logo */}
+            <a href="/" className="flex items-center gap-3 group">
+              <span className="font-serif font-bold text-[1.6rem] tracking-tight leading-none">
+                {storeName}
+              </span>
+            </a>
+
+            {/* Right side */}
+            <div className="flex items-center gap-5">
+              <a
+                href="/account"
+                className="hidden sm:flex items-center gap-2 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Account
               </a>
 
-              {/* Right side */}
-              <div className="flex items-center gap-4">
-                <Suspense fallback={
-                  <button className="relative flex items-center gap-2 text-sm tracking-wide uppercase">
-                    <span className="hidden sm:inline">Bag</span>
-                  </button>
-                }>
-                  <CartButton
-                    currencyCode={currencyConfig.currencyCode}
-                    locale={currencyConfig.locale}
-                  />
-                </Suspense>
+              <div className="h-5 w-px bg-border hidden sm:block" />
 
-                <a href="/account" className="hidden sm:flex items-center gap-2 text-sm tracking-wide uppercase hover:text-primary transition-colors">
-                  Account
-                </a>
-              </div>
+              <Suspense fallback={
+                <button className="relative flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
+                  <span className="hidden sm:inline">Order</span>
+                </button>
+              }>
+                <CartButton
+                  currencyCode={currencyConfig.currencyCode}
+                  locale={currencyConfig.locale}
+                />
+              </Suspense>
             </div>
           </div>
         </div>

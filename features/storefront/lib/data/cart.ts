@@ -1,7 +1,7 @@
 "use server";
 
 import { gql } from "graphql-request";
-import { revalidateTag } from "next/cache";
+import { updateTag } from "next/cache";
 import { openfrontClient } from "../config";
 import { getAuthHeaders, getCartId, removeCartId, setCartId } from "./cookies";
 
@@ -73,7 +73,7 @@ async function getOrSetCart(orderType: string = "pickup") {
 
     cart = newCart;
     await setCartId(cart.id);
-    revalidateTag("cart");
+    updateTag("cart");
   }
 
   return cart;
@@ -132,7 +132,7 @@ export async function setCheckoutContact(data: {
       await getAuthHeaders()
     );
 
-    revalidateTag("cart");
+    updateTag("cart");
     return { success: true };
   } catch (error) {
     const message =
@@ -169,7 +169,7 @@ export async function setCheckoutDelivery(data: {
       await getAuthHeaders()
     );
 
-    revalidateTag("cart");
+    updateTag("cart");
     return { success: true };
   } catch (error) {
     const message =
@@ -225,7 +225,7 @@ export async function addToCart(params: {
     headers
   );
 
-  revalidateTag("cart");
+  updateTag("cart");
   return updateActiveCart;
 }
 
@@ -252,7 +252,7 @@ export async function updateLineItem(params: {
     headers
   );
 
-  revalidateTag("cart");
+  updateTag("cart");
   return updateCartItemQuantity;
 }
 
@@ -277,7 +277,7 @@ export async function removeLineItem(params: {
     headers
   );
 
-  revalidateTag("cart");
+  updateTag("cart");
   return removeCartItem;
 }
 
@@ -314,7 +314,7 @@ export async function placeOrder(paymentSessionId?: string) {
 
   if (completeActiveCart?.id) {
     await removeCartId();
-    revalidateTag("cart");
+    updateTag("cart");
 
     const secretKeyParam = completeActiveCart.secretKey
       ? `?secretKey=${completeActiveCart.secretKey}`

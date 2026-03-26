@@ -1,14 +1,28 @@
+import { Plus_Jakarta_Sans, Sora } from "next/font/google"
 import Nav from "@/features/storefront/modules/layout/templates/nav"
 import Footer from "@/features/storefront/modules/layout/templates/footer"
 import StorefrontServer from "./StorefrontServer"
 
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+})
+
+const sora = Sora({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-instrument",
+})
+
 export async function MainLayout({ children }: { children: React.ReactNode }) {
   return (
-    <StorefrontServer>
-      <Nav />
-      {children}
-      <Footer />
-    </StorefrontServer>
+    <div className={`${plusJakarta.variable} ${sora.variable} min-h-screen bg-background font-sans text-foreground`}>
+      <StorefrontServer>
+        <Nav />
+        {children}
+        <Footer />
+      </StorefrontServer>
+    </div>
   )
 }
 

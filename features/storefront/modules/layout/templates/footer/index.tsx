@@ -100,36 +100,50 @@ export default async function Footer() {
   })
 
   return (
-    <footer className="border-t border-border mt-auto">
-      <div className="container mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="md:col-span-2">
-            <h3 className="font-serif text-2xl mb-4">{storeName}</h3>
+    <footer className="bg-primary text-primary-foreground mt-auto">
+      <div className="container mx-auto px-6 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-12">
+          {/* Restaurant identity */}
+          <div className="md:col-span-5">
+            <div className="flex items-center gap-3 mb-6">
+              <h3 className="font-serif font-bold text-2xl tracking-tight">{storeName}</h3>
+            </div>
             {tagline && (
-              <p className="text-muted-foreground max-w-sm leading-relaxed">
+              <p className="text-primary-foreground/70 max-w-sm leading-relaxed text-[15px]">
                 {tagline}
               </p>
             )}
           </div>
-          <div>
-            <h4 className="text-sm font-medium uppercase tracking-wide mb-4">Hours</h4>
-            <div className="text-sm text-muted-foreground space-y-1">
+
+          {/* Hours */}
+          <div className="md:col-span-4">
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground/50 mb-5">Hours</h4>
+            <div className="text-sm text-primary-foreground/70 space-y-2">
               {footerHours.map((entry) => (
-                <p key={entry.day}>{entry.day}: {entry.value}</p>
+                <div key={entry.day} className="flex justify-between">
+                  <span className="font-medium text-primary-foreground/80">{entry.day}</span>
+                  <span>{entry.value}</span>
+                </div>
               ))}
             </div>
           </div>
-          <div>
-            <h4 className="text-sm font-medium uppercase tracking-wide mb-4">Contact</h4>
-            <div className="text-sm text-muted-foreground space-y-1">
-              {address && <p>{address}</p>}
+
+          {/* Contact */}
+          <div className="md:col-span-3">
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground/50 mb-5">Visit Us</h4>
+            <div className="text-sm text-primary-foreground/70 space-y-2">
+              {address && <p className="leading-relaxed">{address}</p>}
               {phone && <p>{phone}</p>}
             </div>
           </div>
         </div>
-        <div className="border-t border-border mt-12 pt-8 text-center text-sm text-muted-foreground">
-          <p suppressHydrationWarning>
-            © {new Date().getFullYear()} {storeName}. All rights reserved.
+
+        <div className="border-t border-primary-foreground/10 mt-14 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-primary-foreground/40" suppressHydrationWarning>
+            © {new Date().getFullYear()} {storeName}
+          </p>
+          <p className="text-[11px] text-primary-foreground/30 tracking-wide">
+            Powered by OpenFront
           </p>
         </div>
       </div>
