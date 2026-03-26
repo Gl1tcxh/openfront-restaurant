@@ -3,7 +3,7 @@
 import { gql } from "graphql-request";
 import { revalidateTag } from "next/cache";
 import { openfrontClient } from "../config";
-import { getAuthHeaders, getCartId, removeCartId } from "./cookies";
+import { getAuthHeaders, getCartId, removeCartId, setCartId } from "./cookies";
 
 const CART_QUERY = gql`
   query GetCart($cartId: ID!) {
@@ -14,11 +14,12 @@ const CART_QUERY = gql`
 export async function retrieveCart() {
   const cartId = await getCartId();
   if (!cartId) return null;
+  const headers = await getAuthHeaders();
 
   const { activeCart } = await openfrontClient.request(
     CART_QUERY,
     { cartId },
-    {}
+    headers
   );
 
   if (!activeCart) return null;
@@ -31,6 +32,51 @@ export async function fetchCart(cartId?: string) {
   const headers = await getAuthHeaders();
   const { activeCart } = await openfrontClient.request(CART_QUERY, { cartId }, headers);
   return activeCart;
+}
+
+async function getOrSetCart(orderType: string = "pickup") {
+  let cartId = await getCartId();
+  let cart = null;
+  const headers = await getAuthHeaders();
+
+  if (cartId) {
+    try {
+      const { activeCart } = await openfrontClient.request(CART_QUERY, { cartId }, headers);
+      cart = activeCart;
+
+      if (!cart) {
+        await removeCartId();
+        cartId = undefined;
+      }
+    } catch (error) {
+      console.error("Error retrieving cart:", error);
+      await removeCartId();
+      cartId = undefined;
+    }
+  }
+
+  if (!cart) {
+    const { createCart: newCart } = await openfrontClient.request(
+      gql`
+        mutation CreateCart($data: CartCreateInput!) {
+          createCart(data: $data) {
+            id
+            orderType
+          }
+        }
+      `,
+      {
+        data: { orderType },
+      },
+      headers
+    );
+
+    cart = newCart;
+    await setCartId(cart.id);
+    revalidateTag("cart");
+  }
+
+  return cart;
 }
 
 export async function createCart(orderType: string = "pickup") {
@@ -133,11 +179,11 @@ export async function setCheckoutDelivery(data: {
 }
 
 export async function addToCart(params: {
-  cartId: string;
   menuItemId: string;
   quantity: number;
   modifierIds?: string[];
   specialInstructions?: string;
+  orderType?: string;
 }) {
   const ADD_TO_CART_MUTATION = gql`
     mutation AddToCart($cartId: ID!, $data: CartUpdateInput!) {
@@ -147,18 +193,29 @@ export async function addToCart(params: {
     }
   `;
 
-  const headers = await getAuthHeaders();
+  const cart = await getOrSetCart(params.orderType || "pickup");
+  if (!cart?.id) {
+    throw new Error("Error retrieving or creating cart");
+  }
+
+  const headers = {
+    ...(await getAuthHeaders()),
+    cookie: `_restaurant_cart_id=${cart.id}`,
+  };
+
   const { updateActiveCart } = await openfrontClient.request(
     ADD_TO_CART_MUTATION,
     {
-      cartId: params.cartId,
+      cartId: cart.id,
       data: {
         items: {
           create: [
             {
               menuItem: { connect: { id: params.menuItemId } },
               quantity: params.quantity,
-              modifiers: params.modifierIds ? { connect: params.modifierIds.map((id: string) => ({ id })) } : undefined,
+              modifiers: params.modifierIds
+                ? { connect: params.modifierIds.map((id: string) => ({ id })) }
+                : undefined,
               specialInstructions: params.specialInstructions,
             },
           ],
@@ -167,6 +224,8 @@ export async function addToCart(params: {
     },
     headers
   );
+
+  revalidateTag("cart");
   return updateActiveCart;
 }
 
@@ -192,6 +251,8 @@ export async function updateLineItem(params: {
     },
     headers
   );
+
+  revalidateTag("cart");
   return updateCartItemQuantity;
 }
 
@@ -215,6 +276,8 @@ export async function removeLineItem(params: {
     },
     headers
   );
+
+  revalidateTag("cart");
   return removeCartItem;
 }
 

@@ -1,4 +1,5 @@
 import { Context } from ".keystone/types";
+import { assertCanAccessCartItem } from "../utils/cartAccess";
 
 export default async function removeCartItem(
   root: any, 
@@ -7,16 +8,7 @@ export default async function removeCartItem(
 ) {
   const sudoContext = context.sudo();
 
-  // Find the cart this item belongs to before deleting
-  const cartItem = await sudoContext.query.CartItem.findOne({
-    where: { id: cartItemId },
-    query: 'cart { id }'
-  });
-
-  if (!cartItem?.cart?.id) {
-    throw new Error("Cart not found for this item");
-  }
-
+  const cartItem = await assertCanAccessCartItem(context, cartItemId, "write");
   const cartId = cartItem.cart.id;
 
   // Delete cart item

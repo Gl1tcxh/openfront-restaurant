@@ -42,7 +42,6 @@ interface CartDropdownProps {
   cart: CartData | null
   currencyCode: string
   locale: string
-  user?: any
 }
 
 function getImageUrl(menuItem: CartItem["menuItem"]): string {
@@ -52,7 +51,7 @@ function getImageUrl(menuItem: CartItem["menuItem"]): string {
   return '/placeholder.jpg'
 }
 
-export default function CartDropdown({ cart, currencyCode, locale, user }: CartDropdownProps) {
+export default function CartDropdown({ cart, currencyCode, locale }: CartDropdownProps) {
   const router = useRouter()
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -75,7 +74,6 @@ export default function CartDropdown({ cart, currencyCode, locale, user }: CartD
     setIsUpdating(true)
     try {
       await updateLineItem({ cartId: cart?.id || "", lineId: cartItemId, quantity })
-      router.refresh()
     } catch (error) {
       console.error("Error updating quantity:", error)
     }
@@ -86,7 +84,6 @@ export default function CartDropdown({ cart, currencyCode, locale, user }: CartD
     setIsUpdating(true)
     try {
       await removeLineItem({ cartId: cart?.id || "", lineId: cartItemId })
-      router.refresh()
     } catch (error) {
       console.error("Error removing item:", error)
     }

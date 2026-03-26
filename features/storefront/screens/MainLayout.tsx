@@ -4,10 +4,7 @@ import StorefrontServer from "./StorefrontServer"
 
 export async function MainLayout({ children }: { children: React.ReactNode }) {
   return (
-    <StorefrontServer
-      prefetchUser={true}
-      prefetchCart={true}
-    >
+    <StorefrontServer>
       <Nav />
       {children}
       <Footer />

@@ -1,8 +1,8 @@
 import { list } from "@keystone-6/core";
-import { allOperations } from "@keystone-6/core/access";
-import { text, relationship, select, checkbox, decimal, integer } from "@keystone-6/core/fields";
+import { text, relationship, select, checkbox, integer } from "@keystone-6/core/fields";
 
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const MenuItemModifier = list({
   access: {
@@ -96,5 +96,6 @@ export const MenuItemModifier = list({
         displayMode: "select",
       },
     }),
+    ...trackingFields,
   },
 });

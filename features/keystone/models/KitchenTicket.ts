@@ -1,5 +1,4 @@
 import { list } from "@keystone-6/core";
-import { allOperations } from "@keystone-6/core/access";
 import {
   relationship,
   select,
@@ -8,7 +7,8 @@ import {
   timestamp,
 } from "@keystone-6/core/fields";
 
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const KitchenTicket = list({
   access: {
@@ -127,5 +127,6 @@ export const KitchenTicket = list({
         description: "Staff member who prepared this ticket",
       },
     }),
+    ...trackingFields,
   },
 });

@@ -1,6 +1,7 @@
 import { list } from "@keystone-6/core";
 import { json, text, relationship, image, integer } from "@keystone-6/core/fields";
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const MenuItemImage = list({
   access: {
@@ -20,6 +21,7 @@ export const MenuItemImage = list({
     }),
     menuItems: relationship({ ref: "MenuItem.menuItemImages", many: true }),
     metadata: json(),
+    ...trackingFields,
   },
   ui: {
     listView: {

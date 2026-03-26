@@ -1,8 +1,8 @@
 import { list, graphql } from "@keystone-6/core";
-import { allOperations } from "@keystone-6/core/access";
 import { text, integer, select, relationship, float, json, virtual } from "@keystone-6/core/fields";
 
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const Table = list({
   access: {
@@ -121,5 +121,6 @@ export const Table = list({
         description: "Number of completed orders in the last 24 hours",
       }
     }),
+    ...trackingFields,
   },
 });

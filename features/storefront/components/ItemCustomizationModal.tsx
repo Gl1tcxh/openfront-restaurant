@@ -1,16 +1,16 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import Link from "next/link"
 import Image from "next/image"
-import { Minus, Plus, Check } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { cn } from "@/lib/utils"
-import { addToCart, createCart } from "@/features/storefront/lib/data/cart"
-import type { MenuItem, SelectedModifier, MenuItemModifier } from "@/features/storefront/lib/store-data"
+import type { MenuItem } from "@/features/storefront/lib/store-data"
 import { formatCurrency } from "@/features/storefront/lib/currency"
-import { useRouter } from "next/navigation"
+import {
+  getMenuItemDescriptionText,
+  getMenuItemHref,
+  getMenuItemImageUrl,
+} from "@/features/storefront/lib/menu-item-utils"
+import { MenuItemPurchaseForm } from "@/features/storefront/components/MenuItemPurchaseForm"
 
 interface ItemCustomizationModalProps {
   item: MenuItem | null
@@ -22,313 +22,46 @@ interface ItemCustomizationModalProps {
   onAdded?: () => void
 }
 
-// Helper to get image URL
-function getImageUrl(item: MenuItem): string {
-  const firstImage = item.menuItemImages?.[0]
-  if (firstImage?.image?.url) return firstImage.image.url
-  if (firstImage?.imagePath) return firstImage.imagePath
-  return '/placeholder.jpg'
-}
-
-// Helper to get description text
-function getDescriptionText(description: any): string {
-  if (typeof description === 'string') return description
-  if (typeof description === 'object' && description?.document) {
-    const extractText = (node: any): string => {
-      if (!node) return ''
-      if (typeof node === 'string') return node
-      if (Array.isArray(node)) return node.map(extractText).join(' ')
-      if (node.children) return extractText(node.children)
-      if (node.text) return node.text
-      if (node.leaves) return node.leaves.map(extractText).join(' ')
-      return ''
-    }
-    return extractText(description.document)
-  }
-  return ''
-}
-
 export function ItemCustomizationModal({ item, isOpen, onClose, currencyCode = "USD", locale = "en-US", orderType = "pickup", onAdded }: ItemCustomizationModalProps) {
-  const router = useRouter()
-  const [quantity, setQuantity] = useState(1)
-  const [selectedModifiers, setSelectedModifiers] = useState<SelectedModifier[]>([])
-  const [specialInstructions, setSpecialInstructions] = useState("")
-  const [isAdding, setIsAdding] = useState(false)
-
-  // Group modifiers by modifierGroup
-  const modifierGroups = useMemo(() => {
-    if (!item?.modifiers || item.modifiers.length === 0) return []
-
-    const groups: Record<string, MenuItemModifier[]> = {}
-    item.modifiers.forEach((mod) => {
-      const groupKey = mod.modifierGroup || 'other'
-      if (!groups[groupKey]) {
-        groups[groupKey] = []
-      }
-      groups[groupKey].push(mod)
-    })
-
-    // Convert to array and add defaults for missing properties
-    return Object.entries(groups).map(([groupName, modifiers]) => {
-      const firstMod = modifiers[0]
-      return {
-        id: groupName,
-        name: firstMod.modifierGroupLabel || groupName.charAt(0).toUpperCase() + groupName.slice(1),
-        required: firstMod.required || false,
-        min: firstMod.minSelections || 0,
-        max: firstMod.maxSelections || modifiers.length,
-        modifiers: modifiers.map((m) => ({
-          id: m.id,
-          name: m.name,
-          price: Number(m.priceAdjustment),
-          calories: m.calories,
-          default: m.defaultSelected || false,
-        }))
-      }
-    })
-  }, [item?.modifiers])
-
-  useEffect(() => {
-    if (item) {
-      setQuantity(1)
-      setSpecialInstructions("")
-      const defaults: SelectedModifier[] = []
-      modifierGroups.forEach((group) => {
-        group.modifiers.forEach((modifier) => {
-          if (modifier.default) {
-            defaults.push({
-              groupId: group.id,
-              modifierId: modifier.id,
-              name: modifier.name,
-              price: modifier.price,
-            })
-          }
-        })
-      })
-      setSelectedModifiers(defaults)
-    }
-  }, [item, modifierGroups])
-
   if (!item) return null
-
-  const toggleModifier = (group: any, modifierId: string) => {
-    const modifier = group.modifiers.find((m: any) => m.id === modifierId)
-    if (!modifier) return
-
-    const existingIndex = selectedModifiers.findIndex((m) => m.groupId === group.id && m.modifierId === modifierId)
-
-    if (existingIndex >= 0) {
-      if (group.required && selectedModifiers.filter((m) => m.groupId === group.id).length <= group.min) {
-        return
-      }
-      setSelectedModifiers((prev) => prev.filter((_, i) => i !== existingIndex))
-    } else {
-      const currentGroupCount = selectedModifiers.filter((m) => m.groupId === group.id).length
-      if (currentGroupCount >= group.max) {
-        if (group.max === 1) {
-          setSelectedModifiers((prev) => [
-            ...prev.filter((m) => m.groupId !== group.id),
-            {
-              groupId: group.id,
-              modifierId: modifier.id,
-              name: modifier.name,
-              price: modifier.price,
-            },
-          ])
-        }
-        return
-      }
-      setSelectedModifiers((prev) => [
-        ...prev,
-        {
-          groupId: group.id,
-          modifierId: modifier.id,
-          name: modifier.name,
-          price: modifier.price,
-        },
-      ])
-    }
-  }
-
-  const isModifierSelected = (groupId: string, modifierId: string) => {
-    return selectedModifiers.some((m) => m.groupId === groupId && m.modifierId === modifierId)
-  }
-
-  const modifiersTotal = selectedModifiers.reduce((sum, m) => sum + m.price, 0)
-  const itemTotal = (Number(item.price) + modifiersTotal) * quantity
-
-  const getCartId = (): string | undefined => {
-    return document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("_restaurant_cart_id="))
-      ?.split("=")[1]
-  }
-
-  const setCartIdCookie = (id: string) => {
-    document.cookie = `_restaurant_cart_id=${id}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict`
-  }
-
-  const handleAddToCart = async () => {
-    setIsAdding(true)
-    try {
-      let cartId = getCartId() || ""
-
-      if (!cartId) {
-        const newCart = await createCart(orderType)
-        cartId = newCart.id
-        setCartIdCookie(cartId)
-      }
-
-      try {
-        await addToCart({
-          cartId: cartId,
-          menuItemId: item.id,
-          quantity,
-          modifierIds: selectedModifiers.map((m) => m.modifierId),
-          specialInstructions: specialInstructions || undefined,
-        })
-      } catch (error: any) {
-        // If cart doesn't exist (DB reset, expired, etc.), create new cart and retry
-        const errorMessage = error?.message || String(error)
-        if (errorMessage.includes("Access denied") || errorMessage.includes("not exist") || errorMessage.includes("Cart not found")) {
-          // Clear stale cookie and create new cart
-          document.cookie = "_restaurant_cart_id=; path=/; max-age=-1"
-          const newCart = await createCart(orderType)
-          cartId = newCart.id
-          setCartIdCookie(cartId)
-
-          // Retry with new cart
-          await addToCart({
-            cartId: cartId,
-            menuItemId: item.id,
-            quantity,
-            modifierIds: selectedModifiers.map((m) => m.modifierId),
-            specialInstructions: specialInstructions || undefined,
-          })
-        } else {
-          throw error
-        }
-      }
-
-      router.refresh()
-      onAdded?.()
-      onClose()
-    } catch (error) {
-      console.error("Error adding to cart:", error)
-    }
-    setIsAdding(false)
-  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden p-0 bg-background flex flex-col">
         <DialogTitle className="sr-only">{item.name}</DialogTitle>
-        {/* Image */}
         <div className="relative h-56 sm:h-72 bg-muted shrink-0">
-          <Image src={getImageUrl(item)} alt={item.name} fill className="object-cover" />
+          <Image src={getMenuItemImageUrl(item)} alt={item.name} fill className="object-cover" />
         </div>
 
-        <div className="overflow-y-auto flex-1 min-h-0">
-          {/* Header */}
-          <div className="px-6 pt-6 pb-4 border-b border-border">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="border-b border-border px-6 pt-6 pb-4">
             <h2 className="font-serif text-2xl md:text-3xl mb-2">{item.name}</h2>
-            <p className="text-muted-foreground leading-relaxed">{getDescriptionText(item.description)}</p>
+            <p className="text-muted-foreground leading-relaxed">
+              {getMenuItemDescriptionText(item.description)}
+            </p>
             <div className="flex items-center gap-4 mt-3 text-sm">
               <span className="font-medium">{formatCurrency(item.price, { currencyCode, locale })}</span>
               {item.calories && <span className="text-muted-foreground">{item.calories} cal</span>}
-            </div>
-          </div>
-
-          {/* Modifiers */}
-          {modifierGroups.length > 0 && (
-            <div className="px-6 py-6 space-y-8">
-              {modifierGroups.map((group) => (
-                <div key={group.id}>
-                  <div className="flex items-baseline justify-between mb-4">
-                    <h3 className="font-medium">{group.name}</h3>
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                      {group.required ? "Required" : "Optional"}
-                      {group.max > 1 && ` · Up to ${group.max}`}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    {group.modifiers.map((modifier) => {
-                      const isSelected = isModifierSelected(group.id, modifier.id)
-                      return (
-                        <button
-                          key={modifier.id}
-                          onClick={() => toggleModifier(group, modifier.id)}
-                          className={cn(
-                            "w-full flex items-center justify-between p-4 border transition-all text-left",
-                            isSelected ? "border-foreground bg-muted/50" : "border-border hover:border-muted-foreground",
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={cn(
-                                "h-5 w-5 border flex items-center justify-center transition-colors",
-                                isSelected ? "border-foreground bg-foreground" : "border-muted-foreground",
-                              )}
-                            >
-                              {isSelected && <Check className="h-3 w-3 text-background" />}
-                            </div>
-                            <div>
-                              <p className="text-sm">{modifier.name}</p>
-                              {modifier.calories && (
-                                <p className="text-xs text-muted-foreground">{modifier.calories} cal</p>
-                              )}
-                            </div>
-                          </div>
-                          {modifier.price > 0 && <span className="text-sm">+{formatCurrency(modifier.price, { currencyCode, locale })}</span>}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Special Instructions */}
-          <div className="px-6 py-6 border-t border-border">
-            <h3 className="font-medium mb-4">Special Instructions</h3>
-            <Textarea
-              placeholder="Any allergies or special requests?"
-              value={specialInstructions}
-              onChange={(e) => setSpecialInstructions(e.target.value)}
-              className="resize-none border-border"
-              rows={2}
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-border p-6 bg-muted/30 shrink-0">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center border border-border bg-background">
-              <button
-                className="h-12 w-12 flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50"
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                disabled={quantity <= 1}
+              <Link
+                href={getMenuItemHref(item.id)}
+                onClick={onClose}
+                className="ml-auto text-[11px] uppercase tracking-[0.24em] text-muted-foreground transition-colors hover:text-foreground"
               >
-                <Minus className="h-4 w-4" />
-              </button>
-              <span className="text-lg w-12 text-center">{quantity}</span>
-              <button
-                className="h-12 w-12 flex items-center justify-center hover:bg-muted transition-colors"
-                onClick={() => setQuantity(quantity + 1)}
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+                View Full Page
+              </Link>
             </div>
-            <Button
-              className="flex-1 h-12 bg-foreground text-background hover:bg-foreground/90 uppercase tracking-widest text-xs"
-              onClick={handleAddToCart}
-              disabled={isAdding}
-            >
-              {isAdding ? "Adding..." : `Add to Bag · ${formatCurrency(itemTotal, { currencyCode, locale })}`}
-            </Button>
           </div>
+
+          <MenuItemPurchaseForm
+            item={item}
+            currencyCode={currencyCode}
+            locale={locale}
+            orderType={orderType}
+            onAdded={() => {
+              onAdded?.()
+            }}
+            className="border-t border-border"
+          />
         </div>
       </DialogContent>
     </Dialog>

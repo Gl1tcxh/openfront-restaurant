@@ -410,6 +410,8 @@ type Role {
   canManageDiscounts: Boolean
   assignedTo(where: UserWhereInput! = {}, orderBy: [UserOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UserWhereUniqueInput): [User!]
   assignedToCount(where: UserWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input RoleWhereUniqueInput {
@@ -455,6 +457,8 @@ input RoleWhereInput {
   canReadDiscounts: BooleanFilter
   canManageDiscounts: BooleanFilter
   assignedTo: UserManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input UserManyRelationFilter {
@@ -498,6 +502,8 @@ input RoleOrderByInput {
   canManageGiftCards: OrderDirection
   canReadDiscounts: OrderDirection
   canManageDiscounts: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input RoleUpdateInput {
@@ -535,6 +541,8 @@ input RoleUpdateInput {
   canReadDiscounts: Boolean
   canManageDiscounts: Boolean
   assignedTo: UserRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input UserRelateToManyForUpdateInput {
@@ -584,6 +592,8 @@ input RoleCreateInput {
   canReadDiscounts: Boolean
   canManageDiscounts: Boolean
   assignedTo: UserRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input UserRelateToManyForCreateInput {
@@ -596,6 +606,8 @@ type Section {
   name: String
   tables(where: TableWhereInput! = {}, orderBy: [TableOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TableWhereUniqueInput): [Table!]
   tablesCount(where: TableWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input SectionWhereUniqueInput {
@@ -610,6 +622,8 @@ input SectionWhereInput {
   id: IDFilter
   name: StringFilter
   tables: TableManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input TableManyRelationFilter {
@@ -621,11 +635,15 @@ input TableManyRelationFilter {
 input SectionOrderByInput {
   id: OrderDirection
   name: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input SectionUpdateInput {
   name: String
   tables: TableRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input TableRelateToManyForUpdateInput {
@@ -643,6 +661,8 @@ input SectionUpdateArgs {
 input SectionCreateInput {
   name: String
   tables: TableRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input TableRelateToManyForCreateInput {
@@ -657,6 +677,8 @@ type Floor {
   isActive: Boolean
   tables(where: TableWhereInput! = {}, orderBy: [TableOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TableWhereUniqueInput): [Table!]
   tablesCount(where: TableWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input FloorWhereUniqueInput {
@@ -672,6 +694,8 @@ input FloorWhereInput {
   level: IntFilter
   isActive: BooleanFilter
   tables: TableManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input IntFilter {
@@ -690,6 +714,8 @@ input FloorOrderByInput {
   name: OrderDirection
   level: OrderDirection
   isActive: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input FloorUpdateInput {
@@ -697,6 +723,8 @@ input FloorUpdateInput {
   level: Int
   isActive: Boolean
   tables: TableRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input FloorUpdateArgs {
@@ -709,6 +737,8 @@ input FloorCreateInput {
   level: Int
   isActive: Boolean
   tables: TableRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type Table {
@@ -725,6 +755,8 @@ type Table {
   orders(where: RestaurantOrderWhereInput! = {}, orderBy: [RestaurantOrderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RestaurantOrderWhereUniqueInput): [RestaurantOrder!]
   ordersCount(where: RestaurantOrderWhereInput! = {}): Int
   turnoverRate: Float
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input TableWhereUniqueInput {
@@ -745,6 +777,8 @@ input TableWhereInput {
   floor: FloorWhereInput
   section: SectionWhereInput
   orders: RestaurantOrderManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input FloatNullableFilter {
@@ -766,6 +800,8 @@ input TableOrderByInput {
   shape: OrderDirection
   positionX: OrderDirection
   positionY: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input TableUpdateInput {
@@ -779,6 +815,8 @@ input TableUpdateInput {
   floor: FloorRelateToOneForUpdateInput
   section: SectionRelateToOneForUpdateInput
   orders: RestaurantOrderRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input FloorRelateToOneForUpdateInput {
@@ -809,6 +847,8 @@ input TableCreateInput {
   floor: FloorRelateToOneForCreateInput
   section: SectionRelateToOneForCreateInput
   orders: RestaurantOrderRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input FloorRelateToOneForCreateInput {
@@ -830,6 +870,8 @@ type MenuCategory {
   sortOrder: Int
   menuItems(where: MenuItemWhereInput! = {}, orderBy: [MenuItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MenuItemWhereUniqueInput): [MenuItem!]
   menuItemsCount(where: MenuItemWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input MenuCategoryWhereUniqueInput {
@@ -846,6 +888,8 @@ input MenuCategoryWhereInput {
   description: StringFilter
   sortOrder: IntNullableFilter
   menuItems: MenuItemManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input IntNullableFilter {
@@ -871,6 +915,8 @@ input MenuCategoryOrderByInput {
   icon: OrderDirection
   description: OrderDirection
   sortOrder: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input MenuCategoryUpdateInput {
@@ -880,6 +926,8 @@ input MenuCategoryUpdateInput {
   mealPeriods: [String!]
   sortOrder: Int
   menuItems: MenuItemRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input MenuItemRelateToManyForUpdateInput {
@@ -901,6 +949,8 @@ input MenuCategoryCreateInput {
   mealPeriods: [String!]
   sortOrder: Int
   menuItems: MenuItemRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input MenuItemRelateToManyForCreateInput {
@@ -927,6 +977,8 @@ type MenuItem {
   category: MenuCategory
   modifiers(where: MenuItemModifierWhereInput! = {}, orderBy: [MenuItemModifierOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MenuItemModifierWhereUniqueInput): [MenuItemModifier!]
   modifiersCount(where: MenuItemModifierWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type MenuItem_description_Document {
@@ -953,6 +1005,8 @@ input MenuItemWhereInput {
   kitchenStation: StringNullableFilter
   category: MenuCategoryWhereInput
   modifiers: MenuItemModifierManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input MenuItemImageManyRelationFilter {
@@ -977,6 +1031,8 @@ input MenuItemOrderByInput {
   prepTime: OrderDirection
   calories: OrderDirection
   kitchenStation: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input MenuItemUpdateInput {
@@ -995,6 +1051,8 @@ input MenuItemUpdateInput {
   mealPeriods: [String!]
   category: MenuCategoryRelateToOneForUpdateInput
   modifiers: MenuItemModifierRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input MenuItemImageRelateToManyForUpdateInput {
@@ -1038,6 +1096,8 @@ input MenuItemCreateInput {
   mealPeriods: [String!]
   category: MenuCategoryRelateToOneForCreateInput
   modifiers: MenuItemModifierRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input MenuItemImageRelateToManyForCreateInput {
@@ -1064,6 +1124,8 @@ type MenuItemImage {
   menuItems(where: MenuItemWhereInput! = {}, orderBy: [MenuItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MenuItemWhereUniqueInput): [MenuItem!]
   menuItemsCount(where: MenuItemWhereInput! = {}): Int
   metadata: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input MenuItemImageWhereUniqueInput {
@@ -1079,6 +1141,8 @@ input MenuItemImageWhereInput {
   altText: StringFilter
   order: IntNullableFilter
   menuItems: MenuItemManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input MenuItemImageOrderByInput {
@@ -1086,6 +1150,8 @@ input MenuItemImageOrderByInput {
   imagePath: OrderDirection
   altText: OrderDirection
   order: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input MenuItemImageUpdateInput {
@@ -1095,6 +1161,8 @@ input MenuItemImageUpdateInput {
   order: Int
   menuItems: MenuItemRelateToManyForUpdateInput
   metadata: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input MenuItemImageUpdateArgs {
@@ -1109,6 +1177,8 @@ input MenuItemImageCreateInput {
   order: Int
   menuItems: MenuItemRelateToManyForCreateInput
   metadata: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type MenuItemModifier {
@@ -1123,6 +1193,8 @@ type MenuItemModifier {
   calories: Int
   defaultSelected: Boolean
   menuItem: MenuItem
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input MenuItemModifierWhereUniqueInput {
@@ -1144,6 +1216,8 @@ input MenuItemModifierWhereInput {
   calories: IntNullableFilter
   defaultSelected: BooleanFilter
   menuItem: MenuItemWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input MenuItemModifierOrderByInput {
@@ -1157,6 +1231,8 @@ input MenuItemModifierOrderByInput {
   priceAdjustment: OrderDirection
   calories: OrderDirection
   defaultSelected: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input MenuItemModifierUpdateInput {
@@ -1170,6 +1246,8 @@ input MenuItemModifierUpdateInput {
   calories: Int
   defaultSelected: Boolean
   menuItem: MenuItemRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input MenuItemRelateToOneForUpdateInput {
@@ -1194,6 +1272,8 @@ input MenuItemModifierCreateInput {
   calories: Int
   defaultSelected: Boolean
   menuItem: MenuItemRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input MenuItemRelateToOneForCreateInput {
@@ -1628,6 +1708,8 @@ type OrderItem {
   appliedModifiersCount(where: MenuItemModifierWhereInput! = {}): Int
   kitchenTickets(where: KitchenTicketWhereInput! = {}, orderBy: [KitchenTicketOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: KitchenTicketWhereUniqueInput): [KitchenTicket!]
   kitchenTicketsCount(where: KitchenTicketWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input OrderItemWhereUniqueInput {
@@ -1656,6 +1738,8 @@ input OrderItemWhereInput {
   menuItem: MenuItemWhereInput
   appliedModifiers: MenuItemModifierManyRelationFilter
   kitchenTickets: KitchenTicketManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input KitchenTicketManyRelationFilter {
@@ -1678,6 +1762,8 @@ input OrderItemOrderByInput {
   kitchenReadyAt: OrderDirection
   fulfilledAt: OrderDirection
   recalledAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input OrderItemUpdateInput {
@@ -1698,6 +1784,8 @@ input OrderItemUpdateInput {
   menuItem: MenuItemRelateToOneForUpdateInput
   appliedModifiers: MenuItemModifierRelateToManyForUpdateInput
   kitchenTickets: KitchenTicketRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input RestaurantOrderRelateToOneForUpdateInput {
@@ -1742,6 +1830,8 @@ input OrderItemCreateInput {
   menuItem: MenuItemRelateToOneForCreateInput
   appliedModifiers: MenuItemModifierRelateToManyForCreateInput
   kitchenTickets: KitchenTicketRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input RestaurantOrderRelateToOneForCreateInput {
@@ -2542,6 +2632,8 @@ type CartItem {
   modifiers(where: MenuItemModifierWhereInput! = {}, orderBy: [MenuItemModifierOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MenuItemModifierWhereUniqueInput): [MenuItemModifier!]
   modifiersCount(where: MenuItemModifierWhereInput! = {}): Int
   specialInstructions: String
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input CartItemWhereUniqueInput {
@@ -2558,12 +2650,16 @@ input CartItemWhereInput {
   quantity: IntNullableFilter
   modifiers: MenuItemModifierManyRelationFilter
   specialInstructions: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input CartItemOrderByInput {
   id: OrderDirection
   quantity: OrderDirection
   specialInstructions: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input CartItemUpdateInput {
@@ -2572,6 +2668,8 @@ input CartItemUpdateInput {
   quantity: Int
   modifiers: MenuItemModifierRelateToManyForUpdateInput
   specialInstructions: String
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input CartItemUpdateArgs {
@@ -2585,6 +2683,8 @@ input CartItemCreateInput {
   quantity: Int
   modifiers: MenuItemModifierRelateToManyForCreateInput
   specialInstructions: String
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type PaymentProvider {
@@ -3151,6 +3251,8 @@ type KitchenStation {
   ticketsCount(where: KitchenTicketWhereInput! = {}): Int
   prepStations(where: PrepStationWhereInput! = {}, orderBy: [PrepStationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PrepStationWhereUniqueInput): [PrepStation!]
   prepStationsCount(where: PrepStationWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input KitchenStationWhereUniqueInput {
@@ -3168,6 +3270,8 @@ input KitchenStationWhereInput {
   assignedStaff: UserManyRelationFilter
   tickets: KitchenTicketManyRelationFilter
   prepStations: PrepStationManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input PrepStationManyRelationFilter {
@@ -3181,6 +3285,8 @@ input KitchenStationOrderByInput {
   name: OrderDirection
   displayOrder: OrderDirection
   isActive: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input KitchenStationUpdateInput {
@@ -3190,6 +3296,8 @@ input KitchenStationUpdateInput {
   assignedStaff: UserRelateToManyForUpdateInput
   tickets: KitchenTicketRelateToManyForUpdateInput
   prepStations: PrepStationRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input PrepStationRelateToManyForUpdateInput {
@@ -3211,6 +3319,8 @@ input KitchenStationCreateInput {
   assignedStaff: UserRelateToManyForCreateInput
   tickets: KitchenTicketRelateToManyForCreateInput
   prepStations: PrepStationRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input PrepStationRelateToManyForCreateInput {
@@ -3223,6 +3333,8 @@ type PrepStation {
   menuItem: MenuItem
   station: KitchenStation
   preparationTime: Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input PrepStationWhereUniqueInput {
@@ -3237,17 +3349,23 @@ input PrepStationWhereInput {
   menuItem: MenuItemWhereInput
   station: KitchenStationWhereInput
   preparationTime: IntNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input PrepStationOrderByInput {
   id: OrderDirection
   preparationTime: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input PrepStationUpdateInput {
   menuItem: MenuItemRelateToOneForUpdateInput
   station: KitchenStationRelateToOneForUpdateInput
   preparationTime: Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input KitchenStationRelateToOneForUpdateInput {
@@ -3265,6 +3383,8 @@ input PrepStationCreateInput {
   menuItem: MenuItemRelateToOneForCreateInput
   station: KitchenStationRelateToOneForCreateInput
   preparationTime: Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input KitchenStationRelateToOneForCreateInput {
@@ -3288,6 +3408,8 @@ type KitchenTicket {
   orderItems(where: OrderItemWhereInput! = {}, orderBy: [OrderItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OrderItemWhereUniqueInput): [OrderItem!]
   orderItemsCount(where: OrderItemWhereInput! = {}): Int
   preparedBy: User
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input KitchenTicketWhereUniqueInput {
@@ -3311,6 +3433,8 @@ input KitchenTicketWhereInput {
   station: KitchenStationWhereInput
   orderItems: OrderItemManyRelationFilter
   preparedBy: UserWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input KitchenTicketOrderByInput {
@@ -3323,6 +3447,8 @@ input KitchenTicketOrderByInput {
   completedAt: OrderDirection
   servedAt: OrderDirection
   recalledAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input KitchenTicketUpdateInput {
@@ -3339,6 +3465,8 @@ input KitchenTicketUpdateInput {
   station: KitchenStationRelateToOneForUpdateInput
   orderItems: OrderItemRelateToManyForUpdateInput
   preparedBy: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input KitchenTicketUpdateArgs {
@@ -3360,6 +3488,8 @@ input KitchenTicketCreateInput {
   station: KitchenStationRelateToOneForCreateInput
   orderItems: OrderItemRelateToManyForCreateInput
   preparedBy: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type Vendor {
@@ -3372,6 +3502,8 @@ type Vendor {
   leadTime: Int
   ingredients(where: IngredientWhereInput! = {}, orderBy: [IngredientOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: IngredientWhereUniqueInput): [Ingredient!]
   ingredientsCount(where: IngredientWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input VendorWhereUniqueInput {
@@ -3390,6 +3522,8 @@ input VendorWhereInput {
   paymentTerms: StringFilter
   leadTime: IntNullableFilter
   ingredients: IngredientManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input IngredientManyRelationFilter {
@@ -3406,6 +3540,8 @@ input VendorOrderByInput {
   phone: OrderDirection
   paymentTerms: OrderDirection
   leadTime: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input VendorUpdateInput {
@@ -3416,6 +3552,8 @@ input VendorUpdateInput {
   paymentTerms: String
   leadTime: Int
   ingredients: IngredientRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input IngredientRelateToManyForUpdateInput {
@@ -3438,6 +3576,8 @@ input VendorCreateInput {
   paymentTerms: String
   leadTime: Int
   ingredients: IngredientRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input IngredientRelateToManyForCreateInput {
@@ -3452,6 +3592,8 @@ type InventoryLocation {
   isActive: Boolean
   ingredients(where: IngredientWhereInput! = {}, orderBy: [IngredientOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: IngredientWhereUniqueInput): [Ingredient!]
   ingredientsCount(where: IngredientWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input InventoryLocationWhereUniqueInput {
@@ -3467,6 +3609,8 @@ input InventoryLocationWhereInput {
   description: StringFilter
   isActive: BooleanFilter
   ingredients: IngredientManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input InventoryLocationOrderByInput {
@@ -3474,6 +3618,8 @@ input InventoryLocationOrderByInput {
   name: OrderDirection
   description: OrderDirection
   isActive: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input InventoryLocationUpdateInput {
@@ -3481,6 +3627,8 @@ input InventoryLocationUpdateInput {
   description: String
   isActive: Boolean
   ingredients: IngredientRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input InventoryLocationUpdateArgs {
@@ -3493,6 +3641,8 @@ input InventoryLocationCreateInput {
   description: String
   isActive: Boolean
   ingredients: IngredientRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type Ingredient {
@@ -3511,6 +3661,8 @@ type Ingredient {
   location: InventoryLocation
   stockMovements(where: StockMovementWhereInput! = {}, orderBy: [StockMovementOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: StockMovementWhereUniqueInput): [StockMovement!]
   stockMovementsCount(where: StockMovementWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input IngredientWhereUniqueInput {
@@ -3535,6 +3687,8 @@ input IngredientWhereInput {
   vendor: VendorWhereInput
   location: InventoryLocationWhereInput
   stockMovements: StockMovementManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input DecimalFilter {
@@ -3566,6 +3720,8 @@ input IngredientOrderByInput {
   costPerUnit: OrderDirection
   expirationDate: OrderDirection
   sku: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input IngredientUpdateInput {
@@ -3582,6 +3738,8 @@ input IngredientUpdateInput {
   vendor: VendorRelateToOneForUpdateInput
   location: InventoryLocationRelateToOneForUpdateInput
   stockMovements: StockMovementRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input VendorRelateToOneForUpdateInput {
@@ -3622,6 +3780,8 @@ input IngredientCreateInput {
   vendor: VendorRelateToOneForCreateInput
   location: InventoryLocationRelateToOneForCreateInput
   stockMovements: StockMovementRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input VendorRelateToOneForCreateInput {
@@ -3741,6 +3901,8 @@ type StoreSettings {
   promoBanner: String
   rating: Decimal
   reviewCount: Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input StoreSettingsWhereUniqueInput {
@@ -3773,6 +3935,8 @@ input StoreSettingsWhereInput {
   promoBanner: StringFilter
   rating: DecimalNullableFilter
   reviewCount: IntNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
 }
 
 input StoreSettingsOrderByInput {
@@ -3798,6 +3962,8 @@ input StoreSettingsOrderByInput {
   promoBanner: OrderDirection
   rating: OrderDirection
   reviewCount: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
 }
 
 input StoreSettingsUpdateInput {
@@ -3823,6 +3989,8 @@ input StoreSettingsUpdateInput {
   promoBanner: String
   rating: Decimal
   reviewCount: Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 input StoreSettingsUpdateArgs {
@@ -3853,6 +4021,8 @@ input StoreSettingsCreateInput {
   promoBanner: String
   rating: Decimal
   reviewCount: Int
+  createdAt: DateTime
+  updatedAt: DateTime
 }
 
 type WaitlistEntry {

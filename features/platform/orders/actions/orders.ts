@@ -20,6 +20,9 @@ export async function getOrders(
     customerName
     customerEmail
     customerPhone
+    deliveryAddress
+    deliveryCity
+    deliveryZip
     server {
       id
       name

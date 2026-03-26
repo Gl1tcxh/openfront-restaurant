@@ -62,55 +62,61 @@ model User {
 }
 
 model Role {
-  id                  String  @id @default(cuid())
-  name                String  @default("")
-  canAccessDashboard  Boolean @default(false)
-  canReadOrders       Boolean @default(false)
-  canManageOrders     Boolean @default(false)
-  canReadPayments     Boolean @default(false)
-  canManagePayments   Boolean @default(false)
-  canReadProducts     Boolean @default(false)
-  canManageProducts   Boolean @default(false)
-  canReadCart         Boolean @default(false)
-  canManageCart       Boolean @default(false)
-  canReadInventory    Boolean @default(false)
-  canManageInventory  Boolean @default(false)
-  canReadUsers        Boolean @default(false)
-  canManageUsers      Boolean @default(false)
-  canSeeOtherPeople   Boolean @default(false)
-  canEditOtherPeople  Boolean @default(false)
-  canManagePeople     Boolean @default(false)
-  canReadRoles        Boolean @default(false)
-  canManageRoles      Boolean @default(false)
-  canReadKitchen      Boolean @default(false)
-  canManageKitchen    Boolean @default(false)
-  canReadTables       Boolean @default(false)
-  canManageTables     Boolean @default(false)
-  canReadStaff        Boolean @default(false)
-  canManageStaff      Boolean @default(false)
-  canManageSettings   Boolean @default(false)
-  canManageOnboarding Boolean @default(true)
-  canReadVendors      Boolean @default(false)
-  canManageVendors    Boolean @default(false)
-  canReadGiftCards    Boolean @default(false)
-  canManageGiftCards  Boolean @default(false)
-  canReadDiscounts    Boolean @default(false)
-  canManageDiscounts  Boolean @default(false)
-  assignedTo          User[]  @relation("User_role")
+  id                  String   @id @default(cuid())
+  name                String   @default("")
+  canAccessDashboard  Boolean  @default(false)
+  canReadOrders       Boolean  @default(false)
+  canManageOrders     Boolean  @default(false)
+  canReadPayments     Boolean  @default(false)
+  canManagePayments   Boolean  @default(false)
+  canReadProducts     Boolean  @default(false)
+  canManageProducts   Boolean  @default(false)
+  canReadCart         Boolean  @default(false)
+  canManageCart       Boolean  @default(false)
+  canReadInventory    Boolean  @default(false)
+  canManageInventory  Boolean  @default(false)
+  canReadUsers        Boolean  @default(false)
+  canManageUsers      Boolean  @default(false)
+  canSeeOtherPeople   Boolean  @default(false)
+  canEditOtherPeople  Boolean  @default(false)
+  canManagePeople     Boolean  @default(false)
+  canReadRoles        Boolean  @default(false)
+  canManageRoles      Boolean  @default(false)
+  canReadKitchen      Boolean  @default(false)
+  canManageKitchen    Boolean  @default(false)
+  canReadTables       Boolean  @default(false)
+  canManageTables     Boolean  @default(false)
+  canReadStaff        Boolean  @default(false)
+  canManageStaff      Boolean  @default(false)
+  canManageSettings   Boolean  @default(false)
+  canManageOnboarding Boolean  @default(true)
+  canReadVendors      Boolean  @default(false)
+  canManageVendors    Boolean  @default(false)
+  canReadGiftCards    Boolean  @default(false)
+  canManageGiftCards  Boolean  @default(false)
+  canReadDiscounts    Boolean  @default(false)
+  canManageDiscounts  Boolean  @default(false)
+  assignedTo          User[]   @relation("User_role")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
 }
 
 model Section {
-  id     String  @id @default(cuid())
-  name   String  @unique @default("")
-  tables Table[] @relation("Table_section")
+  id        String   @id @default(cuid())
+  name      String   @unique @default("")
+  tables    Table[]  @relation("Table_section")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model Floor {
-  id       String  @id @default(cuid())
-  name     String  @default("")
-  level    Int     @default(1)
-  isActive Boolean @default(true)
-  tables   Table[] @relation("Table_floor")
+  id        String   @id @default(cuid())
+  name      String   @default("")
+  level     Int      @default(1)
+  isActive  Boolean  @default(true)
+  tables    Table[]  @relation("Table_floor")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model Table {
@@ -127,6 +133,8 @@ model Table {
   section                        Section?          @relation("Table_section", fields: [sectionId], references: [id])
   sectionId                      String?           @map("section")
   orders                         RestaurantOrder[] @relation("RestaurantOrder_tables")
+  createdAt                      DateTime          @default(now())
+  updatedAt                      DateTime          @default(now()) @updatedAt
   from_Reservation_assignedTable Reservation[]     @relation("Reservation_assignedTable")
   from_WaitlistEntry_table       WaitlistEntry[]   @relation("WaitlistEntry_table")
 
@@ -143,6 +151,8 @@ model MenuCategory {
   mealPeriods Json       @default("[\"all_day\"]")
   sortOrder   Int?       @default(0)
   menuItems   MenuItem[] @relation("MenuItem_category")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @default(now()) @updatedAt
 }
 
 model MenuItem {
@@ -163,6 +173,8 @@ model MenuItem {
   category                  MenuCategory?      @relation("MenuItem_category", fields: [categoryId], references: [id])
   categoryId                String?            @map("category")
   modifiers                 MenuItemModifier[] @relation("MenuItemModifier_menuItem")
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @default(now()) @updatedAt
   from_OrderItem_menuItem   OrderItem[]        @relation("OrderItem_menuItem")
   from_Recipe_menuItem      Recipe[]           @relation("Recipe_menuItem")
   from_CartItem_menuItem    CartItem[]         @relation("CartItem_menuItem")
@@ -183,6 +195,8 @@ model MenuItemImage {
   order           Int?       @default(0)
   menuItems       MenuItem[] @relation("MenuItem_menuItemImages")
   metadata        Json?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @default(now()) @updatedAt
 }
 
 model MenuItemModifier {
@@ -198,6 +212,8 @@ model MenuItemModifier {
   defaultSelected                 Boolean     @default(false)
   menuItem                        MenuItem?   @relation("MenuItemModifier_menuItem", fields: [menuItemId], references: [id])
   menuItemId                      String?     @map("menuItem")
+  createdAt                       DateTime    @default(now())
+  updatedAt                       DateTime    @default(now()) @updatedAt
   from_OrderItem_appliedModifiers OrderItem[] @relation("OrderItem_appliedModifiers")
   from_CartItem_modifiers         CartItem[]  @relation("CartItem_modifiers")
 
@@ -298,6 +314,8 @@ model OrderItem {
   menuItemId          String?            @map("menuItem")
   appliedModifiers    MenuItemModifier[] @relation("OrderItem_appliedModifiers")
   kitchenTickets      KitchenTicket[]    @relation("KitchenTicket_orderItems")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @default(now()) @updatedAt
 
   @@index([orderId])
   @@index([courseId])
@@ -472,6 +490,8 @@ model CartItem {
   quantity            Int?               @default(1)
   modifiers           MenuItemModifier[] @relation("CartItem_modifiers")
   specialInstructions String             @default("")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @default(now()) @updatedAt
 
   @@index([cartId])
   @@index([menuItemId])
@@ -587,6 +607,8 @@ model KitchenStation {
   assignedStaff User[]          @relation("KitchenStation_assignedStaff")
   tickets       KitchenTicket[] @relation("KitchenTicket_station")
   prepStations  PrepStation[]   @relation("PrepStation_station")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @default(now()) @updatedAt
 }
 
 model PrepStation {
@@ -596,6 +618,8 @@ model PrepStation {
   station         KitchenStation? @relation("PrepStation_station", fields: [stationId], references: [id])
   stationId       String?         @map("station")
   preparationTime Int?            @default(15)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @default(now()) @updatedAt
 
   @@index([menuItemId])
   @@index([stationId])
@@ -619,6 +643,8 @@ model KitchenTicket {
   orderItems   OrderItem[]      @relation("KitchenTicket_orderItems")
   preparedBy   User?            @relation("KitchenTicket_preparedBy", fields: [preparedById], references: [id])
   preparedById String?          @map("preparedBy")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @default(now()) @updatedAt
 
   @@index([orderId])
   @@index([stationId])
@@ -634,6 +660,8 @@ model Vendor {
   paymentTerms              String          @default("")
   leadTime                  Int?
   ingredients               Ingredient[]    @relation("Ingredient_vendor")
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @default(now()) @updatedAt
   from_PurchaseOrder_vendor PurchaseOrder[] @relation("PurchaseOrder_vendor")
 }
 
@@ -643,6 +671,8 @@ model InventoryLocation {
   description String       @default("")
   isActive    Boolean      @default(true)
   ingredients Ingredient[] @relation("Ingredient_location")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now()) @updatedAt
 }
 
 model Ingredient {
@@ -662,6 +692,8 @@ model Ingredient {
   location                 InventoryLocation? @relation("Ingredient_location", fields: [locationId], references: [id])
   locationId               String?            @map("location")
   stockMovements           StockMovement[]    @relation("StockMovement_ingredient")
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @default(now()) @updatedAt
   from_WasteLog_ingredient WasteLog[]         @relation("WasteLog_ingredient")
 
   @@index([vendorId])
@@ -711,6 +743,8 @@ model StoreSettings {
   promoBanner       String   @default("Free pickup discount · 10% off all pickup orders")
   rating            Decimal? @default("4.8") @postgresql.Decimal(2, 1)
   reviewCount       Int?     @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
 }
 
 model WaitlistEntry {

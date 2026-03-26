@@ -132,6 +132,7 @@ export default function OrderCompletedTemplate({ order }: OrderCompletedTemplate
             </div>
             <div className="rounded-lg border border-border bg-card p-5">
               <OrderSummary
+                orderType={order.orderType}
                 subtotal={order.subtotal}
                 tax={order.tax}
                 tip={order.tip}

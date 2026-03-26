@@ -2,7 +2,8 @@ import { list } from '@keystone-6/core'
 import { allOperations } from '@keystone-6/core/access'
 import { checkbox, relationship, text } from '@keystone-6/core/fields'
 
-import { isSignedIn, permissions } from '../access'
+import { permissions } from '../access'
+import { trackingFields } from './trackingFields'
 
 export const Role = list({
   access: {
@@ -95,5 +96,6 @@ export const Role = list({
         itemView: { fieldMode: 'read' },
       },
     }),
+    ...trackingFields,
   },
 });

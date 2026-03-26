@@ -1,8 +1,8 @@
 import { list } from "@keystone-6/core";
-import { allOperations } from "@keystone-6/core/access";
 import { text, relationship, multiselect, integer } from "@keystone-6/core/fields";
 
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const MenuCategory = list({
   access: {
@@ -64,5 +64,6 @@ export const MenuCategory = list({
         inlineEdit: { fields: ["name", "price", "available"] },
       },
     }),
+    ...trackingFields,
   },
 });

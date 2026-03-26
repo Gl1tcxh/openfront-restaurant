@@ -1,78 +1,74 @@
 "use client"
 
 import Image from "next/image"
-import { Plus } from "lucide-react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import type { MenuItem } from "@/features/storefront/lib/store-data"
 import { formatCurrency } from "@/features/storefront/lib/currency"
+import {
+  getMenuItemDescriptionText,
+  getMenuItemHref,
+  getMenuItemImageUrl,
+} from "@/features/storefront/lib/menu-item-utils"
 
 interface MenuItemCardProps {
   item: MenuItem
-  onSelect: (item: MenuItem) => void
+  onQuickView: (item: MenuItem) => void
   currencyCode?: string
   locale?: string
 }
 
-// Helper to get image URL
-function getImageUrl(item: MenuItem): string {
-  const firstImage = item.menuItemImages?.[0]
-  if (firstImage?.image?.url) return firstImage.image.url
-  if (firstImage?.imagePath) return firstImage.imagePath
-  return '/placeholder.jpg'
-}
+export function MenuItemCard({ item, onQuickView, currencyCode = "USD", locale = "en-US" }: MenuItemCardProps) {
+  const badgeLabel = item.featured ? "Featured" : item.popular ? "Popular" : null
 
-// Helper to get description text
-function getDescriptionText(description: any): string {
-  if (typeof description === 'string') return description
-  if (typeof description === 'object' && description?.document) {
-    const extractText = (node: any): string => {
-      if (!node) return ''
-      if (typeof node === 'string') return node
-      if (Array.isArray(node)) return node.map(extractText).join(' ')
-      if (node.children) return extractText(node.children)
-      if (node.text) return node.text
-      if (node.leaves) return node.leaves.map(extractText).join(' ')
-      return ''
-    }
-    return extractText(description.document)
-  }
-  return ''
-}
-
-export function MenuItemCard({ item, onSelect, currencyCode = "USD", locale = "en-US" }: MenuItemCardProps) {
   return (
-    <article className="group cursor-pointer" onClick={() => onSelect(item)}>
-      {/* Image */}
-      <div className="relative aspect-[4/3] overflow-hidden mb-4 bg-muted rounded-xl ring-1 ring-inset ring-foreground/10">
-        <Image
-          src={getImageUrl(item)}
-          alt={item.name}
-          fill
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        {item.popular && (
-          <span className="absolute top-3 left-3 text-xs tracking-widest uppercase bg-background/90 backdrop-blur-sm px-3 py-1">
-            Popular
-          </span>
-        )}
-        <button
-          className="absolute bottom-3 right-3 h-10 w-10 rounded-full bg-background text-foreground shadow-md ring-1 ring-foreground/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-primary hover:text-primary-foreground"
-          onClick={(e) => {
-            e.stopPropagation()
-            onSelect(item)
-          }}
-        >
-          <Plus className="h-5 w-5" />
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="space-y-2">
-        <div className="flex items-start justify-between gap-4">
-          <h3 className="font-serif text-lg group-hover:text-primary transition-colors">{item.name}</h3>
-          <span className="text-sm font-medium shrink-0">{formatCurrency(item.price, { currencyCode, locale })}</span>
+    <article className="group flex h-full flex-col rounded-2xl bg-card p-3 ring-1 ring-border shadow-md shadow-foreground/5 transition-all duration-200 hover:-translate-y-0.5">
+      <Link href={getMenuItemHref(item.id)} className="block">
+        <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-xl bg-muted">
+          <Image
+            src={getMenuItemImageUrl(item)}
+            alt={item.name}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+          />
+          {badgeLabel && (
+            <span className="absolute right-3 top-3 rounded-full border bg-background/95 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-foreground">
+              {badgeLabel}
+            </span>
+          )}
         </div>
-        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{getDescriptionText(item.description)}</p>
-        {item.calories && <p className="text-xs text-muted-foreground">{item.calories} cal</p>}
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-serif text-[1.8rem] leading-none tracking-tight text-foreground transition-colors group-hover:text-primary">
+              {item.name}
+            </h3>
+            <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted-foreground">
+              {getMenuItemDescriptionText(item.description)}
+            </p>
+          </div>
+          <span className="shrink-0 pt-0.5 text-xl font-semibold tracking-tight text-foreground">
+            {formatCurrency(item.price, { currencyCode, locale })}
+          </span>
+        </div>
+      </Link>
+
+      <div className="mt-5 flex items-center gap-2">
+        <Button
+          type="button"
+          className="h-11 flex-[1.3] rounded-xl px-4 text-sm font-semibold"
+          onClick={() => onQuickView(item)}
+        >
+          Quick View
+        </Button>
+        <Button
+          asChild
+          variant="outline"
+          className="h-11 flex-1 rounded-xl px-4 text-sm font-semibold"
+        >
+          <Link href={getMenuItemHref(item.id)}>
+            Details
+          </Link>
+        </Button>
       </div>
     </article>
   )

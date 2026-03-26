@@ -215,7 +215,14 @@ export function OrderDetailsComponent({
                 {order.orderType === 'delivery' && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Address</span>
-                    <span className="text-right truncate max-w-[220px] font-medium">{order.deliveryAddress}</span>
+                    <div className="text-right max-w-[220px] font-medium">
+                      <p className="truncate">{order.deliveryAddress}</p>
+                      {(order.deliveryCity || order.deliveryZip) && (
+                        <p className="text-xs text-muted-foreground">
+                          {[order.deliveryCity, order.deliveryZip].filter(Boolean).join(" ")}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

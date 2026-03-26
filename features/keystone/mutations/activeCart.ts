@@ -1,4 +1,5 @@
 import { Context } from ".keystone/types";
+import { assertCanAccessCart } from "../utils/cartAccess";
 
 export default async function activeCart(root: any, { cartId }: { cartId?: string }, context: Context) {
   const sudoContext = context.sudo();
@@ -6,6 +7,8 @@ export default async function activeCart(root: any, { cartId }: { cartId?: strin
   if (!cartId) {
     throw new Error("Cart ID is required");
   }
+
+  await assertCanAccessCart(context, cartId, "read");
 
   const cart = await sudoContext.query.Cart.findOne({
     where: { id: cartId },

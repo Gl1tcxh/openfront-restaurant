@@ -1,7 +1,8 @@
 import { list } from "@keystone-6/core";
 import { text, integer, decimal, json } from "@keystone-6/core/fields";
 
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const StoreSettings = list({
   access: {
@@ -152,5 +153,6 @@ export const StoreSettings = list({
       defaultValue: 0,
       ui: { description: "Number of reviews to display" },
     }),
+    ...trackingFields,
   },
 });

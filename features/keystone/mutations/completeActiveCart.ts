@@ -4,6 +4,8 @@
  */
 import type { Context } from ".keystone/types";
 import { getPaymentStatus, capturePayment } from "../utils/paymentProviderAdapter";
+import { calculateRestaurantTotals } from "../../lib/restaurant-order-pricing";
+import { assertCanAccessCart } from "../utils/cartAccess";
 
 interface CompleteActiveCartArgs {
   cartId: string;
@@ -16,6 +18,8 @@ export default async function completeActiveCart(
   context: Context
 ) {
   const sudoContext = context.sudo();
+
+  await assertCanAccessCart(context, cartId, "write");
 
   const cart = await sudoContext.query.Cart.findOne({
     where: { id: cartId },
@@ -131,20 +135,33 @@ export default async function completeActiveCart(
     }
   }
 
-  const subtotal = cart.subtotal || 0;
-  const tipPercent = parseInt(cart.tipPercent || "0", 10);
-  const tip = Math.round(subtotal * (tipPercent / 100));
-
   const settings = await sudoContext.query.StoreSettings.findOne({
     where: { id: "1" },
-    query: "taxRate currencyCode pickupDiscount",
+    query: "taxRate currencyCode pickupDiscount deliveryFee deliveryMinimum",
   });
-  const taxRate = parseFloat(settings?.taxRate || "8.75");
   const currencyCode = settings?.currencyCode || "USD";
-  const storePickupDiscount = parseInt(settings?.pickupDiscount || "10", 10);
-  const tax = Math.round(subtotal * (taxRate / 100));
-  const pickupDiscount = cart.orderType === "pickup" ? Math.round(subtotal * (storePickupDiscount / 100)) : 0;
-  const total = subtotal - pickupDiscount + tax + tip;
+  const subtotal = cart.subtotal || 0;
+  const { tax, tip, pickupDiscount, deliveryFee, total, deliveryMinimumNotMet } = calculateRestaurantTotals({
+    subtotal,
+    orderType: cart.orderType,
+    tipPercent: cart.tipPercent,
+    deliveryFee: settings?.deliveryFee,
+    deliveryMinimum: settings?.deliveryMinimum,
+    pickupDiscountPercent: settings?.pickupDiscount,
+    taxRate: settings?.taxRate,
+    currencyCode,
+  });
+
+  if (deliveryMinimumNotMet) {
+    throw new Error(`Delivery orders require a minimum subtotal of ${settings?.deliveryMinimum || "0.00"}.`);
+  }
+
+  if (cart.paymentCollection?.id && (cart.paymentCollection.amount || 0) !== total) {
+    await sudoContext.query.PaymentCollection.updateOne({
+      where: { id: cart.paymentCollection.id },
+      data: { amount: total },
+    });
+  }
 
   const orderTypeMap: Record<string, string> = {
     pickup: "takeout",
@@ -156,6 +173,18 @@ export default async function completeActiveCart(
   const secretKey = !customerId
     ? require("crypto").randomBytes(32).toString("hex")
     : undefined;
+  const isDeliveryOrder = cart.orderType === "delivery";
+
+  if (selectedSession.amount !== total) {
+    if (!isManual) {
+      throw new Error("Cart total changed. Please return to payment and confirm your payment method again.");
+    }
+
+    await sudoContext.query.PaymentSession.updateOne({
+      where: { id: selectedSession.id },
+      data: { amount: total },
+    });
+  }
 
   const order = await sudoContext.query.RestaurantOrder.createOne({
     data: {
@@ -167,15 +196,16 @@ export default async function completeActiveCart(
       subtotal,
       tax,
       tip,
+      discount: pickupDiscount,
       total,
       currencyCode,
       customer: customerId ? { connect: { id: customerId } } : undefined,
       customerName: cart.customerName || "",
       customerEmail: cart.email || "",
       customerPhone: cart.customerPhone || "",
-      deliveryAddress: cart.deliveryAddress || undefined,
-      deliveryCity: cart.deliveryCity || undefined,
-      deliveryZip: cart.deliveryZip || undefined,
+      deliveryAddress: isDeliveryOrder ? cart.deliveryAddress || undefined : undefined,
+      deliveryCity: isDeliveryOrder ? cart.deliveryCity || undefined : undefined,
+      deliveryZip: isDeliveryOrder ? cart.deliveryZip || undefined : undefined,
       secretKey,
     },
     query: "id orderNumber secretKey status",

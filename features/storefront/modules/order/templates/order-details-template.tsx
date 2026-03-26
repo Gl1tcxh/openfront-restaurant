@@ -78,6 +78,7 @@ export default function OrderDetailsTemplate({ order }: OrderDetailsTemplateProp
           <div className="space-y-6">
             <OrderItemsList items={order.orderItems} />
             <OrderSummary
+              orderType={order.orderType}
               subtotal={order.subtotal}
               tax={order.tax}
               tip={order.tip}

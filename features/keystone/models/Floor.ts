@@ -1,8 +1,8 @@
 import { list } from "@keystone-6/core";
-import { allOperations } from "@keystone-6/core/access";
 import { text, integer, checkbox, relationship } from "@keystone-6/core/fields";
 
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const Floor = list({
   access: {
@@ -52,5 +52,6 @@ export const Floor = list({
         inlineEdit: { fields: ["tableNumber", "capacity", "status", "positionX", "positionY"] },
       },
     }),
+    ...trackingFields,
   },
 });

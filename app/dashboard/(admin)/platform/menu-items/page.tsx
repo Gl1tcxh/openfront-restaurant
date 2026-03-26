@@ -1,11 +1,3 @@
-import { ListPage } from "@/features/dashboard/screens/ListPage";
+import MenuItemListPage from '@/features/platform/menu/screens/MenuItemListPage'
 
-export default async function Page(props: any) {
-  const searchParams = await props.searchParams;
-  return (
-    <ListPage 
-      params={Promise.resolve({ listKey: "menu-items" })} 
-      searchParams={Promise.resolve(searchParams)} 
-    />
-  );
-}
+export default MenuItemListPage

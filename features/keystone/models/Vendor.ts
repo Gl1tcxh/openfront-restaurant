@@ -1,8 +1,8 @@
 import { list } from "@keystone-6/core";
-import { allOperations } from "@keystone-6/core/access";
 import { text, integer, relationship } from "@keystone-6/core/fields";
 
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const Vendor = list({
   access: {
@@ -67,5 +67,6 @@ export const Vendor = list({
       ref: "Ingredient.vendor",
       many: true,
     }),
+    ...trackingFields,
   },
 });

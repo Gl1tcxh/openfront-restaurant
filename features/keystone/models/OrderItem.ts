@@ -1,16 +1,15 @@
 import { list, graphql } from "@keystone-6/core";
-import { allOperations } from "@keystone-6/core/access";
 import {
   text,
   relationship,
   integer,
   timestamp,
-  decimal,
   virtual,
   select
 } from "@keystone-6/core/fields";
 
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const OrderItem = list({
   access: {
@@ -167,5 +166,6 @@ export const OrderItem = list({
         description: "Kitchen tickets this item has appeared on",
       },
     }),
+    ...trackingFields,
   },
 });

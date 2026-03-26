@@ -1,8 +1,8 @@
 import { list } from "@keystone-6/core";
-import { allOperations } from "@keystone-6/core/access";
 import { relationship, integer } from "@keystone-6/core/fields";
 
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const PrepStation = list({
   access: {
@@ -42,5 +42,6 @@ export const PrepStation = list({
         description: "Expected preparation time in minutes",
       },
     }),
+    ...trackingFields,
   },
 });

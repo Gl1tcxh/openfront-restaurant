@@ -1,6 +1,7 @@
 import { list } from "@keystone-6/core";
 import { relationship, integer, text } from "@keystone-6/core/fields";
 import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const CartItem = list({
   access: {
@@ -17,5 +18,6 @@ export const CartItem = list({
     quantity: integer({ defaultValue: 1, validation: { min: 1 } }),
     modifiers: relationship({ ref: "MenuItemModifier", many: true }),
     specialInstructions: text(),
+    ...trackingFields,
   }
 });

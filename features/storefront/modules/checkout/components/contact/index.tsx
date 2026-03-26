@@ -147,7 +147,7 @@ const Contact = ({
 
           <Button size="lg" onClick={handleSubmit} disabled={!isComplete || isLoading} data-testid="submit-contact-button">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Continue to Delivery
+            Continue to Next Step
           </Button>
         </div>
       ) : (

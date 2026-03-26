@@ -1,8 +1,8 @@
 import { list } from "@keystone-6/core";
-import { allOperations } from "@keystone-6/core/access";
 import { text, checkbox, relationship } from "@keystone-6/core/fields";
 
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const InventoryLocation = list({
   access: {
@@ -45,5 +45,6 @@ export const InventoryLocation = list({
       ref: "Ingredient.location",
       many: true,
     }),
+    ...trackingFields,
   },
 });

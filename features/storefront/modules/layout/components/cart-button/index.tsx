@@ -1,13 +1,22 @@
-import { fetchCart } from "@/features/storefront/lib/data"
+import { retrieveCart } from "@/features/storefront/lib/data/cart"
 import CartDropdown from "../cart-dropdown"
 
 interface CartButtonProps {
-  user?: any
   currencyCode: string
   locale: string
 }
 
-export default async function CartButton({ user, currencyCode, locale }: CartButtonProps) {
+const fetchCart = async () => {
+  const cart = await retrieveCart()
+
+  if (!cart) {
+    return null
+  }
+
+  return cart
+}
+
+export default async function CartButton({ currencyCode, locale }: CartButtonProps) {
   const cart = await fetchCart()
 
   return (
@@ -15,7 +24,6 @@ export default async function CartButton({ user, currencyCode, locale }: CartBut
       cart={cart}
       currencyCode={currencyCode}
       locale={locale}
-      user={user}
     />
   )
 }

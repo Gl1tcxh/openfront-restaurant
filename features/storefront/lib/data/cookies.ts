@@ -3,13 +3,20 @@
 import { cookies } from "next/headers"
 
 export const getAuthHeaders = async (): Promise<Record<string, string>> => {
-  const token = (await cookies()).get("keystonejs-session")?.value
+  const cookieStore = await cookies()
+  const token = cookieStore.get("keystonejs-session")?.value
+  const cartId = cookieStore.get("_restaurant_cart_id")?.value
+  const headers: Record<string, string> = {}
 
   if (token) {
-    return { authorization: `Bearer ${token}` }
+    headers.authorization = `Bearer ${token}`
   }
 
-  return {}
+  if (cartId) {
+    headers.cookie = `_restaurant_cart_id=${cartId}`
+  }
+
+  return headers
 }
 
 type CookieOptions = { [key: string]: any; };

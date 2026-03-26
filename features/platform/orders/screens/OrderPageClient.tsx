@@ -29,6 +29,7 @@ import { updateOrderStatus } from "../actions";
 import { toast } from "sonner";
 import { StatusDot, statusConfig } from "../components/StatusDot";
 import { cn } from "@/lib/utils";
+import { getOrderPriceAdjustments } from "@/features/lib/restaurant-order-pricing";
 
 interface OrderPageClientProps {
   order: any;
@@ -91,6 +92,14 @@ export function OrderPageClient({ order, currencyCode = "USD", locale = "en-US" 
   }, [suggestedNextStatus, order.orderType]);
 
   const currencyConfig = { currencyCode, locale };
+  const { deliveryFee, pickupDiscount, remainingDiscount } = getOrderPriceAdjustments({
+    orderType: order.orderType,
+    subtotal: order.subtotal,
+    tax: order.tax,
+    tip: order.tip,
+    discount: order.discount,
+    total: order.total,
+  });
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -267,10 +276,22 @@ export function OrderPageClient({ order, currencyCode = "USD", locale = "en-US" 
                     <span>{formatCurrency(order.tip, currencyConfig)}</span>
                   </div>
                 )}
-                {order.discount > 0 && (
+                {pickupDiscount > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Pickup Discount</span>
+                    <span>−{formatCurrency(pickupDiscount, currencyConfig)}</span>
+                  </div>
+                )}
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Delivery Fee</span>
+                    <span>{formatCurrency(deliveryFee, currencyConfig)}</span>
+                  </div>
+                )}
+                {remainingDiscount > 0 && (
                   <div className="flex justify-between text-muted-foreground">
                     <span>Discount</span>
-                    <span>−{formatCurrency(order.discount, currencyConfig)}</span>
+                    <span>−{formatCurrency(remainingDiscount, currencyConfig)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-semibold text-base pt-2 border-t border-border">

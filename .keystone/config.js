@@ -846,7 +846,8 @@ var Role = (0, import_core2.list)({
       ui: {
         itemView: { fieldMode: "read" }
       }
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -882,7 +883,8 @@ var Section = (0, import_core3.list)({
         inlineCreate: { fields: ["tableNumber", "capacity", "status"] },
         inlineEdit: { fields: ["tableNumber", "capacity", "status"] }
       }
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -933,7 +935,8 @@ var Floor = (0, import_core4.list)({
         inlineCreate: { fields: ["tableNumber", "capacity", "positionX", "positionY"] },
         inlineEdit: { fields: ["tableNumber", "capacity", "status", "positionX", "positionY"] }
       }
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -1046,7 +1049,8 @@ var Table = (0, import_core5.list)({
       ui: {
         description: "Number of completed orders in the last 24 hours"
       }
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -1108,7 +1112,8 @@ var MenuCategory = (0, import_core6.list)({
         inlineCreate: { fields: ["name", "price", "available"] },
         inlineEdit: { fields: ["name", "price", "available"] }
       }
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -1246,7 +1251,8 @@ var MenuItem = (0, import_core7.list)({
         inlineCreate: { fields: ["name", "priceAdjustment", "modifierGroup"] },
         inlineEdit: { fields: ["name", "priceAdjustment", "modifierGroup"] }
       }
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -1271,7 +1277,8 @@ var MenuItemImage = (0, import_core8.list)({
       defaultValue: 0
     }),
     menuItems: (0, import_fields9.relationship)({ ref: "MenuItem.menuItemImages", many: true }),
-    metadata: (0, import_fields9.json)()
+    metadata: (0, import_fields9.json)(),
+    ...trackingFields
   },
   ui: {
     listView: {
@@ -1366,7 +1373,8 @@ var MenuItemModifier = (0, import_core9.list)({
       ui: {
         displayMode: "select"
       }
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -1779,7 +1787,8 @@ var OrderItem = (0, import_core12.list)({
         displayMode: "select",
         description: "Kitchen tickets this item has appeared on"
       }
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -2409,7 +2418,8 @@ var CartItem = (0, import_core21.list)({
     menuItem: (0, import_fields22.relationship)({ ref: "MenuItem" }),
     quantity: (0, import_fields22.integer)({ defaultValue: 1, validation: { min: 1 } }),
     modifiers: (0, import_fields22.relationship)({ ref: "MenuItemModifier", many: true }),
-    specialInstructions: (0, import_fields22.text)()
+    specialInstructions: (0, import_fields22.text)(),
+    ...trackingFields
   }
 });
 
@@ -2842,7 +2852,8 @@ var KitchenStation = (0, import_core28.list)({
     prepStations: (0, import_fields29.relationship)({
       ref: "PrepStation.station",
       many: true
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -2884,7 +2895,8 @@ var PrepStation = (0, import_core29.list)({
       ui: {
         description: "Expected preparation time in minutes"
       }
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -2995,7 +3007,8 @@ var KitchenTicket = (0, import_core30.list)({
         displayMode: "select",
         description: "Staff member who prepared this ticket"
       }
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -3058,7 +3071,8 @@ var Vendor = (0, import_core31.list)({
     ingredients: (0, import_fields32.relationship)({
       ref: "Ingredient.vendor",
       many: true
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -3102,7 +3116,8 @@ var InventoryLocation = (0, import_core32.list)({
     ingredients: (0, import_fields33.relationship)({
       ref: "Ingredient.location",
       many: true
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -3229,7 +3244,8 @@ var Ingredient = (0, import_core33.list)({
     stockMovements: (0, import_fields34.relationship)({
       ref: "StockMovement.ingredient",
       many: true
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -3438,7 +3454,8 @@ var StoreSettings = (0, import_core35.list)({
     reviewCount: (0, import_fields36.integer)({
       defaultValue: 0,
       ui: { description: "Number of reviews to display" }
-    })
+    }),
+    ...trackingFields
   }
 });
 
@@ -4825,14 +4842,161 @@ async function voidOrder(root, args, context) {
   }
 }
 
+// features/lib/restaurant-order-pricing.ts
+var NO_DIVISION_CURRENCIES2 = [
+  "krw",
+  "jpy",
+  "vnd",
+  "clp",
+  "pyg",
+  "xaf",
+  "xof",
+  "bif",
+  "djf",
+  "gnf",
+  "kmf",
+  "mga",
+  "rwf",
+  "xpf",
+  "htg",
+  "vuv",
+  "xag",
+  "xdr",
+  "xau"
+];
+function toNumber(value, fallback = 0) {
+  const parsed = typeof value === "string" ? Number.parseFloat(value) : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+function toMinorUnits(value, currencyCode = "USD") {
+  const parsed = toNumber(value);
+  const shouldDivideBy100 = !NO_DIVISION_CURRENCIES2.includes(currencyCode.toLowerCase());
+  return shouldDivideBy100 ? Math.round(parsed * 100) : Math.round(parsed);
+}
+function isDeliveryOrder(orderType) {
+  return orderType === "delivery";
+}
+function isPickupLikeOrder(orderType) {
+  return orderType === "pickup" || orderType === "takeout";
+}
+function calculateRestaurantTotals({
+  subtotal,
+  orderType,
+  tipPercent,
+  deliveryFee,
+  deliveryMinimum,
+  pickupDiscountPercent,
+  taxRate,
+  currencyCode = "USD"
+}) {
+  const normalizedSubtotal = toNumber(subtotal);
+  const normalizedTipPercent = toNumber(tipPercent);
+  const normalizedTaxRate = toNumber(taxRate);
+  const normalizedPickupDiscountPercent = toNumber(pickupDiscountPercent);
+  const normalizedDeliveryFee = isDeliveryOrder(orderType) ? toMinorUnits(deliveryFee, currencyCode) : 0;
+  const normalizedDeliveryMinimum = isDeliveryOrder(orderType) ? toMinorUnits(deliveryMinimum, currencyCode) : 0;
+  const pickupDiscount = isPickupLikeOrder(orderType) ? Math.round(normalizedSubtotal * (normalizedPickupDiscountPercent / 100)) : 0;
+  const tax = Math.round(normalizedSubtotal * (normalizedTaxRate / 100));
+  const tip = Math.round(normalizedSubtotal * (normalizedTipPercent / 100));
+  const total = normalizedSubtotal - pickupDiscount + normalizedDeliveryFee + tax + tip;
+  const deliveryMinimumNotMet = isDeliveryOrder(orderType) && normalizedDeliveryMinimum > 0 && normalizedSubtotal < normalizedDeliveryMinimum;
+  return {
+    subtotal: normalizedSubtotal,
+    deliveryFee: normalizedDeliveryFee,
+    deliveryMinimum: normalizedDeliveryMinimum,
+    deliveryMinimumNotMet,
+    deliveryMinimumShortfall: deliveryMinimumNotMet ? normalizedDeliveryMinimum - normalizedSubtotal : 0,
+    pickupDiscount,
+    tax,
+    tip,
+    total
+  };
+}
+
+// features/keystone/utils/cartAccess.ts
+var cookie = __toESM(require("cookie"));
+function getRequestCartId(context) {
+  const cookieHeader = context.req?.headers?.cookie;
+  if (!cookieHeader) return void 0;
+  return cookie.parse(cookieHeader)._restaurant_cart_id;
+}
+function canBypassCartAccess(context, mode) {
+  if (permissions.canManageOrders({ session: context.session })) return true;
+  if (mode === "read" && permissions.canReadOrders({ session: context.session })) return true;
+  return false;
+}
+function assertOwnership({
+  context,
+  cartId,
+  cartUserId,
+  mode
+}) {
+  if (canBypassCartAccess(context, mode)) return;
+  const requestCartId = getRequestCartId(context);
+  const sessionItemId = context.session?.itemId;
+  const ownsByUser = Boolean(sessionItemId && cartUserId && cartUserId === sessionItemId);
+  const ownsByCookie = requestCartId === cartId;
+  if (!ownsByUser && !ownsByCookie) {
+    throw new Error("Access denied");
+  }
+}
+async function assertCanAccessCart(context, cartId, mode = "write") {
+  const cart = await context.sudo().query.Cart.findOne({
+    where: { id: cartId },
+    query: `
+      id
+      user {
+        id
+      }
+    `
+  });
+  if (!cart) {
+    throw new Error("Cart not found");
+  }
+  assertOwnership({
+    context,
+    cartId: cart.id,
+    cartUserId: cart.user?.id,
+    mode
+  });
+  return cart;
+}
+async function assertCanAccessCartItem(context, cartItemId, mode = "write") {
+  const cartItem = await context.sudo().query.CartItem.findOne({
+    where: { id: cartItemId },
+    query: `
+      id
+      cart {
+        id
+        user {
+          id
+        }
+      }
+    `
+  });
+  if (!cartItem?.cart?.id) {
+    throw new Error("Cart not found for this item");
+  }
+  assertOwnership({
+    context,
+    cartId: cartItem.cart.id,
+    cartUserId: cartItem.cart.user?.id,
+    mode
+  });
+  return cartItem;
+}
+
 // features/keystone/mutations/initiatePaymentSession.ts
 async function initiatePaymentSession(root, { cartId, paymentProviderId }, context) {
   const sudoContext = context.sudo();
+  await assertCanAccessCart(context, cartId, "write");
   const cart = await sudoContext.query.Cart.findOne({
     where: { id: cartId },
     query: `
       id
+      orderType
       subtotal
+      tipPercent
       paymentCollection {
         id
         amount
@@ -4840,6 +5004,7 @@ async function initiatePaymentSession(root, { cartId, paymentProviderId }, conte
           id
           isSelected
           isInitiated
+          amount
           paymentProvider {
             id
             code
@@ -4869,18 +5034,42 @@ async function initiatePaymentSession(root, { cartId, paymentProviderId }, conte
   if (!provider || !provider.isInstalled) {
     throw new Error(`Payment provider ${paymentProviderId} not found or not installed`);
   }
+  const settings = await sudoContext.query.StoreSettings.findOne({
+    where: { id: "1" },
+    query: `currencyCode taxRate deliveryFee deliveryMinimum pickupDiscount`
+  });
+  const currency = settings?.currencyCode || "USD";
+  const pricing = calculateRestaurantTotals({
+    subtotal: cart.subtotal || 0,
+    orderType: cart.orderType,
+    tipPercent: cart.tipPercent,
+    deliveryFee: settings?.deliveryFee,
+    deliveryMinimum: settings?.deliveryMinimum,
+    pickupDiscountPercent: settings?.pickupDiscount,
+    taxRate: settings?.taxRate,
+    currencyCode: currency
+  });
+  if (pricing.deliveryMinimumNotMet) {
+    throw new Error(`Delivery orders require a minimum subtotal of ${settings?.deliveryMinimum || "0.00"}.`);
+  }
+  const amount = pricing.total;
   if (!cart.paymentCollection) {
     cart.paymentCollection = await sudoContext.query.PaymentCollection.createOne({
       data: {
         cart: { connect: { id: cart.id } },
-        amount: cart.subtotal || 0,
+        amount,
         description: "default"
       },
       query: "id"
     });
+  } else if ((cart.paymentCollection.amount || 0) !== amount) {
+    await sudoContext.query.PaymentCollection.updateOne({
+      where: { id: cart.paymentCollection.id },
+      data: { amount }
+    });
   }
   const existingSession = cart.paymentCollection?.paymentSessions?.find(
-    (s) => s.paymentProvider.code === provider.code && !s.isInitiated
+    (s) => s.paymentProvider.code === provider.code && s.amount === amount
   );
   if (existingSession) {
     const otherSessions = cart.paymentCollection.paymentSessions.filter(
@@ -4896,14 +5085,22 @@ async function initiatePaymentSession(root, { cartId, paymentProviderId }, conte
       where: { id: existingSession.id },
       data: { isSelected: true }
     });
-    return existingSession;
+    return await sudoContext.query.PaymentSession.findOne({
+      where: { id: existingSession.id },
+      query: `
+        id
+        data
+        amount
+        isInitiated
+        isSelected
+        paymentProvider {
+          id
+          code
+        }
+      `
+    });
   }
-  const amount = cart.subtotal || 0;
-  const settings = await sudoContext.query.StoreSettings.findOne({
-    where: { id: "1" },
-    query: `currencyCode`
-  });
-  const currency = (settings?.currencyCode || "USD").toLowerCase();
+  const normalizedCurrency = currency.toLowerCase();
   const isManualProvider = provider.code === "pp_system_default";
   let sessionData = { providerCode: provider.code };
   if (!isManualProvider) {
@@ -4911,7 +5108,7 @@ async function initiatePaymentSession(root, { cartId, paymentProviderId }, conte
       provider,
       cart,
       amount,
-      currency
+      currency: normalizedCurrency
     });
     sessionData = {
       ...createdSessionData,
@@ -4933,7 +5130,7 @@ async function initiatePaymentSession(root, { cartId, paymentProviderId }, conte
       paymentProvider: { connect: { id: provider.id } },
       amount,
       isSelected: true,
-      isInitiated: false,
+      isInitiated: true,
       data: sessionData
     },
     query: `
@@ -4954,6 +5151,7 @@ async function initiatePaymentSession(root, { cartId, paymentProviderId }, conte
 // features/keystone/mutations/completeActiveCart.ts
 async function completeActiveCart(root, { cartId, paymentSessionId }, context) {
   const sudoContext = context.sudo();
+  await assertCanAccessCart(context, cartId, "write");
   const cart = await sudoContext.query.Cart.findOne({
     where: { id: cartId },
     query: `
@@ -5054,19 +5252,31 @@ async function completeActiveCart(root, { cartId, paymentSessionId }, context) {
       throw new Error("Payment capture failed");
     }
   }
-  const subtotal = cart.subtotal || 0;
-  const tipPercent = parseInt(cart.tipPercent || "0", 10);
-  const tip = Math.round(subtotal * (tipPercent / 100));
   const settings = await sudoContext.query.StoreSettings.findOne({
     where: { id: "1" },
-    query: "taxRate currencyCode pickupDiscount"
+    query: "taxRate currencyCode pickupDiscount deliveryFee deliveryMinimum"
   });
-  const taxRate = parseFloat(settings?.taxRate || "8.75");
   const currencyCode = settings?.currencyCode || "USD";
-  const storePickupDiscount = parseInt(settings?.pickupDiscount || "10", 10);
-  const tax = Math.round(subtotal * (taxRate / 100));
-  const pickupDiscount = cart.orderType === "pickup" ? Math.round(subtotal * (storePickupDiscount / 100)) : 0;
-  const total = subtotal - pickupDiscount + tax + tip;
+  const subtotal = cart.subtotal || 0;
+  const { tax, tip, pickupDiscount, deliveryFee, total, deliveryMinimumNotMet } = calculateRestaurantTotals({
+    subtotal,
+    orderType: cart.orderType,
+    tipPercent: cart.tipPercent,
+    deliveryFee: settings?.deliveryFee,
+    deliveryMinimum: settings?.deliveryMinimum,
+    pickupDiscountPercent: settings?.pickupDiscount,
+    taxRate: settings?.taxRate,
+    currencyCode
+  });
+  if (deliveryMinimumNotMet) {
+    throw new Error(`Delivery orders require a minimum subtotal of ${settings?.deliveryMinimum || "0.00"}.`);
+  }
+  if (cart.paymentCollection?.id && (cart.paymentCollection.amount || 0) !== total) {
+    await sudoContext.query.PaymentCollection.updateOne({
+      where: { id: cart.paymentCollection.id },
+      data: { amount: total }
+    });
+  }
   const orderTypeMap = {
     pickup: "takeout",
     delivery: "delivery"
@@ -5074,6 +5284,16 @@ async function completeActiveCart(root, { cartId, paymentSessionId }, context) {
   const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}`;
   const customerId = cart.user?.id;
   const secretKey = !customerId ? require("crypto").randomBytes(32).toString("hex") : void 0;
+  const isDeliveryOrder2 = cart.orderType === "delivery";
+  if (selectedSession.amount !== total) {
+    if (!isManual) {
+      throw new Error("Cart total changed. Please return to payment and confirm your payment method again.");
+    }
+    await sudoContext.query.PaymentSession.updateOne({
+      where: { id: selectedSession.id },
+      data: { amount: total }
+    });
+  }
   const order = await sudoContext.query.RestaurantOrder.createOne({
     data: {
       orderNumber,
@@ -5084,15 +5304,16 @@ async function completeActiveCart(root, { cartId, paymentSessionId }, context) {
       subtotal,
       tax,
       tip,
+      discount: pickupDiscount,
       total,
       currencyCode,
       customer: customerId ? { connect: { id: customerId } } : void 0,
       customerName: cart.customerName || "",
       customerEmail: cart.email || "",
       customerPhone: cart.customerPhone || "",
-      deliveryAddress: cart.deliveryAddress || void 0,
-      deliveryCity: cart.deliveryCity || void 0,
-      deliveryZip: cart.deliveryZip || void 0,
+      deliveryAddress: isDeliveryOrder2 ? cart.deliveryAddress || void 0 : void 0,
+      deliveryCity: isDeliveryOrder2 ? cart.deliveryCity || void 0 : void 0,
+      deliveryZip: isDeliveryOrder2 ? cart.deliveryZip || void 0 : void 0,
       secretKey
     },
     query: "id orderNumber secretKey status"
@@ -5159,6 +5380,7 @@ async function activeCart(root, { cartId }, context) {
   if (!cartId) {
     throw new Error("Cart ID is required");
   }
+  await assertCanAccessCart(context, cartId, "read");
   const cart = await sudoContext.query.Cart.findOne({
     where: { id: cartId },
     query: `
@@ -5230,13 +5452,7 @@ async function activeCart(root, { cartId }, context) {
 // features/keystone/mutations/updateActiveCart.ts
 async function updateActiveCart(root, { cartId, data }, context) {
   const sudoContext = context.sudo();
-  const existingCart = await sudoContext.query.Cart.findOne({
-    where: { id: cartId },
-    query: `id`
-  });
-  if (!existingCart) {
-    throw new Error("Cart not found");
-  }
+  await assertCanAccessCart(context, cartId, "write");
   return await sudoContext.db.Cart.updateOne({
     where: { id: cartId },
     data
@@ -5246,17 +5462,11 @@ async function updateActiveCart(root, { cartId, data }, context) {
 // features/keystone/mutations/updateCartItemQuantity.ts
 async function updateCartItemQuantity(root, { cartItemId, quantity }, context) {
   const sudoContext = context.sudo();
+  const cartItem = await assertCanAccessCartItem(context, cartItemId, "write");
   await sudoContext.db.CartItem.updateOne({
     where: { id: cartItemId },
     data: { quantity }
   });
-  const cartItem = await sudoContext.query.CartItem.findOne({
-    where: { id: cartItemId },
-    query: "cart { id }"
-  });
-  if (!cartItem?.cart?.id) {
-    throw new Error("Cart not found for this item");
-  }
   return await sudoContext.db.Cart.findOne({
     where: { id: cartItem.cart.id }
   });
@@ -5265,13 +5475,7 @@ async function updateCartItemQuantity(root, { cartItemId, quantity }, context) {
 // features/keystone/mutations/removeCartItem.ts
 async function removeCartItem(root, { cartItemId }, context) {
   const sudoContext = context.sudo();
-  const cartItem = await sudoContext.query.CartItem.findOne({
-    where: { id: cartItemId },
-    query: "cart { id }"
-  });
-  if (!cartItem?.cart?.id) {
-    throw new Error("Cart not found for this item");
-  }
+  const cartItem = await assertCanAccessCartItem(context, cartItemId, "write");
   const cartId = cartItem.cart.id;
   await sudoContext.db.CartItem.deleteOne({
     where: { id: cartItemId }
@@ -6187,7 +6391,7 @@ async function sendPasswordResetEmail(resetToken, to, baseUrl) {
 
 // features/keystone/index.ts
 var import_iron = __toESM(require("@hapi/iron"));
-var cookie = __toESM(require("cookie"));
+var cookie2 = __toESM(require("cookie"));
 var databaseURL = process.env.DATABASE_URL || "file:./keystone.db";
 var sessionConfig = {
   maxAge: 60 * 60 * 24 * 360,
@@ -6228,7 +6432,7 @@ function statelessSessions({
         } catch (err) {
         }
       }
-      const cookies = cookie.parse(context.req.headers.cookie || "");
+      const cookies = cookie2.parse(context.req.headers.cookie || "");
       const token = cookies[cookieName];
       if (!token) return;
       try {
@@ -6240,7 +6444,7 @@ function statelessSessions({
       if (!context?.res) return;
       context.res.setHeader(
         "Set-Cookie",
-        cookie.serialize(cookieName, "", {
+        cookie2.serialize(cookieName, "", {
           maxAge: 0,
           expires: /* @__PURE__ */ new Date(),
           httpOnly: true,
@@ -6259,7 +6463,7 @@ function statelessSessions({
       });
       context.res.setHeader(
         "Set-Cookie",
-        cookie.serialize(cookieName, sealedData, {
+        cookie2.serialize(cookieName, sealedData, {
           maxAge,
           expires: new Date(Date.now() + maxAge * 1e3),
           httpOnly: true,

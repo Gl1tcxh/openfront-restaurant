@@ -1,5 +1,4 @@
 import { list } from "@keystone-6/core";
-import { allOperations } from "@keystone-6/core/access";
 import {
   text,
   relationship,
@@ -7,12 +6,12 @@ import {
   integer,
   select,
   checkbox,
-  decimal,
   image
 } from "@keystone-6/core/fields";
 import { document } from "@keystone-6/fields-document";
 
-import { isSignedIn, permissions } from "../access";
+import { permissions } from "../access";
+import { trackingFields } from "./trackingFields";
 
 export const MenuItem = list({
   access: {
@@ -158,5 +157,6 @@ export const MenuItem = list({
         inlineEdit: { fields: ["name", "priceAdjustment", "modifierGroup"] },
       },
     }),
+    ...trackingFields,
   },
 });

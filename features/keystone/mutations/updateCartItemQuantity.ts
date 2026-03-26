@@ -1,4 +1,5 @@
 import { Context } from ".keystone/types";
+import { assertCanAccessCartItem } from "../utils/cartAccess";
 
 export default async function updateCartItemQuantity(
   root: any, 
@@ -6,22 +7,13 @@ export default async function updateCartItemQuantity(
   context: Context
 ) {
   const sudoContext = context.sudo();
+  const cartItem = await assertCanAccessCartItem(context, cartItemId, "write");
 
   // Update cart item quantity
   await sudoContext.db.CartItem.updateOne({
     where: { id: cartItemId },
     data: { quantity }
   });
-
-  // Find the cart this item belongs to
-  const cartItem = await sudoContext.query.CartItem.findOne({
-    where: { id: cartItemId },
-    query: 'cart { id }'
-  });
-
-  if (!cartItem?.cart?.id) {
-    throw new Error("Cart not found for this item");
-  }
 
   // Return the updated cart
   return await sudoContext.db.Cart.findOne({
