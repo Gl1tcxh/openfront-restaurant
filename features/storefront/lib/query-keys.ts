@@ -10,9 +10,15 @@ export const queryKeys = {
   // Menu operations
   menu: {
     all: ['menu'] as const,
+    lists: () => [...queryKeys.menu.all, 'list'] as const,
+    list: (params: {
+      categoryId?: string;
+      limit?: number;
+      featured?: boolean;
+    }) => [...queryKeys.menu.lists(), params] as const,
     categories: () => [...queryKeys.menu.all, 'categories'] as const,
     items: (categoryId?: string) => [...queryKeys.menu.all, 'items', categoryId] as const,
-    featured: () => [...queryKeys.menu.all, 'featured'] as const,
+    featured: (take: number = 12) => [...queryKeys.menu.all, 'featured', take] as const,
     item: (id: string) => [...queryKeys.menu.all, 'item', id] as const,
   },
 

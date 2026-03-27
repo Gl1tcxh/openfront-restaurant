@@ -1,5 +1,3 @@
-"use client"
-
 import { type StoreInfo, type DayHours } from "@/features/storefront/lib/store-data"
 
 interface StoreInfoBarProps {

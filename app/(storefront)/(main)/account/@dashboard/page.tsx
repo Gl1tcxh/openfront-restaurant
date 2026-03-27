@@ -22,7 +22,6 @@ export default async function AccountOverviewPage() {
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Greeting */}
       <div className="pb-6 border-b border-border">
         <h1 className="text-3xl font-serif">Hello, {firstName}</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -30,7 +29,6 @@ export default async function AccountOverviewPage() {
         </p>
       </div>
 
-      {/* Stats Strip */}
       <div className="grid grid-cols-3 divide-x border-b border-border">
         <div className="px-6 py-5">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Profile</p>
@@ -64,7 +62,6 @@ export default async function AccountOverviewPage() {
         </div>
       </div>
 
-      {/* Recent Orders */}
       <div className="pt-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold">Recent Orders</h2>

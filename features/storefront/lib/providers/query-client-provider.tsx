@@ -14,7 +14,24 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
             refetchOnWindowFocus: false,
             refetchOnMount: 'always',
             refetchOnReconnect: 'always',
-            retry: 1,
+            retry: (failureCount, error) => {
+              if (error && typeof error === 'object' && 'status' in error) {
+                const status = (error as any).status;
+                if (status === 401 || status === 403) return false;
+              }
+              return failureCount < 2;
+            },
+            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+          },
+          mutations: {
+            retry: (failureCount, error) => {
+              if (error && typeof error === 'object' && 'status' in error) {
+                const status = (error as any).status;
+                if (status >= 400 && status < 500) return false;
+              }
+              return failureCount < 1;
+            },
+            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
           },
         },
       })

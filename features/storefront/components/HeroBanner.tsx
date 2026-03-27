@@ -1,14 +1,13 @@
-"use client"
-
+import Link from "next/link"
 import { ArrowDown } from "lucide-react"
 import { type StoreInfo } from "@/features/storefront/lib/store-data"
 
 interface HeroBannerProps {
-  onOrderNow: () => void
+  menuHref: string
   storeInfo: StoreInfo
 }
 
-export function HeroBanner({ onOrderNow, storeInfo }: HeroBannerProps) {
+export function HeroBanner({ menuHref, storeInfo }: HeroBannerProps) {
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-primary via-primary to-warm-800 text-primary-foreground">
       {/* Atmospheric background shapes */}
@@ -37,13 +36,14 @@ export function HeroBanner({ onOrderNow, storeInfo }: HeroBannerProps) {
             {storeInfo.heroSubheadline || storeInfo.tagline}
           </p>
 
-          <button
-            onClick={onOrderNow}
+          <Link
+            href={menuHref}
+            prefetch={false}
             className="group inline-flex items-center gap-3 bg-primary-foreground text-primary rounded-full px-8 py-4 text-sm font-semibold tracking-wide hover:bg-primary-foreground/90 transition-all hover:shadow-lg hover:shadow-primary-foreground/10"
           >
             View Our Menu
             <ArrowDown className="h-4 w-4 group-hover:translate-y-0.5 transition-transform" />
-          </button>
+          </Link>
         </div>
       </div>
     </section>

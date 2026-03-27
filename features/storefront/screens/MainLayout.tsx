@@ -17,7 +17,12 @@ const sora = Sora({
 export async function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`${plusJakarta.variable} ${sora.variable} min-h-screen bg-background font-sans text-foreground`}>
-      <StorefrontServer>
+      <StorefrontServer
+        prefetchUser={true}
+        prefetchCart={true}
+        prefetchStoreSettings={true}
+        prefetchMenuCategories={true}
+      >
         <Nav />
         {children}
         <Footer />

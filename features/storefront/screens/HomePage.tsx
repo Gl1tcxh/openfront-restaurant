@@ -1,12 +1,12 @@
 import { Metadata } from "next"
-import { getMenuCategories, getMenuItems, getFeaturedMenuItems, getStoreSettings } from "@/features/storefront/lib/data/menu"
-import { type StoreInfo } from "@/features/storefront/lib/store-data"
-import HomePageClient from "./HomePageClient"
+import { getMenuCategories, getMenuItems, getStoreSettings } from "@/features/storefront/lib/data/menu"
+import { type MenuCategory, type MenuItem, type StoreInfo } from "@/features/storefront/lib/store-data"
 import { getCurrencyConfig } from "@/features/storefront/lib/currency"
-
-// Force dynamic rendering since we fetch data
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
+import { HeroBanner } from "@/features/storefront/components/HeroBanner"
+import { StoreInfoBar } from "@/features/storefront/components/StoreInfoBar"
+import { CategoryNav } from "@/features/storefront/components/CategoryNav"
+import { MenuItemCard } from "@/features/storefront/components/MenuItemCard"
+import { MenuSection } from "@/features/storefront/components/MenuSection"
 
 export async function generateMetadata(): Promise<Metadata> {
   const storeSettings = await getStoreSettings()
@@ -18,20 +18,18 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  // Fetch all data server-side
-  const [categories, allItems, featuredItems, storeSettings] = await Promise.all([
+  const [categories, allItems, storeSettings] = await Promise.all([
     getMenuCategories(),
     getMenuItems(),
-    getFeaturedMenuItems(8),
     getStoreSettings(),
   ])
 
-  // If no store settings exist, return null (middleware will redirect to init)
+  const featuredItems = allItems.filter((item: MenuItem) => item.featured).slice(0, 8)
+
   if (!storeSettings) {
     return null
   }
 
-  // Build storeInfo from database settings
   const currencyConfig = getCurrencyConfig(storeSettings)
 
   const storeInfo: StoreInfo = {
@@ -58,18 +56,104 @@ export default async function HomePage() {
     reviewCount: storeSettings.reviewCount || undefined,
   }
 
-  // Add "All" category at the beginning
-  const allCategories = [
-    { id: "all", name: "All", icon: "all", sortOrder: -1 },
-    ...categories
-  ]
+  const featuredSectionId = "featured"
+  const categorySections: Array<{
+    category: MenuCategory
+    items: MenuItem[]
+    sectionId: string
+  }> = categories
+    .map((category: MenuCategory) => {
+      const items = allItems.filter((item: MenuItem) => {
+        const categoryId =
+          typeof item.category === "object" && item.category?.id
+            ? item.category.id
+            : typeof item.category === "string"
+              ? item.category
+              : item.categoryId
+
+        return categoryId === category.id && !item.featured
+      })
+
+      return {
+        category,
+        items,
+        sectionId: `category-${category.id}`,
+      }
+    })
+    .filter((section: { items: MenuItem[] }) => section.items.length > 0)
+
+  const navItems: Array<{ href: string; label: string }> = []
+
+  if (featuredItems.length > 0) {
+    navItems.push({ href: `#${featuredSectionId}`, label: "Featured" })
+  }
+
+  categorySections.forEach(({ category, sectionId }: { category: MenuCategory; sectionId: string }) => {
+    navItems.push({ href: `#${sectionId}`, label: category.name })
+  })
+
+  const menuHref = navItems[0]?.href || "#menu"
 
   return (
-    <HomePageClient
-      categories={allCategories}
-      menuItems={allItems}
-      featuredItems={featuredItems}
-      storeInfo={storeInfo}
-    />
+    <div className="flex flex-col" id="menu">
+      <HeroBanner menuHref={menuHref} storeInfo={storeInfo} />
+      <StoreInfoBar storeInfo={storeInfo} />
+
+      {navItems.length > 0 ? (
+        <div className="sticky top-[72px] z-40">
+          <CategoryNav items={navItems} />
+        </div>
+      ) : null}
+
+      <main className="container mx-auto px-6 py-12 md:py-16">
+        <div className="space-y-16 md:space-y-20">
+          {featuredItems.length > 0 ? (
+            <section id={featuredSectionId} className="scroll-mt-44">
+              <div className="mb-8 flex items-end justify-between">
+                <div>
+                  <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-warm-100 px-3 py-1">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-warm-700">
+                      Chef&apos;s Selection
+                    </span>
+                  </div>
+                  <h2 className="font-serif text-3xl font-bold tracking-tight md:text-4xl">
+                    Featured
+                  </h2>
+                  <div className="mt-2 h-0.5 w-12 rounded-full bg-warm-500" />
+                </div>
+                <span className="text-[13px] font-medium text-muted-foreground">
+                  {featuredItems.length} items
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {featuredItems.map((item: MenuItem) => (
+                  <MenuItemCard
+                    key={item.id}
+                    item={item}
+                    currencyCode={storeInfo.currencyCode}
+                    locale={storeInfo.locale}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {categorySections.map(({ category, items, sectionId }: {
+            category: MenuCategory
+            items: MenuItem[]
+            sectionId: string
+          }) => (
+            <MenuSection
+              key={category.id}
+              sectionId={sectionId}
+              title={category.name}
+              items={items}
+              currencyCode={storeInfo.currencyCode}
+              locale={storeInfo.locale}
+            />
+          ))}
+        </div>
+      </main>
+    </div>
   )
 }

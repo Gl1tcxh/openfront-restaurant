@@ -39,7 +39,6 @@ export default async function AccountOrdersPage() {
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header */}
       <div className="pb-6 border-b border-border">
         <h1 className="text-3xl font-serif">Order History</h1>
         <p className="text-sm text-muted-foreground mt-1">

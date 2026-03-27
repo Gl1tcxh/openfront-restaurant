@@ -1,22 +1,25 @@
-"use client"
-
-import { forwardRef } from "react"
 import { MenuItemCard } from "./MenuItemCard"
 import type { MenuItem } from "@/features/storefront/lib/store-data"
 
 interface MenuSectionProps {
+  sectionId: string
   title: string
   items: MenuItem[]
-  onQuickView: (item: MenuItem) => void
   currencyCode?: string
   locale?: string
 }
 
-export const MenuSection = forwardRef<HTMLDivElement, MenuSectionProps>(({ title, items, onQuickView, currencyCode = "USD", locale = "en-US" }, ref) => {
+export function MenuSection({
+  sectionId,
+  title,
+  items,
+  currencyCode = "USD",
+  locale = "en-US",
+}: MenuSectionProps) {
   if (items.length === 0) return null
 
   return (
-    <section ref={ref} className="scroll-mt-44">
+    <section id={sectionId} className="scroll-mt-44">
       <div className="mb-8 flex items-end justify-between">
         <div>
           <h2 className="font-serif font-bold text-3xl md:text-4xl tracking-tight text-foreground">{title}</h2>
@@ -29,7 +32,6 @@ export const MenuSection = forwardRef<HTMLDivElement, MenuSectionProps>(({ title
           <MenuItemCard
             key={item.id}
             item={item}
-            onQuickView={onQuickView}
             currencyCode={currencyCode}
             locale={locale}
           />
@@ -37,6 +39,4 @@ export const MenuSection = forwardRef<HTMLDivElement, MenuSectionProps>(({ title
       </div>
     </section>
   )
-})
-
-MenuSection.displayName = "MenuSection"
+}
