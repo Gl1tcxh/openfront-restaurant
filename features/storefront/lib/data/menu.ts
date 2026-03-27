@@ -76,6 +76,7 @@ export const getMenuItems = cache(async function (categoryId?: string) {
       ) {
         id
         name
+        thumbnail
         description {
           document
         }
@@ -89,13 +90,6 @@ export const getMenuItems = cache(async function (categoryId?: string) {
         allergens
         dietaryFlags
         mealPeriods
-        menuItemImages(take: 1) {
-          id
-          image {
-            url
-          }
-          imagePath
-        }
         category {
           id
           name
@@ -143,6 +137,7 @@ export const getFeaturedMenuItems = cache(async function (take = 8) {
       ) {
         id
         name
+        thumbnail
         description {
           document
         }
@@ -151,13 +146,6 @@ export const getFeaturedMenuItems = cache(async function (take = 8) {
         prepTime
         allergens
         dietaryFlags
-        menuItemImages(take: 1) {
-          id
-          image {
-            url
-          }
-          imagePath
-        }
         category {
           id
           name
@@ -181,6 +169,7 @@ export const getMenuItem = cache(async function (id: string) {
       menuItem(where: { id: $id }) {
         id
         name
+        thumbnail
         description {
           document
         }
@@ -194,13 +183,6 @@ export const getMenuItem = cache(async function (id: string) {
         allergens
         dietaryFlags
         mealPeriods
-        menuItemImages(take: 1) {
-          id
-          image {
-            url
-          }
-          imagePath
-        }
         category {
           id
           name

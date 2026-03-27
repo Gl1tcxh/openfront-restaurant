@@ -16,9 +16,8 @@ const GET_MENU_DATA = gql`
       id name icon description
     }
     menuItems(orderBy: { name: asc }) {
-      id name price available popular kitchenStation
+      id name price available popular kitchenStation thumbnail
       category { id }
-      menuItemImages(take: 1) { id imagePath altText }
       modifiers { id name priceAdjustment }
     }
     storeSettings { currencyCode locale }
@@ -186,8 +185,8 @@ export function MenuArchitectPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 divide-x divide-y border-b border-border">
               {filteredItems.map((item: any) => {
-                const imageSrc = item.menuItemImages?.[0]?.imagePath;
-                const imageAlt = item.menuItemImages?.[0]?.altText || item.name;
+                const imageSrc = item.thumbnail;
+                const imageAlt = item.name;
                 return (
                   <div
                     key={item.id}

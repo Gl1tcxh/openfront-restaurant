@@ -25,20 +25,14 @@ export default async function activeCart(root: any, { cartId }: { cartId?: strin
       tipPercent
       items {
         id
+        thumbnail
         quantity
         specialInstructions
         menuItem {
           id
           name
           price
-          menuItemImages(take: 1) {
-            id
-            image {
-              url
-            }
-            imagePath
-            altText
-          }
+          thumbnail
         }
         modifiers {
           id

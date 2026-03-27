@@ -961,6 +961,7 @@ input MenuItemRelateToManyForCreateInput {
 type MenuItem {
   id: ID!
   name: String
+  thumbnail: String
   menuItemImages(where: MenuItemImageWhereInput! = {}, orderBy: [MenuItemImageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MenuItemImageWhereUniqueInput): [MenuItemImage!]
   menuItemImagesCount(where: MenuItemImageWhereInput! = {}): Int
   description: MenuItem_description_Document
@@ -1691,6 +1692,7 @@ type OrderItem {
   price: Int
   unitPrice: Int
   totalPrice: Int
+  thumbnail: String
   specialInstructions: String
   courseNumber: Int
   seatNumber: Int
@@ -2632,6 +2634,7 @@ type CartItem {
   modifiers(where: MenuItemModifierWhereInput! = {}, orderBy: [MenuItemModifierOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MenuItemModifierWhereUniqueInput): [MenuItemModifier!]
   modifiersCount(where: MenuItemModifierWhereInput! = {}): Int
   specialInstructions: String
+  thumbnail: String
   createdAt: DateTime
   updatedAt: DateTime
 }

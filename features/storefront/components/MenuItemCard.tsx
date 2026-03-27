@@ -5,7 +5,6 @@ import { formatCurrency } from "@/features/storefront/lib/currency"
 import {
   getMenuItemDescriptionText,
   getMenuItemHref,
-  getMenuItemImageUrl,
 } from "@/features/storefront/lib/menu-item-utils"
 
 interface MenuItemCardProps {
@@ -18,6 +17,7 @@ export function MenuItemCard({ item, currencyCode = "USD", locale = "en-US" }: M
   const badgeLabel = item.featured ? "Featured" : item.popular ? "Popular" : null
   const description = getMenuItemDescriptionText(item.description)
   const ctaLabel = item.modifiers?.length ? "Customize" : "View Item"
+  const thumbnail = item.thumbnail || "/placeholder.jpg"
 
   return (
     <Link
@@ -28,7 +28,7 @@ export function MenuItemCard({ item, currencyCode = "USD", locale = "en-US" }: M
       <article className="relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-300 hover:border-border hover:shadow-lg hover:shadow-foreground/5 sm:flex-row">
         <div className="relative aspect-[16/10] shrink-0 overflow-hidden bg-muted sm:min-h-[160px] sm:w-44 sm:aspect-auto">
           <Image
-            src={getMenuItemImageUrl(item)}
+            src={thumbnail}
             alt={item.name}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"

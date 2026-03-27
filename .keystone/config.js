@@ -1140,6 +1140,29 @@ var MenuItem = (0, import_core7.list)({
     name: (0, import_fields8.text)({
       validation: { isRequired: true }
     }),
+    thumbnail: (0, import_fields8.virtual)({
+      field: import_core7.graphql.field({
+        type: import_core7.graphql.String,
+        resolve: async (item, args, context) => {
+          const menuItem = await context.query.MenuItem.findOne({
+            where: { id: String(item.id) },
+            query: "menuItemImages(take: 1) { image { url } imagePath }"
+          });
+          const imageUrl = menuItem?.menuItemImages?.[0]?.image?.url;
+          if (imageUrl) {
+            return imageUrl;
+          }
+          const imagePath = menuItem?.menuItemImages?.[0]?.imagePath;
+          if (!imagePath) {
+            return null;
+          }
+          if (imagePath.startsWith("http://") || imagePath.startsWith("https://") || imagePath.startsWith("data:") || imagePath.startsWith("blob:") || imagePath.startsWith("/images/")) {
+            return imagePath;
+          }
+          return imagePath.startsWith("/") ? `/images${imagePath}` : `/images/${imagePath}`;
+        }
+      })
+    }),
     menuItemImages: (0, import_fields8.relationship)({
       ref: "MenuItemImage.menuItems",
       many: true,
@@ -1689,6 +1712,23 @@ var OrderItem = (0, import_core12.list)({
         type: import_core12.graphql.Int,
         resolve(item) {
           return (item.price || 0) * (item.quantity || 1);
+        }
+      })
+    }),
+    thumbnail: (0, import_fields13.virtual)({
+      field: import_core12.graphql.field({
+        type: import_core12.graphql.String,
+        async resolve(item, args, context) {
+          const sudoContext = context.sudo();
+          const orderItem = await sudoContext.query.OrderItem.findOne({
+            where: { id: String(item.id) },
+            query: `
+              menuItem {
+                thumbnail
+              }
+            `
+          });
+          return orderItem?.menuItem?.thumbnail || null;
         }
       })
     }),
@@ -2419,6 +2459,23 @@ var CartItem = (0, import_core21.list)({
     quantity: (0, import_fields22.integer)({ defaultValue: 1, validation: { min: 1 } }),
     modifiers: (0, import_fields22.relationship)({ ref: "MenuItemModifier", many: true }),
     specialInstructions: (0, import_fields22.text)(),
+    thumbnail: (0, import_fields22.virtual)({
+      field: import_core21.graphql.field({
+        type: import_core21.graphql.String,
+        async resolve(item, args, context) {
+          const sudoContext = context.sudo();
+          const cartItem = await sudoContext.query.CartItem.findOne({
+            where: { id: String(item.id) },
+            query: `
+              menuItem {
+                thumbnail
+              }
+            `
+          });
+          return cartItem?.menuItem?.thumbnail || null;
+        }
+      })
+    }),
     ...trackingFields
   }
 });
@@ -5185,17 +5242,14 @@ async function completeActiveCart(root, { cartId, paymentSessionId }, context) {
       }
       items {
         id
+        thumbnail
         quantity
         specialInstructions
         menuItem {
           id
           name
           price
-          menuItemImages(take: 1) {
-            id
-            image { url }
-            imagePath
-          }
+          thumbnail
         }
         modifiers {
           id
@@ -5396,20 +5450,14 @@ async function activeCart(root, { cartId }, context) {
       tipPercent
       items {
         id
+        thumbnail
         quantity
         specialInstructions
         menuItem {
           id
           name
           price
-          menuItemImages(take: 1) {
-            id
-            image {
-              url
-            }
-            imagePath
-            altText
-          }
+          thumbnail
         }
         modifiers {
           id
@@ -5517,6 +5565,7 @@ async function getCustomerOrder(root, { orderId, secretKey }, context) {
       }
       orderItems {
         id
+        thumbnail
         quantity
         unitPrice
         totalPrice
@@ -5525,14 +5574,7 @@ async function getCustomerOrder(root, { orderId, secretKey }, context) {
           id
           name
           price
-          menuItemImages(take: 1) {
-            id
-            image {
-              url
-            }
-            imagePath
-            altText
-          }
+          thumbnail
         }
         modifiers: appliedModifiers {
           id
@@ -6102,11 +6144,11 @@ async function handlePaymentProviderWebhook(root, { providerCode, event, headers
 }
 
 // features/keystone/mutations/index.ts
-var graphql13 = String.raw;
+var graphql15 = String.raw;
 function extendGraphqlSchema(baseSchema) {
   return (0, import_schema.mergeSchemas)({
     schemas: [baseSchema],
-    typeDefs: graphql13`
+    typeDefs: graphql15`
       input UserUpdateProfileInput {
         email: String
         name: String

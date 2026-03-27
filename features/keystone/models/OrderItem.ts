@@ -56,6 +56,25 @@ export const OrderItem = list({
       }),
     }),
 
+    thumbnail: virtual({
+      field: graphql.field({
+        type: graphql.String,
+        async resolve(item, args, context) {
+          const sudoContext = context.sudo();
+          const orderItem = await sudoContext.query.OrderItem.findOne({
+            where: { id: String(item.id) },
+            query: `
+              menuItem {
+                thumbnail
+              }
+            `,
+          });
+
+          return orderItem?.menuItem?.thumbnail || null;
+        },
+      }),
+    }),
+
     specialInstructions: text({
       ui: {
         displayMode: "textarea",

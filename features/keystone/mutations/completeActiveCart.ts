@@ -54,17 +54,14 @@ export default async function completeActiveCart(
       }
       items {
         id
+        thumbnail
         quantity
         specialInstructions
         menuItem {
           id
           name
           price
-          menuItemImages(take: 1) {
-            id
-            image { url }
-            imagePath
-          }
+          thumbnail
         }
         modifiers {
           id

@@ -1,4 +1,4 @@
-import { list } from "@keystone-6/core";
+import { graphql, list } from "@keystone-6/core";
 import {
   text,
   relationship,
@@ -6,7 +6,7 @@ import {
   integer,
   select,
   checkbox,
-  image
+  virtual
 } from "@keystone-6/core/fields";
 import { document } from "@keystone-6/fields-document";
 
@@ -30,6 +30,40 @@ export const MenuItem = list({
   fields: {
     name: text({
       validation: { isRequired: true },
+    }),
+
+    thumbnail: virtual({
+      field: graphql.field({
+        type: graphql.String,
+        resolve: async (item, args, context) => {
+          const menuItem = await context.query.MenuItem.findOne({
+            where: { id: String(item.id) },
+            query: "menuItemImages(take: 1) { image { url } imagePath }",
+          });
+
+          const imageUrl = menuItem?.menuItemImages?.[0]?.image?.url;
+          if (imageUrl) {
+            return imageUrl;
+          }
+
+          const imagePath = menuItem?.menuItemImages?.[0]?.imagePath;
+          if (!imagePath) {
+            return null;
+          }
+
+          if (
+            imagePath.startsWith("http://") ||
+            imagePath.startsWith("https://") ||
+            imagePath.startsWith("data:") ||
+            imagePath.startsWith("blob:") ||
+            imagePath.startsWith("/images/")
+          ) {
+            return imagePath;
+          }
+
+          return imagePath.startsWith("/") ? `/images${imagePath}` : `/images/${imagePath}`;
+        },
+      }),
     }),
 
     menuItemImages: relationship({

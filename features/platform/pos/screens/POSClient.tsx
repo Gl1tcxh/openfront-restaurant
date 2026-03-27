@@ -36,19 +36,13 @@ interface MenuCategory {
   name: string
 }
 
-interface MenuItemImage {
-  id: string
-  imagePath?: string
-  altText?: string
-}
-
 interface MenuItem {
   id: string
   name: string
   price: string
   available: boolean
+  thumbnail?: string | null
   category: { id: string; name: string } | null
-  menuItemImages?: MenuItemImage[]
 }
 
 interface CartItem {
@@ -64,9 +58,8 @@ const GET_DATA = gql`
     }
     menuCategories(orderBy: { sortOrder: asc }) { id name }
     menuItems(orderBy: { name: asc }) {
-      id name price available
+      id name price available thumbnail
       category { id name }
-      menuItemImages(take: 1) { id imagePath altText }
     }
   }
 `
@@ -328,8 +321,8 @@ export function POSClient() {
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 divide-x divide-y border-b border-border">
               {filteredItems.map((item) => {
-                const imageSrc = item.menuItemImages?.[0]?.imagePath
-                const imageAlt = item.menuItemImages?.[0]?.altText || item.name
+                const imageSrc = item.thumbnail
+                const imageAlt = item.name
                 return (
                   <button
                     key={item.id}
@@ -505,9 +498,9 @@ export function POSClient() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-8 h-8 rounded overflow-hidden bg-muted shrink-0">
-                          {item.menuItem.menuItemImages?.[0]?.imagePath ? (
+                          {item.menuItem.thumbnail ? (
                             <img
-                              src={item.menuItem.menuItemImages[0].imagePath}
+                              src={item.menuItem.thumbnail}
                               alt={item.menuItem.name}
                               className="w-full h-full object-cover"
                             />

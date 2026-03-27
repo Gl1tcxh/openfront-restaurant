@@ -18,11 +18,7 @@ interface CartItem {
     id: string
     name: string
     price: number
-    menuItemImages?: Array<{
-      id: string
-      image?: { url: string }
-      imagePath?: string
-    }>
+    thumbnail?: string | null
   }
   modifiers: Array<{
     id: string
@@ -42,13 +38,6 @@ interface CartDropdownProps {
   cart: CartData | null
   currencyCode: string
   locale: string
-}
-
-function getImageUrl(menuItem: CartItem["menuItem"]): string {
-  const firstImage = menuItem.menuItemImages?.[0]
-  if (firstImage?.image?.url) return firstImage.image.url
-  if (firstImage?.imagePath) return firstImage.imagePath
-  return '/placeholder.jpg'
 }
 
 export default function CartDropdown({ cart, currencyCode, locale }: CartDropdownProps) {
@@ -149,7 +138,7 @@ export default function CartDropdown({ cart, currencyCode, locale }: CartDropdow
                       <div key={item.id} className="flex gap-4 p-3 rounded-xl bg-muted/40 border border-border/30">
                         <div className="relative h-16 w-16 shrink-0 rounded-lg overflow-hidden bg-muted">
                           <Image
-                            src={getImageUrl(item.menuItem)}
+                            src={item.menuItem.thumbnail || "/placeholder.jpg"}
                             alt={item.menuItem.name}
                             fill
                             className="object-cover"

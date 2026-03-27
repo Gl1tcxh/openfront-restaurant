@@ -26,6 +26,7 @@ export async function fetchMenuItems(params: FetchMenuItemsParams = {}) {
         ) {
           id
           name
+          thumbnail
           description {
             document
           }
@@ -39,13 +40,6 @@ export async function fetchMenuItems(params: FetchMenuItemsParams = {}) {
           allergens
           dietaryFlags
           mealPeriods
-          menuItemImages(take: 1) {
-            id
-            image {
-              url
-            }
-            imagePath
-          }
           category {
             id
             name

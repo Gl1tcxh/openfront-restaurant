@@ -4,13 +4,6 @@ export function getMenuItemHref(itemId: string): string {
   return `/menu/${itemId}`
 }
 
-export function getMenuItemImageUrl(item: MenuItem): string {
-  const firstImage = item.menuItemImages?.[0]
-  if (firstImage?.image?.url) return firstImage.image.url
-  if (firstImage?.imagePath) return firstImage.imagePath
-  return "/placeholder.jpg"
-}
-
 export function getMenuItemDescriptionText(description: MenuItem["description"]): string {
   if (typeof description === "string") return description
   if (typeof description === "object" && description?.document) {

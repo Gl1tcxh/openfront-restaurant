@@ -10,6 +10,7 @@ export interface MenuItem {
   name: string
   description: string | { document: any }
   price: number | string
+  thumbnail?: string | null
   menuItemImages?: MenuItemImage[]
   category?: { id: string; name: string } | string
   categoryId?: string

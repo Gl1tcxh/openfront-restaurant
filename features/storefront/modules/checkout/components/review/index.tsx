@@ -8,13 +8,6 @@ import { calculateRestaurantCheckoutTotals } from "@/features/storefront/lib/che
 import PaymentButton from "../payment-button"
 import { ClipboardCheck } from "lucide-react"
 
-function getImageUrl(item: any): string {
-  const firstImage = item?.menuItemImages?.[0]
-  if (firstImage?.image?.url) return firstImage.image.url
-  if (firstImage?.imagePath) return firstImage.imagePath
-  return "/placeholder.jpg"
-}
-
 const Review = ({
   cart,
   storeSettings,
@@ -78,7 +71,7 @@ const Review = ({
               return (
                 <div key={item.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/40 border border-border/30">
                   <div className="relative h-14 w-14 shrink-0 bg-muted rounded-lg overflow-hidden">
-                    <Image src={getImageUrl(item.menuItem)} alt={item.menuItem?.name || ""} fill className="object-cover" sizes="56px" />
+                    <Image src={item.menuItem?.thumbnail || "/placeholder.jpg"} alt={item.menuItem?.name || ""} fill className="object-cover" sizes="56px" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">

@@ -36,6 +36,7 @@ export default async function getCustomerOrder(
       }
       orderItems {
         id
+        thumbnail
         quantity
         unitPrice
         totalPrice
@@ -44,14 +45,7 @@ export default async function getCustomerOrder(
           id
           name
           price
-          menuItemImages(take: 1) {
-            id
-            image {
-              url
-            }
-            imagePath
-            altText
-          }
+          thumbnail
         }
         modifiers: appliedModifiers {
           id

@@ -5,6 +5,7 @@ import { formatCurrency } from "@/features/storefront/lib/currency";
 
 interface OrderItem {
   id: string;
+  thumbnail?: string | null;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
@@ -13,11 +14,6 @@ interface OrderItem {
     id: string;
     name: string;
     price: number;
-    menuItemImages?: {
-      id: string;
-      imagePath?: string;
-      altText?: string;
-    }[];
   };
   modifiers?: {
     id: string;
@@ -44,13 +40,16 @@ export function OrderItemsList({ items, currencyCode = "USD", locale = "en-US" }
     <div className="space-y-4">
       <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Order Items</h3>
       <div className="divide-y">
-        {items.map((item) => (
+        {items.map((item) => {
+          const imagePath = item.thumbnail;
+
+          return (
           <div key={item.id} className="flex gap-4 py-4 first:pt-0 last:pb-0">
-            {item.menuItem.menuItemImages?.[0]?.imagePath && (
+            {imagePath && (
               <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-muted">
                 <img
-                  src={item.menuItem.menuItemImages[0].imagePath}
-                  alt={item.menuItem.menuItemImages[0].altText || item.menuItem.name}
+                  src={imagePath}
+                  alt={item.menuItem.name}
                   className="h-full w-full object-cover"
                 />
               </div>
@@ -80,7 +79,7 @@ export function OrderItemsList({ items, currencyCode = "USD", locale = "en-US" }
               )}
             </div>
           </div>
-        ))}
+        )})}
       </div>
     </div>
   );

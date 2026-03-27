@@ -7,7 +7,6 @@ import { getCurrencyConfig, formatCurrency } from "@/features/storefront/lib/cur
 import { getMenuItem, getStoreSettings } from "@/features/storefront/lib/data/menu"
 import {
   getMenuItemDescriptionText,
-  getMenuItemImageUrl,
 } from "@/features/storefront/lib/menu-item-utils"
 import { MenuItemPurchaseForm } from "@/features/storefront/components/MenuItemPurchaseForm"
 
@@ -27,6 +26,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 
   const storeName = storeSettings?.name || "Restaurant"
   const description = getMenuItemDescriptionText(item.description)
+  const thumbnail = item.thumbnail || "/placeholder.jpg"
 
   return {
     title: `${item.name} | ${storeName}`,
@@ -34,7 +34,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
     openGraph: {
       title: `${item.name} | ${storeName}`,
       description: description || `${item.name} from ${storeName}`,
-      images: [getMenuItemImageUrl(item)],
+      images: [thumbnail],
     },
   }
 }
@@ -49,6 +49,7 @@ export default async function MenuItemPage(props: Props) {
 
   const currencyConfig = getCurrencyConfig(storeSettings)
   const description = getMenuItemDescriptionText(item.description)
+  const thumbnail = item.thumbnail || "/placeholder.jpg"
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -66,7 +67,7 @@ export default async function MenuItemPage(props: Props) {
           <section>
             <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-muted shadow-lg shadow-foreground/5">
               <Image
-                src={getMenuItemImageUrl(item)}
+                src={thumbnail}
                 alt={item.name}
                 fill
                 className="object-cover"
