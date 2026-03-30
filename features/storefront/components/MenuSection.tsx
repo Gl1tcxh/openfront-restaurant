@@ -7,6 +7,7 @@ interface MenuSectionProps {
   items: MenuItem[]
   currencyCode?: string
   locale?: string
+  className?: string
 }
 
 export function MenuSection({
@@ -15,11 +16,12 @@ export function MenuSection({
   items,
   currencyCode = "USD",
   locale = "en-US",
+  className,
 }: MenuSectionProps) {
   if (items.length === 0) return null
 
   return (
-    <section id={sectionId} className="scroll-mt-44">
+    <section id={sectionId} className={className || "scroll-mt-44"}>
       <div className="mb-8 flex items-end justify-between">
         <div>
           <h2 className="font-serif font-bold text-3xl md:text-4xl tracking-tight text-foreground">{title}</h2>

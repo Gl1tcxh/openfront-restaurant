@@ -1,6 +1,6 @@
 "use client"
 
-import { CircleCheck } from "lucide-react"
+import { CircleCheck, Loader2, ShoppingBag, Truck, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,18 +9,22 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
 import { createGuestUser } from "@/features/storefront/lib/data/user"
 import { setCheckoutContact } from "@/features/storefront/lib/data/cart"
-import { Loader2, User, Truck, ShoppingBag } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { formatCurrency } from "@/features/storefront/lib/currency"
+import { calculateRestaurantTotals } from "@/features/lib/restaurant-order-pricing"
 
 const Contact = ({
   cart,
   customer,
+  storeSettings,
 }: {
   cart: any
   customer: any
+  storeSettings: any
 }) => {
   const user = customer
+  const deliveryEnabled = storeSettings?.deliveryEnabled ?? true
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -29,7 +33,9 @@ const Contact = ({
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [orderType, setOrderType] = useState(cart?.orderType || "pickup")
+  const [orderType, setOrderType] = useState(
+    cart?.orderType === "delivery" && !deliveryEnabled ? "pickup" : cart?.orderType || "pickup"
+  )
   const [customerInfo, setCustomerInfo] = useState({
     firstName: user?.name?.split(" ")[0] || cart?.customerName?.split(" ")[0] || "",
     lastName: user?.name?.split(" ").slice(1).join(" ") || cart?.customerName?.split(" ").slice(1).join(" ") || "",
@@ -38,6 +44,21 @@ const Contact = ({
   })
 
   const isComplete = customerInfo.firstName && customerInfo.lastName && customerInfo.email && customerInfo.phone
+  const currencyConfig = {
+    currencyCode: storeSettings?.currencyCode || "USD",
+    locale: storeSettings?.locale || "en-US",
+  }
+  const deliveryPricing = calculateRestaurantTotals({
+    subtotal: Number(cart?.subtotal || 0),
+    orderType,
+    tipPercent: Number(cart?.tipPercent || 0),
+    deliveryFee: storeSettings?.deliveryFee,
+    deliveryMinimum: storeSettings?.deliveryMinimum,
+    pickupDiscountPercent: Number(storeSettings?.pickupDiscount || 0),
+    taxRate: Number(storeSettings?.taxRate || 0),
+    currencyCode: currencyConfig.currencyCode,
+  })
+  const deliveryMinimumNotMet = Boolean(deliveryPricing.deliveryMinimumNotMet)
 
   const handleEdit = () => {
     router.push(pathname + "?step=contact")
@@ -49,6 +70,16 @@ const Contact = ({
     setError(null)
 
     try {
+      if (orderType === "delivery" && deliveryMinimumNotMet) {
+        setError(
+          `Delivery requires a minimum subtotal of ${formatCurrency(storeSettings?.deliveryMinimum || 0, currencyConfig, {
+            inputIsCents: false,
+          })}. Add ${formatCurrency(deliveryPricing.deliveryMinimumShortfall, currencyConfig)} more or switch to pickup.`
+        )
+        setIsLoading(false)
+        return
+      }
+
       let customerId = user?.id
 
       // Create guest user if not logged in
@@ -81,6 +112,7 @@ const Contact = ({
         return
       }
 
+      router.refresh()
       router.push(pathname + "?step=delivery")
     } catch (err: any) {
       setError(err.message || "An error occurred")
@@ -110,24 +142,49 @@ const Contact = ({
 
       {isOpen ? (
         <div className="space-y-5">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <Label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Order Type</Label>
-            <RadioGroup value={orderType} onValueChange={(val) => setOrderType(val)} className="grid grid-cols-2 gap-3">
+            <RadioGroup
+              value={orderType}
+              onValueChange={(val) => setOrderType(val)}
+              className={deliveryEnabled ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}
+            >
               <div>
                 <RadioGroupItem value="pickup" id="order-pickup" className="peer sr-only" />
-                <Label htmlFor="order-pickup" className="flex items-center justify-center gap-2 border border-border rounded-xl p-4 hover:bg-muted/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all">
-                  <ShoppingBag className="h-4 w-4" />
-                  <span className="text-sm font-medium">Pickup</span>
+                <Label htmlFor="order-pickup" className="flex flex-col items-start gap-1 border border-border rounded-xl p-4 hover:bg-muted/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="h-4 w-4" />
+                    <span className="text-sm font-semibold">Pickup</span>
+                  </div>
+                  <span className="text-[12px] text-muted-foreground pl-6">Free</span>
                 </Label>
               </div>
-              <div>
-                <RadioGroupItem value="delivery" id="order-delivery" className="peer sr-only" />
-                <Label htmlFor="order-delivery" className="flex items-center justify-center gap-2 border border-border rounded-xl p-4 hover:bg-muted/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all">
-                  <Truck className="h-4 w-4" />
-                  <span className="text-sm font-medium">Delivery</span>
-                </Label>
-              </div>
+              {deliveryEnabled ? (
+                <div>
+                  <RadioGroupItem value="delivery" id="order-delivery" className="peer sr-only" />
+                  <Label htmlFor="order-delivery" className="flex flex-col items-start gap-1 border border-border rounded-xl p-4 hover:bg-muted/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4" />
+                      <span className="text-sm font-semibold">Delivery</span>
+                    </div>
+                    <div className="text-[12px] text-muted-foreground pl-6 flex flex-col items-start">
+                      <span>{formatCurrency(storeSettings?.deliveryFee || 0, currencyConfig, { inputIsCents: false })}</span>
+                      <span>Min. {formatCurrency(storeSettings?.deliveryMinimum || 0, currencyConfig, { inputIsCents: false })}</span>
+                    </div>
+                  </Label>
+                </div>
+              ) : null}
             </RadioGroup>
+            {orderType === "delivery" && deliveryMinimumNotMet ? (
+              <p className="text-sm text-amber-600 font-medium">
+                Add {formatCurrency(deliveryPricing.deliveryMinimumShortfall, currencyConfig)} more for delivery, or switch to pickup.
+              </p>
+            ) : null}
+            {!deliveryEnabled ? (
+              <p className="text-xs text-muted-foreground">
+                This restaurant is currently pickup only.
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-3">
@@ -153,9 +210,15 @@ const Contact = ({
             </div>
           )}
 
-          <Button size="lg" onClick={handleSubmit} disabled={!isComplete || isLoading} data-testid="submit-contact-button" className="w-full rounded-xl h-12 font-semibold">
+          <Button
+            size="lg"
+            onClick={handleSubmit}
+            disabled={!isComplete || isLoading || (orderType === "delivery" && deliveryMinimumNotMet)}
+            data-testid="submit-contact-button"
+            className="w-full rounded-xl h-12 font-semibold"
+          >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Continue to Delivery
+            Continue
           </Button>
         </div>
       ) : (

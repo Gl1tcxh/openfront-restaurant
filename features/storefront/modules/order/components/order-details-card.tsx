@@ -8,8 +8,11 @@ interface OrderDetailsCardProps {
   customerEmail?: string;
   customerPhone?: string;
   deliveryAddress?: string;
+  deliveryAddress2?: string;
   deliveryCity?: string;
+  deliveryState?: string;
   deliveryZip?: string;
+  deliveryCountryCode?: string;
   specialInstructions?: string;
 }
 
@@ -34,8 +37,11 @@ export function OrderDetailsCard({
   customerEmail,
   customerPhone,
   deliveryAddress,
+  deliveryAddress2,
   deliveryCity,
+  deliveryState,
   deliveryZip,
+  deliveryCountryCode,
   specialInstructions,
 }: OrderDetailsCardProps) {
   const formattedDate = new Date(createdAt).toLocaleString("en-US", {
@@ -103,11 +109,12 @@ export function OrderDetailsCard({
             </svg>
             <div>
               <p>{deliveryAddress}</p>
-              {(deliveryCity || deliveryZip) && (
+              {deliveryAddress2 ? <p>{deliveryAddress2}</p> : null}
+              {(deliveryCity || deliveryState || deliveryZip || deliveryCountryCode) && (
                 <p>
-                  {deliveryCity}
-                  {deliveryCity && deliveryZip && ", "}
-                  {deliveryZip}
+                  {[deliveryCity, deliveryState, deliveryZip, deliveryCountryCode]
+                    .filter(Boolean)
+                    .join(", ")}
                 </p>
               )}
             </div>

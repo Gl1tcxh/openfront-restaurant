@@ -10,9 +10,11 @@ import { ClipboardCheck } from "lucide-react"
 
 const Review = ({
   cart,
+  customer,
   storeSettings,
 }: {
   cart: any
+  customer: any
   storeSettings: any
 }) => {
   const storeInfo = storeSettings || {}
@@ -25,7 +27,7 @@ const Review = ({
   const hasCustomerInfo = !!(cart?.customerName && cart?.email && cart?.customerPhone)
   const hasDeliveryInfo =
     orderType === "pickup" ||
-    !!(cart?.deliveryAddress && cart?.deliveryCity && cart?.deliveryZip)
+    !!(cart?.deliveryAddress && cart?.deliveryCity && cart?.deliveryZip && cart?.deliveryCountryCode)
   const hasPaymentSession = !!cart?.paymentCollection?.paymentSessions?.find(
     (s: any) => s.isSelected
   )
@@ -33,7 +35,7 @@ const Review = ({
     hasCustomerInfo && hasDeliveryInfo && hasPaymentSession
 
   const subtotal = cart?.subtotal || 0
-  const tipPercent = Number(cart?.tipPercent || 18)
+  const tipPercent = Number(cart?.tipPercent || 0)
   const currencyConfig = { currencyCode: storeInfo?.currencyCode || "USD", locale: storeInfo?.locale || "en-US" }
   const { deliveryFee, pickupDiscount, tax, tip, total } = calculateRestaurantCheckoutTotals({
     subtotal,
@@ -128,7 +130,11 @@ const Review = ({
             By placing your order, you agree to our Terms of Use, Terms of Sale and acknowledge our Privacy Policy.
           </p>
 
-          <PaymentButton cart={cart} data-testid="submit-order-button" />
+          <PaymentButton
+            cart={cart}
+            billingAddress={customer?.billingAddress || null}
+            data-testid="submit-order-button"
+          />
         </>
       )}
     </div>

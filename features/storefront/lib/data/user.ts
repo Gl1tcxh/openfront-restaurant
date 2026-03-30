@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { gql } from "graphql-request";
 import { openfrontClient } from "@/features/storefront/lib/config";
 import { getAuthHeaders, setAuthToken, removeAuthToken } from "./cookies";
+import { normalizeCountryCode, normalizePostalCode } from "@/features/lib/delivery-zones";
 
 export async function getUser() {
   try {
@@ -21,6 +22,20 @@ export async function getUser() {
               lastName
               phone
               createdAt
+              billingAddress {
+                id
+                name
+                address1
+                address2
+                city
+                state
+                postalCode
+                countryCode
+                country
+                phone
+                isDefault
+                isBilling
+              }
               addresses {
                 id
                 name
@@ -29,8 +44,11 @@ export async function getUser() {
                 city
                 state
                 postalCode
+                countryCode
+                country
                 phone
                 isDefault
+                isBilling
               }
             }
           }
@@ -44,6 +62,97 @@ export async function getUser() {
   } catch (error) {
     console.error("Error fetching user:", error);
     return null;
+  }
+}
+
+async function updateAddressFlags(
+  addressId: string,
+  data: { isDefault?: boolean; isBilling?: boolean },
+  headers: Record<string, string>
+) {
+  return openfrontClient.request(
+    gql`
+      mutation UpdateAddressFlags($id: ID!, $data: AddressUpdateInput!) {
+        updateAddress(where: { id: $id }, data: $data) {
+          id
+          isDefault
+          isBilling
+        }
+      }
+    `,
+    {
+      id: addressId,
+      data,
+    },
+    headers
+  )
+}
+
+export async function setExclusiveAddressFlagsForUser(params: {
+  user: any
+  addressId: string
+  isDefault?: boolean
+  isBilling?: boolean
+}) {
+  if (!params.user?.id || !params.addressId) {
+    return
+  }
+
+  const headers = await getAuthHeaders()
+  const pendingUpdates = params.user.addresses
+    ?.map((address: any) => {
+      const nextData: { isDefault?: boolean; isBilling?: boolean } = {}
+
+      if (address.id === params.addressId) {
+        if (typeof params.isDefault === "boolean" && address.isDefault !== params.isDefault) {
+          nextData.isDefault = params.isDefault
+        }
+
+        if (typeof params.isBilling === "boolean" && address.isBilling !== params.isBilling) {
+          nextData.isBilling = params.isBilling
+        }
+      } else {
+        if (params.isDefault && address.isDefault) {
+          nextData.isDefault = false
+        }
+
+        if (params.isBilling && address.isBilling) {
+          nextData.isBilling = false
+        }
+      }
+
+      if (!Object.keys(nextData).length) {
+        return null
+      }
+
+      return updateAddressFlags(address.id, nextData, headers)
+    })
+    .filter(Boolean)
+
+  if (pendingUpdates?.length) {
+    await Promise.all(pendingUpdates)
+  }
+
+  revalidatePath("/account")
+  ;(revalidateTag as any)("customer")
+}
+
+function getNormalizedAddressData(formData: FormData) {
+  const countryCode = normalizeCountryCode(formData.get("countryCode") as string)
+  const postalCode = normalizePostalCode(formData.get("postalCode") as string)
+
+  return {
+    name: formData.get("name") as string,
+    address1: formData.get("address1") as string,
+    address2: formData.get("address2") as string,
+    city: formData.get("city") as string,
+    state: formData.get("state") as string,
+    postalCode,
+    countryCode,
+    country: countryCode,
+    phone: formData.get("phone") as string,
+    isDefault: formData.get("isDefault") === "on",
+    isBilling: formData.get("isBilling") === "on",
   }
 }
 
@@ -280,25 +389,18 @@ export async function getUserOrders() {
 export async function createAddress(_currentState: any, formData: FormData) {
   try {
     const headers = await getAuthHeaders();
-    const addressData = {
-      name: formData.get("name") as string,
-      address1: formData.get("address1") as string,
-      address2: formData.get("address2") as string,
-      city: formData.get("city") as string,
-      state: formData.get("state") as string,
-      postalCode: formData.get("postalCode") as string,
-      phone: formData.get("phone") as string,
-      isDefault: formData.get("isDefault") === "on",
-    };
+    const addressData = getNormalizedAddressData(formData)
 
     const user = await getUser();
     if (!user) return { error: "Not authenticated" };
 
-    await openfrontClient.request(
+    const { createAddress: createdAddress } = await openfrontClient.request(
       gql`
         mutation CreateAddress($data: AddressCreateInput!) {
           createAddress(data: $data) {
             id
+            isDefault
+            isBilling
           }
         }
       `,
@@ -311,7 +413,17 @@ export async function createAddress(_currentState: any, formData: FormData) {
       headers
     );
 
+    if (createdAddress?.id && (addressData.isDefault || addressData.isBilling)) {
+      await setExclusiveAddressFlagsForUser({
+        user,
+        addressId: createdAddress.id,
+        isDefault: addressData.isDefault || undefined,
+        isBilling: addressData.isBilling || undefined,
+      })
+    }
+
     revalidatePath("/account");
+    ;(revalidateTag as any)("customer")
     return { success: true };
   } catch (error) {
     console.error("Create address error:", error);
@@ -323,16 +435,9 @@ export async function updateAddress(_currentState: any, formData: FormData) {
   try {
     const headers = await getAuthHeaders();
     const id = formData.get("id") as string;
-    const addressData = {
-      name: formData.get("name") as string,
-      address1: formData.get("address1") as string,
-      address2: formData.get("address2") as string,
-      city: formData.get("city") as string,
-      state: formData.get("state") as string,
-      postalCode: formData.get("postalCode") as string,
-      phone: formData.get("phone") as string,
-      isDefault: formData.get("isDefault") === "on",
-    };
+    const addressData = getNormalizedAddressData(formData)
+    const user = await getUser()
+    if (!user) return { error: "Not authenticated" }
 
     await openfrontClient.request(
       gql`
@@ -349,11 +454,116 @@ export async function updateAddress(_currentState: any, formData: FormData) {
       headers
     );
 
+    if (addressData.isDefault || addressData.isBilling) {
+      await setExclusiveAddressFlagsForUser({
+        user,
+        addressId: id,
+        isDefault: addressData.isDefault || undefined,
+        isBilling: addressData.isBilling || undefined,
+      })
+    }
+
     revalidatePath("/account");
+    ;(revalidateTag as any)("customer")
     return { success: true };
   } catch (error) {
     console.error("Update address error:", error);
     return { error: "Failed to update address" };
+  }
+}
+
+export async function upsertBillingAddress(_currentState: any, formData: FormData) {
+  try {
+    const headers = await getAuthHeaders()
+    const user = await getUser()
+
+    if (!user) {
+      return { success: false, error: "Not authenticated" }
+    }
+
+    const countryCode = normalizeCountryCode(formData.get("countryCode") as string)
+    const postalCode = normalizePostalCode(formData.get("postalCode") as string)
+    const addressId = (formData.get("id") as string) || user.billingAddress?.id
+
+    const data = {
+      name: ((formData.get("name") as string) || "Billing Address").trim() || "Billing Address",
+      address1: (formData.get("address1") as string)?.trim(),
+      address2: ((formData.get("address2") as string) || "").trim(),
+      city: (formData.get("city") as string)?.trim(),
+      state: ((formData.get("state") as string) || "").trim(),
+      postalCode,
+      countryCode,
+      country: countryCode,
+      phone: ((formData.get("phone") as string) || "").trim(),
+      isBilling: true,
+    }
+
+    if (!data.address1 || !data.city || !data.postalCode || !data.countryCode) {
+      return {
+        success: false,
+        error: "Billing address is incomplete. Add street address, city, postal code, and country code.",
+      }
+    }
+
+    let savedAddressId: string | null = null
+
+    if (addressId) {
+      const { updateAddress: updatedAddress } = await openfrontClient.request(
+        gql`
+          mutation UpdateBillingAddress($id: ID!, $data: AddressUpdateInput!) {
+            updateAddress(where: { id: $id }, data: $data) {
+              id
+            }
+          }
+        `,
+        {
+          id: addressId,
+          data,
+        },
+        headers
+      )
+
+      savedAddressId = updatedAddress?.id || null
+    } else {
+      const { createAddress: createdAddress } = await openfrontClient.request(
+        gql`
+          mutation CreateBillingAddress($data: AddressCreateInput!) {
+            createAddress(data: $data) {
+              id
+            }
+          }
+        `,
+        {
+          data: {
+            ...data,
+            user: { connect: { id: user.id } },
+          },
+        },
+        headers
+      )
+
+      savedAddressId = createdAddress?.id || null
+    }
+
+    if (savedAddressId) {
+      await setExclusiveAddressFlagsForUser({
+        user,
+        addressId: savedAddressId,
+        isBilling: true,
+      })
+    }
+
+    revalidatePath("/account")
+    revalidatePath("/account/profile")
+    ;(revalidateTag as any)("customer")
+
+    return { success: true, error: null }
+  } catch (error) {
+    console.error("Upsert billing address error:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to save billing address",
+    }
   }
 }
 
@@ -373,6 +583,7 @@ export async function deleteAddress(id: string) {
     );
 
     revalidatePath("/account");
+    ;(revalidateTag as any)("customer")
     return { success: true };
   } catch (error) {
     console.error("Delete address error:", error);

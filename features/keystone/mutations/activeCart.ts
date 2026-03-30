@@ -8,7 +8,14 @@ export default async function activeCart(root: any, { cartId }: { cartId?: strin
     throw new Error("Cart ID is required");
   }
 
-  await assertCanAccessCart(context, cartId, "read");
+  try {
+    await assertCanAccessCart(context, cartId, "read");
+  } catch (error) {
+    if (error instanceof Error && (error.message === "Cart not found" || error.message === "Access denied")) {
+      return null;
+    }
+    throw error;
+  }
 
   const cart = await sudoContext.query.Cart.findOne({
     where: { id: cartId },
@@ -20,8 +27,11 @@ export default async function activeCart(root: any, { cartId }: { cartId?: strin
       customerName
       customerPhone
       deliveryAddress
+      deliveryAddress2
       deliveryCity
+      deliveryState
       deliveryZip
+      deliveryCountryCode
       tipPercent
       items {
         id

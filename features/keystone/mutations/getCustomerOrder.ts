@@ -6,6 +6,7 @@ export default async function getCustomerOrder(
   context: Context
 ) {
   const sudoContext = context.sudo();
+  const sessionUserId = context.session?.itemId;
 
   const order = await sudoContext.query.RestaurantOrder.findOne({
     where: { id: orderId },
@@ -26,8 +27,11 @@ export default async function getCustomerOrder(
       customerEmail
       customerPhone
       deliveryAddress
+      deliveryAddress2
       deliveryCity
+      deliveryState
       deliveryZip
+      deliveryCountryCode
       secretKey
       createdAt
       updatedAt
@@ -76,14 +80,37 @@ export default async function getCustomerOrder(
   }
 
   // If no secretKey, check user authentication
-  if (!context.session?.itemId) {
+  if (!sessionUserId) {
     throw new Error("Not authenticated");
   }
 
   // Verify the order belongs to the user
-  if (order.customer?.id !== context.session.itemId) {
-    throw new Error("Order not found");
+  if (order.customer?.id === sessionUserId) {
+    return order;
   }
 
-  return order;
+  const currentUser = await sudoContext.query.User.findOne({
+    where: { id: sessionUserId },
+    query: `id email`,
+  });
+
+  if (currentUser?.email && order.customerEmail === currentUser.email) {
+    if (!order.customer?.id) {
+      await sudoContext.query.RestaurantOrder.updateOne({
+        where: { id: order.id },
+        data: {
+          customer: { connect: { id: sessionUserId } },
+        },
+      });
+    }
+
+    return {
+      ...order,
+      customer: {
+        id: sessionUserId,
+      },
+    };
+  }
+
+  throw new Error("Order not found");
 }

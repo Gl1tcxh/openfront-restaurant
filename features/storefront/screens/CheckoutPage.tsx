@@ -4,6 +4,8 @@ import CheckoutForm from "@/features/storefront/modules/checkout/components/chec
 import CheckoutSummary from "@/features/storefront/modules/checkout/components/checkout-summary";
 import { retrieveCart } from "@/features/storefront/lib/data/cart";
 import { getUser } from "@/features/storefront/lib/data/user";
+import { getStoreSettings } from "@/features/storefront/lib/data/menu";
+import { CheckoutPaymentStateProvider } from "@/features/storefront/modules/checkout/components/checkout-state";
 import React from "react"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
@@ -22,15 +24,17 @@ const fetchCartData = async () => {
 
 export async function CheckoutPage() {
   const cart = await fetchCartData();
-  const customer = await getUser();
+  const [customer, storeSettings] = await Promise.all([getUser(), getStoreSettings()]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] max-w-[1080px] w-full mx-auto px-6 gap-y-8 lg:gap-x-16 py-10 md:py-14">
-      <Wrapper cart={cart}>
-        <CheckoutForm cart={cart} customer={customer} />
-      </Wrapper>
-      <CheckoutSummary cart={cart} />
-    </div>
+    <Wrapper cart={cart}>
+      <CheckoutPaymentStateProvider>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] max-w-[1080px] w-full mx-auto px-6 gap-y-8 lg:gap-x-16 py-10 md:py-14">
+          <CheckoutForm cart={cart} customer={customer} storeSettings={storeSettings} />
+          <CheckoutSummary cart={cart} customer={customer} storeSettings={storeSettings} />
+        </div>
+      </CheckoutPaymentStateProvider>
+    </Wrapper>
   );
 }
 

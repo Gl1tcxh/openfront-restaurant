@@ -7,6 +7,7 @@ import { StoreInfoBar } from "@/features/storefront/components/StoreInfoBar"
 import { CategoryNav } from "@/features/storefront/components/CategoryNav"
 import { MenuItemCard } from "@/features/storefront/components/MenuItemCard"
 import { MenuSection } from "@/features/storefront/components/MenuSection"
+import { cn } from "@/lib/utils"
 
 export async function generateMetadata(): Promise<Metadata> {
   const storeSettings = await getStoreSettings()
@@ -41,6 +42,8 @@ export default async function HomePage() {
     locale: currencyConfig.locale,
     timezone: storeSettings.timezone || 'America/New_York',
     countryCode: storeSettings.countryCode || 'US',
+    deliveryEnabled: storeSettings.deliveryEnabled ?? true,
+    deliveryPostalCodes: Array.isArray(storeSettings.deliveryPostalCodes) ? storeSettings.deliveryPostalCodes : [],
     hours: storeSettings.hours || {},
     deliveryFee: parseFloat(storeSettings.deliveryFee) || 0,
     deliveryMinimum: parseFloat(storeSettings.deliveryMinimum) || 0,
@@ -93,14 +96,16 @@ export default async function HomePage() {
   })
 
   const menuHref = navItems[0]?.href || "#menu"
+  const navOffset = storeSettings.promoBanner ? "top-[108px]" : "top-[72px]"
+  const sectionScrollMt = storeSettings.promoBanner ? "scroll-mt-[180px]" : "scroll-mt-[140px]"
 
   return (
-    <div className="flex flex-col" id="menu">
+    <div className="flex flex-col scroll-smooth" id="menu">
       <HeroBanner menuHref={menuHref} storeInfo={storeInfo} />
       <StoreInfoBar storeInfo={storeInfo} />
 
       {navItems.length > 0 ? (
-        <div className="sticky top-[72px] z-40">
+        <div className={cn("sticky z-40", navOffset)}>
           <CategoryNav items={navItems} />
         </div>
       ) : null}
@@ -108,7 +113,7 @@ export default async function HomePage() {
       <main className="container mx-auto px-6 py-12 md:py-16">
         <div className="space-y-16 md:space-y-20">
           {featuredItems.length > 0 ? (
-            <section id={featuredSectionId} className="scroll-mt-44">
+            <section id={featuredSectionId} className={sectionScrollMt}>
               <div className="mb-8 flex items-end justify-between">
                 <div>
                   <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-warm-100 px-3 py-1">
@@ -150,6 +155,7 @@ export default async function HomePage() {
               items={items}
               currencyCode={storeInfo.currencyCode}
               locale={storeInfo.locale}
+              className={sectionScrollMt}
             />
           ))}
         </div>

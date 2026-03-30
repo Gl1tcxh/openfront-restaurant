@@ -94,6 +94,8 @@ export async function fetchCart() {
       headers
     );
 
+    if (!activeCart) return null;
+
     return activeCart;
   } catch (error) {
     console.error("Error fetching cart:", error);

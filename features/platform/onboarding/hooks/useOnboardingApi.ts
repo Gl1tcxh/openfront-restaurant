@@ -3,6 +3,7 @@ import { startOnboarding, completeOnboarding } from '../actions/onboarding';
 import { SECTION_DEFINITIONS } from '../config/templates';
 import { getItemsFromJsonData } from '../utils/dataUtils';
 import { TemplateType, OnboardingStep } from './useOnboardingState';
+import { inferDefaultDeliveryPostalCodes, normalizeCountryCode } from '@/features/lib/delivery-zones';
 
 const GRAPHQL_ENDPOINT = '/api/graphql';
 
@@ -110,7 +111,12 @@ export function useOnboardingApi({
           currencyCode: storeInfo.currencyCode || 'USD',
           locale: storeInfo.locale || 'en-US',
           timezone: storeInfo.timezone || 'America/New_York',
-          countryCode: storeInfo.countryCode || 'US',
+          countryCode: normalizeCountryCode(storeInfo.countryCode || 'US'),
+          deliveryEnabled: storeInfo.deliveryEnabled ?? true,
+          deliveryPostalCodes: inferDefaultDeliveryPostalCodes({
+            deliveryPostalCodes: storeInfo.deliveryPostalCodes,
+            address: storeInfo.address,
+          }),
           hours: storeInfo.hours,
           deliveryFee: storeInfo.deliveryFee?.toString(),
           deliveryMinimum: storeInfo.deliveryMinimum?.toString(),

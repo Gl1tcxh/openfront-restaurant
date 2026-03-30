@@ -22,8 +22,11 @@ interface RestaurantOrder {
   customerEmail?: string;
   customerPhone?: string;
   deliveryAddress?: string;
+  deliveryAddress2?: string;
   deliveryCity?: string;
+  deliveryState?: string;
   deliveryZip?: string;
+  deliveryCountryCode?: string;
   createdAt: string;
   updatedAt: string;
   orderItems: any[];
@@ -118,8 +121,11 @@ export default function OrderCompletedTemplate({ order }: OrderCompletedTemplate
                 customerEmail={order.customerEmail}
                 customerPhone={order.customerPhone}
                 deliveryAddress={order.deliveryAddress}
+                deliveryAddress2={order.deliveryAddress2}
                 deliveryCity={order.deliveryCity}
+                deliveryState={order.deliveryState}
                 deliveryZip={order.deliveryZip}
+                deliveryCountryCode={order.deliveryCountryCode}
                 specialInstructions={order.specialInstructions}
               />
             </div>

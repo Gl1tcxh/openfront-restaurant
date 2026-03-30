@@ -190,8 +190,11 @@ export const RestaurantOrder = list({
     
     // Delivery Info
     deliveryAddress: text({ ui: { displayMode: "textarea" } }),
+    deliveryAddress2: text(),
     deliveryCity: text(),
+    deliveryState: text(),
     deliveryZip: text(),
+    deliveryCountryCode: text(),
 
     secretKey: text({
       hooks: {

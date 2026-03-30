@@ -1559,8 +1559,11 @@ var RestaurantOrder = (0, import_core10.list)({
     customerPhone: (0, import_fields11.text)(),
     // Delivery Info
     deliveryAddress: (0, import_fields11.text)({ ui: { displayMode: "textarea" } }),
+    deliveryAddress2: (0, import_fields11.text)(),
     deliveryCity: (0, import_fields11.text)(),
+    deliveryState: (0, import_fields11.text)(),
     deliveryZip: (0, import_fields11.text)(),
+    deliveryCountryCode: (0, import_fields11.text)(),
     secretKey: (0, import_fields11.text)({
       hooks: {
         resolveInput: ({ operation }) => {
@@ -1655,7 +1658,8 @@ var Address = (0, import_core11.list)({
     city: (0, import_fields12.text)({ validation: { isRequired: true } }),
     state: (0, import_fields12.text)(),
     postalCode: (0, import_fields12.text)({ validation: { isRequired: true } }),
-    country: (0, import_fields12.text)({ defaultValue: "USA" }),
+    countryCode: (0, import_fields12.text)({ defaultValue: "US" }),
+    country: (0, import_fields12.text)(),
     phone: (0, import_fields12.text)(),
     isDefault: (0, import_fields12.checkbox)({ defaultValue: false }),
     isBilling: (0, import_fields12.checkbox)({ defaultValue: false }),
@@ -2403,8 +2407,11 @@ var Cart = (0, import_core20.list)({
     customerName: (0, import_fields21.text)(),
     customerPhone: (0, import_fields21.text)(),
     deliveryAddress: (0, import_fields21.text)(),
+    deliveryAddress2: (0, import_fields21.text)(),
     deliveryCity: (0, import_fields21.text)(),
+    deliveryState: (0, import_fields21.text)(),
     deliveryZip: (0, import_fields21.text)(),
+    deliveryCountryCode: (0, import_fields21.text)(),
     paymentCollection: (0, import_fields21.relationship)({
       ref: "PaymentCollection.cart"
     }),
@@ -2416,7 +2423,7 @@ var Cart = (0, import_core20.list)({
         { label: "20%", value: "20" },
         { label: "25%", value: "25" }
       ],
-      defaultValue: "18"
+      defaultValue: "0"
     }),
     order: (0, import_fields21.relationship)({ ref: "RestaurantOrder" }),
     subtotal: (0, import_fields21.virtual)({
@@ -3459,6 +3466,14 @@ var StoreSettings = (0, import_core35.list)({
       ui: { description: "Tax rate percentage (e.g. 8.75 for 8.75%)" }
     }),
     // Delivery/Pickup Settings
+    deliveryEnabled: (0, import_fields36.checkbox)({
+      defaultValue: true,
+      ui: { description: "Allow customers to choose delivery at checkout" }
+    }),
+    deliveryPostalCodes: (0, import_fields36.json)({
+      defaultValue: ["11201"],
+      ui: { description: "Allowed delivery ZIP/postal codes" }
+    }),
     deliveryFee: (0, import_fields36.decimal)({
       precision: 10,
       scale: 2,
@@ -5043,6 +5058,151 @@ async function assertCanAccessCartItem(context, cartItemId, mode = "write") {
   return cartItem;
 }
 
+// features/lib/delivery-zones.ts
+function normalizeCountryCode(value) {
+  return (value || "").trim().toUpperCase();
+}
+function normalizePostalCode(value) {
+  return (value || "").trim().toUpperCase().replace(/[\s-]+/g, "");
+}
+function parseDeliveryPostalCodes(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizePostalCode(String(entry ?? ""))).filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value.split(",").map((entry) => normalizePostalCode(entry)).filter(Boolean);
+  }
+  return [];
+}
+function getUniqueDeliveryPostalCodes(value) {
+  return Array.from(new Set(parseDeliveryPostalCodes(value)));
+}
+function getDeliveryEligibility(params) {
+  const deliveryEnabled = Boolean(params.deliveryEnabled);
+  const storeCountryCode = normalizeCountryCode(params.storeCountryCode);
+  const addressCountryCode = normalizeCountryCode(params.addressCountryCode);
+  const addressPostalCode = normalizePostalCode(params.addressPostalCode);
+  const allowedPostalCodes = getUniqueDeliveryPostalCodes(params.deliveryPostalCodes);
+  if (!deliveryEnabled) {
+    return {
+      eligible: false,
+      reason: "delivery_disabled",
+      allowedPostalCodes,
+      normalizedPostalCode: addressPostalCode
+    };
+  }
+  if (!addressCountryCode || !addressPostalCode) {
+    return {
+      eligible: false,
+      reason: "missing_address",
+      allowedPostalCodes,
+      normalizedPostalCode: addressPostalCode
+    };
+  }
+  if (storeCountryCode && addressCountryCode !== storeCountryCode) {
+    return {
+      eligible: false,
+      reason: "country_mismatch",
+      allowedPostalCodes,
+      normalizedPostalCode: addressPostalCode
+    };
+  }
+  if (allowedPostalCodes.length === 0) {
+    return {
+      eligible: false,
+      reason: "missing_delivery_zones",
+      allowedPostalCodes,
+      normalizedPostalCode: addressPostalCode
+    };
+  }
+  if (!allowedPostalCodes.includes(addressPostalCode)) {
+    return {
+      eligible: false,
+      reason: "postal_code_outside_zone",
+      allowedPostalCodes,
+      normalizedPostalCode: addressPostalCode
+    };
+  }
+  return {
+    eligible: true,
+    reason: "eligible",
+    allowedPostalCodes,
+    normalizedPostalCode: addressPostalCode
+  };
+}
+
+// features/keystone/utils/deliveryValidation.ts
+async function getStoreDeliverySettings(context) {
+  return context.sudo().query.StoreSettings.findOne({
+    where: { id: "1" },
+    query: `
+      id
+      countryCode
+      deliveryEnabled
+      deliveryPostalCodes
+      deliveryMinimum
+      deliveryFee
+      pickupDiscount
+      taxRate
+      currencyCode
+    `
+  });
+}
+function getDeliveryErrorMessage(reason) {
+  switch (reason) {
+    case "delivery_disabled":
+      return "Delivery is not available for this restaurant.";
+    case "missing_address":
+      return "Delivery address is incomplete. Add street address, city, postal code, and country code.";
+    case "country_mismatch":
+      return "This address is outside the restaurant's delivery country.";
+    case "postal_code_outside_zone":
+      return "This address is outside the restaurant's delivery zone.";
+    case "missing_delivery_zones":
+      return "Delivery zones have not been configured for this restaurant.";
+    default:
+      return "Delivery is not available for this address.";
+  }
+}
+function assertDeliveryModeAllowed(params) {
+  if (params.orderType === "delivery" && !params.storeSettings?.deliveryEnabled) {
+    throw new Error("Delivery is not available for this restaurant.");
+  }
+}
+function assertDeliveryAddressComplete(params) {
+  if (params.orderType !== "delivery") {
+    return;
+  }
+  if (!params.deliveryAddress || !params.deliveryCity || !params.deliveryZip || !params.deliveryCountryCode) {
+    throw new Error("Delivery address is incomplete. Add street address, city, postal code, and country code.");
+  }
+}
+function assertDeliveryAddressEligible(params) {
+  if (params.orderType !== "delivery") {
+    return;
+  }
+  const eligibility = getDeliveryEligibility({
+    deliveryEnabled: params.storeSettings?.deliveryEnabled,
+    storeCountryCode: params.storeSettings?.countryCode,
+    deliveryPostalCodes: params.storeSettings?.deliveryPostalCodes,
+    addressCountryCode: params.deliveryCountryCode,
+    addressPostalCode: params.deliveryZip
+  });
+  if (!eligibility.eligible) {
+    throw new Error(getDeliveryErrorMessage(eligibility.reason));
+  }
+}
+function normalizeDeliveryFields(data) {
+  const next = { ...data };
+  if ("deliveryCountryCode" in next) {
+    next.deliveryCountryCode = normalizeCountryCode(next.deliveryCountryCode);
+  }
+  if ("deliveryZip" in next) {
+    next.deliveryZip = normalizePostalCode(next.deliveryZip);
+  }
+  return next;
+}
+
 // features/keystone/mutations/initiatePaymentSession.ts
 async function initiatePaymentSession(root, { cartId, paymentProviderId }, context) {
   const sudoContext = context.sudo();
@@ -5053,6 +5213,10 @@ async function initiatePaymentSession(root, { cartId, paymentProviderId }, conte
       id
       orderType
       subtotal
+      deliveryAddress
+      deliveryCity
+      deliveryCountryCode
+      deliveryZip
       tipPercent
       paymentCollection {
         id
@@ -5091,11 +5255,21 @@ async function initiatePaymentSession(root, { cartId, paymentProviderId }, conte
   if (!provider || !provider.isInstalled) {
     throw new Error(`Payment provider ${paymentProviderId} not found or not installed`);
   }
-  const settings = await sudoContext.query.StoreSettings.findOne({
-    where: { id: "1" },
-    query: `currencyCode taxRate deliveryFee deliveryMinimum pickupDiscount`
-  });
+  const settings = await getStoreDeliverySettings(context);
   const currency = settings?.currencyCode || "USD";
+  assertDeliveryAddressComplete({
+    orderType: cart.orderType,
+    deliveryAddress: cart.deliveryAddress,
+    deliveryCity: cart.deliveryCity,
+    deliveryCountryCode: cart.deliveryCountryCode,
+    deliveryZip: cart.deliveryZip
+  });
+  assertDeliveryAddressEligible({
+    orderType: cart.orderType,
+    storeSettings: settings,
+    deliveryCountryCode: cart.deliveryCountryCode,
+    deliveryZip: cart.deliveryZip
+  });
   const pricing = calculateRestaurantTotals({
     subtotal: cart.subtotal || 0,
     orderType: cart.orderType,
@@ -5219,8 +5393,11 @@ async function completeActiveCart(root, { cartId, paymentSessionId }, context) {
       customerName
       customerPhone
       deliveryAddress
+      deliveryAddress2
       deliveryCity
+      deliveryState
       deliveryZip
+      deliveryCountryCode
       tipPercent
       user { id }
       paymentCollection {
@@ -5306,12 +5483,22 @@ async function completeActiveCart(root, { cartId, paymentSessionId }, context) {
       throw new Error("Payment capture failed");
     }
   }
-  const settings = await sudoContext.query.StoreSettings.findOne({
-    where: { id: "1" },
-    query: "taxRate currencyCode pickupDiscount deliveryFee deliveryMinimum"
-  });
+  const settings = await getStoreDeliverySettings(context);
   const currencyCode = settings?.currencyCode || "USD";
   const subtotal = cart.subtotal || 0;
+  assertDeliveryAddressComplete({
+    orderType: cart.orderType,
+    deliveryAddress: cart.deliveryAddress,
+    deliveryCity: cart.deliveryCity,
+    deliveryCountryCode: cart.deliveryCountryCode,
+    deliveryZip: cart.deliveryZip
+  });
+  assertDeliveryAddressEligible({
+    orderType: cart.orderType,
+    storeSettings: settings,
+    deliveryCountryCode: cart.deliveryCountryCode,
+    deliveryZip: cart.deliveryZip
+  });
   const { tax, tip, pickupDiscount, deliveryFee, total, deliveryMinimumNotMet } = calculateRestaurantTotals({
     subtotal,
     orderType: cart.orderType,
@@ -5366,8 +5553,11 @@ async function completeActiveCart(root, { cartId, paymentSessionId }, context) {
       customerEmail: cart.email || "",
       customerPhone: cart.customerPhone || "",
       deliveryAddress: isDeliveryOrder2 ? cart.deliveryAddress || void 0 : void 0,
+      deliveryAddress2: isDeliveryOrder2 ? cart.deliveryAddress2 || void 0 : void 0,
       deliveryCity: isDeliveryOrder2 ? cart.deliveryCity || void 0 : void 0,
+      deliveryState: isDeliveryOrder2 ? cart.deliveryState || void 0 : void 0,
       deliveryZip: isDeliveryOrder2 ? cart.deliveryZip || void 0 : void 0,
+      deliveryCountryCode: isDeliveryOrder2 ? cart.deliveryCountryCode || void 0 : void 0,
       secretKey
     },
     query: "id orderNumber secretKey status"
@@ -5434,7 +5624,14 @@ async function activeCart(root, { cartId }, context) {
   if (!cartId) {
     throw new Error("Cart ID is required");
   }
-  await assertCanAccessCart(context, cartId, "read");
+  try {
+    await assertCanAccessCart(context, cartId, "read");
+  } catch (error) {
+    if (error instanceof Error && (error.message === "Cart not found" || error.message === "Access denied")) {
+      return null;
+    }
+    throw error;
+  }
   const cart = await sudoContext.query.Cart.findOne({
     where: { id: cartId },
     query: `
@@ -5445,8 +5642,11 @@ async function activeCart(root, { cartId }, context) {
       customerName
       customerPhone
       deliveryAddress
+      deliveryAddress2
       deliveryCity
+      deliveryState
       deliveryZip
+      deliveryCountryCode
       tipPercent
       items {
         id
@@ -5501,9 +5701,43 @@ async function activeCart(root, { cartId }, context) {
 async function updateActiveCart(root, { cartId, data }, context) {
   const sudoContext = context.sudo();
   await assertCanAccessCart(context, cartId, "write");
+  const normalizedData = normalizeDeliveryFields(data);
+  const cart = await sudoContext.query.Cart.findOne({
+    where: { id: cartId },
+    query: `
+      id
+      orderType
+      deliveryAddress
+      deliveryCity
+      deliveryCountryCode
+      deliveryZip
+    `
+  });
+  const storeSettings = await getStoreDeliverySettings(context);
+  const nextOrderType = normalizedData.orderType ?? cart?.orderType;
+  assertDeliveryModeAllowed({
+    orderType: nextOrderType,
+    storeSettings
+  });
+  const isUpdatingDeliveryAddress = "deliveryAddress" in normalizedData || "deliveryAddress2" in normalizedData || "deliveryCity" in normalizedData || "deliveryState" in normalizedData || "deliveryZip" in normalizedData || "deliveryCountryCode" in normalizedData;
+  if (isUpdatingDeliveryAddress) {
+    assertDeliveryAddressComplete({
+      orderType: nextOrderType,
+      deliveryAddress: normalizedData.deliveryAddress ?? cart?.deliveryAddress,
+      deliveryCity: normalizedData.deliveryCity ?? cart?.deliveryCity,
+      deliveryCountryCode: normalizedData.deliveryCountryCode ?? cart?.deliveryCountryCode,
+      deliveryZip: normalizedData.deliveryZip ?? cart?.deliveryZip
+    });
+    assertDeliveryAddressEligible({
+      orderType: nextOrderType,
+      storeSettings,
+      deliveryCountryCode: normalizedData.deliveryCountryCode ?? cart?.deliveryCountryCode,
+      deliveryZip: normalizedData.deliveryZip ?? cart?.deliveryZip
+    });
+  }
   return await sudoContext.db.Cart.updateOne({
     where: { id: cartId },
-    data
+    data: normalizedData
   });
 }
 
@@ -5536,6 +5770,7 @@ async function removeCartItem(root, { cartItemId }, context) {
 // features/keystone/mutations/getCustomerOrder.ts
 async function getCustomerOrder(root, { orderId, secretKey }, context) {
   const sudoContext = context.sudo();
+  const sessionUserId = context.session?.itemId;
   const order = await sudoContext.query.RestaurantOrder.findOne({
     where: { id: orderId },
     query: `
@@ -5555,8 +5790,11 @@ async function getCustomerOrder(root, { orderId, secretKey }, context) {
       customerEmail
       customerPhone
       deliveryAddress
+      deliveryAddress2
       deliveryCity
+      deliveryState
       deliveryZip
+      deliveryCountryCode
       secretKey
       createdAt
       updatedAt
@@ -5600,24 +5838,55 @@ async function getCustomerOrder(root, { orderId, secretKey }, context) {
     }
     return order;
   }
-  if (!context.session?.itemId) {
+  if (!sessionUserId) {
     throw new Error("Not authenticated");
   }
-  if (order.customer?.id !== context.session.itemId) {
-    throw new Error("Order not found");
+  if (order.customer?.id === sessionUserId) {
+    return order;
   }
-  return order;
+  const currentUser = await sudoContext.query.User.findOne({
+    where: { id: sessionUserId },
+    query: `id email`
+  });
+  if (currentUser?.email && order.customerEmail === currentUser.email) {
+    if (!order.customer?.id) {
+      await sudoContext.query.RestaurantOrder.updateOne({
+        where: { id: order.id },
+        data: {
+          customer: { connect: { id: sessionUserId } }
+        }
+      });
+    }
+    return {
+      ...order,
+      customer: {
+        id: sessionUserId
+      }
+    };
+  }
+  throw new Error("Order not found");
 }
 
 // features/keystone/mutations/getCustomerOrders.ts
 async function getCustomerOrders(root, { limit = 10, offset = 0 }, context) {
-  if (!context.session?.itemId) {
+  const sessionUserId = context.session?.itemId;
+  if (!sessionUserId) {
     throw new Error("Not authenticated");
   }
   const sudoContext = context.sudo();
+  const currentUser = await sudoContext.query.User.findOne({
+    where: { id: sessionUserId },
+    query: `email`
+  });
+  const whereClauses = [{ customer: { id: { equals: sessionUserId } } }];
+  if (currentUser?.email) {
+    whereClauses.push({
+      customerEmail: { equals: currentUser.email }
+    });
+  }
   const orders = await sudoContext.query.RestaurantOrder.findMany({
     where: {
-      customer: { id: { equals: context.session.itemId } }
+      OR: whereClauses
     },
     orderBy: { createdAt: "desc" },
     take: limit,

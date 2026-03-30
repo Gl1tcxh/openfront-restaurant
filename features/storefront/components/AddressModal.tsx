@@ -49,8 +49,19 @@ export function AddressModal({ isOpen, onClose, address }: { isOpen: boolean, on
             <Input id="state" name="state" defaultValue={address?.state} className="col-span-3" />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="postalCode" className="text-right">Zip</Label>
+            <Label htmlFor="postalCode" className="text-right">ZIP / Postal</Label>
             <Input id="postalCode" name="postalCode" defaultValue={address?.postalCode} className="col-span-3" required />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="countryCode" className="text-right">Country Code</Label>
+            <Input
+              id="countryCode"
+              name="countryCode"
+              defaultValue={address?.countryCode || address?.country || "US"}
+              placeholder="US"
+              className="col-span-3"
+              required
+            />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="phone" className="text-right">Phone</Label>
@@ -62,6 +73,14 @@ export function AddressModal({ isOpen, onClose, address }: { isOpen: boolean, on
                 <Checkbox id="isDefault" name="isDefault" defaultChecked={address?.isDefault} />
                 <label htmlFor="isDefault" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   Set as default address
+                </label>
+             </div>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+             <div className="col-start-2 col-span-3 flex items-center space-x-2">
+                <Checkbox id="isBilling" name="isBilling" defaultChecked={address?.isBilling} />
+                <label htmlFor="isBilling" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Use as billing address
                 </label>
              </div>
           </div>

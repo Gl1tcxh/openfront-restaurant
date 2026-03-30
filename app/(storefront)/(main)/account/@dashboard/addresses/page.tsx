@@ -20,7 +20,7 @@ export default async function AccountAddressesPage() {
       <div className="pb-6 border-b border-border">
         <h1 className="text-3xl font-serif">Saved Addresses</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage your delivery addresses for a faster checkout experience.
+          Save as many addresses as you want. Delivery availability is checked at checkout against the restaurant&apos;s service zones.
         </p>
       </div>
       <div className="pt-6">

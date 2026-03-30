@@ -380,7 +380,12 @@ export function OrderPageClient({ order, currencyCode = "USD", locale = "en-US" 
                 </div>
                 <div className="px-4 py-3 text-sm">
                   <p>{order.deliveryAddress}</p>
-                  <p className="text-muted-foreground mt-0.5">{order.deliveryCity} {order.deliveryZip}</p>
+                  {order.deliveryAddress2 ? <p>{order.deliveryAddress2}</p> : null}
+                  <p className="text-muted-foreground mt-0.5">
+                    {[order.deliveryCity, order.deliveryState, order.deliveryZip, order.deliveryCountryCode]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
                 </div>
               </div>
             )}

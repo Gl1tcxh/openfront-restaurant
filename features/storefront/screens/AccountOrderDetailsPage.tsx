@@ -12,12 +12,12 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const order = await retrieveOrder(params.id, null).catch(() => null);
 
   if (!order) {
-    return { title: "Order Not Found" };
+    notFound();
   }
 
   return {
     title: `Order #${order.orderNumber}`,
-    description: `View your order details`,
+    description: "View your order",
   };
 }
 

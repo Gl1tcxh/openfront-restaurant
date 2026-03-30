@@ -33,6 +33,14 @@ interface PaymentButtonProps {
       }[]
     }
   }
+  billingAddress?: {
+    address1?: string | null
+    address2?: string | null
+    city?: string | null
+    state?: string | null
+    postalCode?: string | null
+    countryCode?: string | null
+  } | null
   "data-testid"?: string
 }
 
@@ -49,6 +57,7 @@ const ErrorMessage = ({ error, "data-testid": dataTestId }: { error?: string | n
 
 const PaymentButton: React.FC<PaymentButtonProps> = ({
   cart,
+  billingAddress,
   "data-testid": dataTestId,
 }) => {
   const paymentSession = cart.paymentCollection?.paymentSessions?.find(
@@ -57,18 +66,19 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
 
   switch (true) {
     case isStripe(paymentSession?.paymentProvider?.code):
-      return <StripePaymentButton cart={cart} data-testid={dataTestId} />
+      return <StripePaymentButton cart={cart} billingAddress={billingAddress} data-testid={dataTestId} />
     case isPaypal(paymentSession?.paymentProvider?.code):
-      return <PayPalPaymentButton cart={cart} data-testid={dataTestId} />
+      return <PayPalPaymentButton cart={cart} billingAddress={billingAddress} data-testid={dataTestId} />
     case isManual(paymentSession?.paymentProvider?.code):
-      return <ManualPaymentButton cart={cart} data-testid={dataTestId} />
+      return <ManualPaymentButton cart={cart} billingAddress={billingAddress} data-testid={dataTestId} />
     default:
-      return <Button disabled size="lg">Select a payment method</Button>
+      return <Button disabled size="lg" className="w-full rounded-xl h-12 font-semibold">Select a payment method</Button>
   }
 }
 
 const StripePaymentButton: React.FC<PaymentButtonProps> = ({
   cart,
+  billingAddress,
   "data-testid": dataTestId,
 }) => {
   const [submitting, setSubmitting] = useState(false)
@@ -101,6 +111,14 @@ const StripePaymentButton: React.FC<PaymentButtonProps> = ({
               name: cart.customerName || undefined,
               email: cart.email || undefined,
               phone: cart.customerPhone || undefined,
+              address: {
+                line1: billingAddress?.address1 || undefined,
+                line2: billingAddress?.address2 || undefined,
+                city: billingAddress?.city || undefined,
+                state: billingAddress?.state || undefined,
+                postal_code: billingAddress?.postalCode || undefined,
+                country: billingAddress?.countryCode || undefined,
+              },
             },
           },
         }
@@ -133,6 +151,7 @@ const StripePaymentButton: React.FC<PaymentButtonProps> = ({
         disabled={submitting}
         onClick={handlePayment}
         size="lg"
+        className="w-full rounded-xl h-12 font-semibold"
         data-testid={dataTestId || "submit-order-button"}
       >
         {submitting && <RiLoader2Fill className="mr-2 h-4 w-4 animate-spin" />}
@@ -182,6 +201,7 @@ const ManualPaymentButton: React.FC<PaymentButtonProps> = ({
         disabled={submitting}
         onClick={handlePayment}
         size="lg"
+        className="w-full rounded-xl h-12 font-semibold"
         data-testid={dataTestId || "submit-order-button"}
       >
         {submitting && <RiLoader2Fill className="mr-2 h-4 w-4 animate-spin" />}

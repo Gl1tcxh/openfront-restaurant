@@ -6,6 +6,11 @@ import type { Context } from ".keystone/types";
 import { getPaymentStatus, capturePayment } from "../utils/paymentProviderAdapter";
 import { calculateRestaurantTotals } from "../../lib/restaurant-order-pricing";
 import { assertCanAccessCart } from "../utils/cartAccess";
+import {
+  assertDeliveryAddressComplete,
+  assertDeliveryAddressEligible,
+  getStoreDeliverySettings,
+} from "../utils/deliveryValidation";
 
 interface CompleteActiveCartArgs {
   cartId: string;
@@ -31,8 +36,11 @@ export default async function completeActiveCart(
       customerName
       customerPhone
       deliveryAddress
+      deliveryAddress2
       deliveryCity
+      deliveryState
       deliveryZip
+      deliveryCountryCode
       tipPercent
       user { id }
       paymentCollection {
@@ -132,12 +140,25 @@ export default async function completeActiveCart(
     }
   }
 
-  const settings = await sudoContext.query.StoreSettings.findOne({
-    where: { id: "1" },
-    query: "taxRate currencyCode pickupDiscount deliveryFee deliveryMinimum",
-  });
+  const settings = await getStoreDeliverySettings(context);
   const currencyCode = settings?.currencyCode || "USD";
   const subtotal = cart.subtotal || 0;
+
+  assertDeliveryAddressComplete({
+    orderType: cart.orderType,
+    deliveryAddress: cart.deliveryAddress,
+    deliveryCity: cart.deliveryCity,
+    deliveryCountryCode: cart.deliveryCountryCode,
+    deliveryZip: cart.deliveryZip,
+  });
+
+  assertDeliveryAddressEligible({
+    orderType: cart.orderType,
+    storeSettings: settings,
+    deliveryCountryCode: cart.deliveryCountryCode,
+    deliveryZip: cart.deliveryZip,
+  });
+
   const { tax, tip, pickupDiscount, deliveryFee, total, deliveryMinimumNotMet } = calculateRestaurantTotals({
     subtotal,
     orderType: cart.orderType,
@@ -201,8 +222,11 @@ export default async function completeActiveCart(
       customerEmail: cart.email || "",
       customerPhone: cart.customerPhone || "",
       deliveryAddress: isDeliveryOrder ? cart.deliveryAddress || undefined : undefined,
+      deliveryAddress2: isDeliveryOrder ? cart.deliveryAddress2 || undefined : undefined,
       deliveryCity: isDeliveryOrder ? cart.deliveryCity || undefined : undefined,
+      deliveryState: isDeliveryOrder ? cart.deliveryState || undefined : undefined,
       deliveryZip: isDeliveryOrder ? cart.deliveryZip || undefined : undefined,
+      deliveryCountryCode: isDeliveryOrder ? cart.deliveryCountryCode || undefined : undefined,
       secretKey,
     },
     query: "id orderNumber secretKey status",

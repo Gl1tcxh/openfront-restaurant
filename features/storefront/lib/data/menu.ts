@@ -18,6 +18,8 @@ export const getStoreSettings = cache(async function () {
         locale
         timezone
         countryCode
+        deliveryEnabled
+        deliveryPostalCodes
         hours
         deliveryFee
         deliveryMinimum

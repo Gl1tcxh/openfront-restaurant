@@ -108,6 +108,8 @@ export interface StoreInfo {
     saturday?: string | DayHours
     sunday?: string | DayHours
   }
+  deliveryEnabled?: boolean
+  deliveryPostalCodes?: string[]
   deliveryFee: number
   deliveryMinimum: number
   pickupDiscount: number

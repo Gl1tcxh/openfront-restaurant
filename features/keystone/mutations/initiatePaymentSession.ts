@@ -2,6 +2,11 @@ import type { Context } from ".keystone/types";
 import { createPayment } from "../utils/paymentProviderAdapter";
 import { calculateRestaurantTotals } from "../../lib/restaurant-order-pricing";
 import { assertCanAccessCart } from "../utils/cartAccess";
+import {
+  assertDeliveryAddressComplete,
+  assertDeliveryAddressEligible,
+  getStoreDeliverySettings,
+} from "../utils/deliveryValidation";
 
 interface InitiatePaymentSessionArgs {
   cartId: string;
@@ -23,6 +28,10 @@ export default async function initiatePaymentSession(
       id
       orderType
       subtotal
+      deliveryAddress
+      deliveryCity
+      deliveryCountryCode
+      deliveryZip
       tipPercent
       paymentCollection {
         id
@@ -65,11 +74,24 @@ export default async function initiatePaymentSession(
     throw new Error(`Payment provider ${paymentProviderId} not found or not installed`);
   }
 
-  const settings = await sudoContext.query.StoreSettings.findOne({
-    where: { id: "1" },
-    query: `currencyCode taxRate deliveryFee deliveryMinimum pickupDiscount`,
-  });
+  const settings = await getStoreDeliverySettings(context);
   const currency = settings?.currencyCode || "USD";
+
+  assertDeliveryAddressComplete({
+    orderType: cart.orderType,
+    deliveryAddress: cart.deliveryAddress,
+    deliveryCity: cart.deliveryCity,
+    deliveryCountryCode: cart.deliveryCountryCode,
+    deliveryZip: cart.deliveryZip,
+  });
+
+  assertDeliveryAddressEligible({
+    orderType: cart.orderType,
+    storeSettings: settings,
+    deliveryCountryCode: cart.deliveryCountryCode,
+    deliveryZip: cart.deliveryZip,
+  });
+
   const pricing = calculateRestaurantTotals({
     subtotal: cart.subtotal || 0,
     orderType: cart.orderType,

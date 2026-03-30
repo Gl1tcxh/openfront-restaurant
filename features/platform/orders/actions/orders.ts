@@ -21,8 +21,11 @@ export async function getOrders(
     customerEmail
     customerPhone
     deliveryAddress
+    deliveryAddress2
     deliveryCity
+    deliveryState
     deliveryZip
+    deliveryCountryCode
     server {
       id
       name
@@ -81,8 +84,11 @@ export async function getOrder(orderId: string) {
         customerEmail
         customerPhone
         deliveryAddress
+        deliveryAddress2
         deliveryCity
+        deliveryState
         deliveryZip
+        deliveryCountryCode
         createdAt
         updatedAt
         server {

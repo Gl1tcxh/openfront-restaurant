@@ -40,8 +40,11 @@ export const Cart = list({
     customerName: text(),
     customerPhone: text(),
     deliveryAddress: text(),
+    deliveryAddress2: text(),
     deliveryCity: text(),
+    deliveryState: text(),
     deliveryZip: text(),
+    deliveryCountryCode: text(),
     paymentCollection: relationship({
       ref: "PaymentCollection.cart",
     }),
@@ -53,7 +56,7 @@ export const Cart = list({
         { label: "20%", value: "20" },
         { label: "25%", value: "25" },
       ],
-      defaultValue: "18",
+      defaultValue: "0",
     }),
     order: relationship({ ref: "RestaurantOrder" }),
     subtotal: virtual({

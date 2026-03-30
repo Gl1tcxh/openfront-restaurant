@@ -1303,8 +1303,11 @@ type RestaurantOrder {
   customerEmail: String
   customerPhone: String
   deliveryAddress: String
+  deliveryAddress2: String
   deliveryCity: String
+  deliveryState: String
   deliveryZip: String
+  deliveryCountryCode: String
   secretKey: String
   tableSeatedAt: DateTime
   tableFreedAt: DateTime
@@ -1358,8 +1361,11 @@ input RestaurantOrderWhereInput {
   customerEmail: StringFilter
   customerPhone: StringFilter
   deliveryAddress: StringFilter
+  deliveryAddress2: StringFilter
   deliveryCity: StringFilter
+  deliveryState: StringFilter
   deliveryZip: StringFilter
+  deliveryCountryCode: StringFilter
   secretKey: StringFilter
   tableSeatedAt: DateTimeNullableFilter
   tableFreedAt: DateTimeNullableFilter
@@ -1427,8 +1433,11 @@ input RestaurantOrderOrderByInput {
   customerEmail: OrderDirection
   customerPhone: OrderDirection
   deliveryAddress: OrderDirection
+  deliveryAddress2: OrderDirection
   deliveryCity: OrderDirection
+  deliveryState: OrderDirection
   deliveryZip: OrderDirection
+  deliveryCountryCode: OrderDirection
   secretKey: OrderDirection
   tableSeatedAt: OrderDirection
   tableFreedAt: OrderDirection
@@ -1456,8 +1465,11 @@ input RestaurantOrderUpdateInput {
   customerEmail: String
   customerPhone: String
   deliveryAddress: String
+  deliveryAddress2: String
   deliveryCity: String
+  deliveryState: String
   deliveryZip: String
+  deliveryCountryCode: String
   secretKey: String
   tableSeatedAt: DateTime
   tableFreedAt: DateTime
@@ -1540,8 +1552,11 @@ input RestaurantOrderCreateInput {
   customerEmail: String
   customerPhone: String
   deliveryAddress: String
+  deliveryAddress2: String
   deliveryCity: String
+  deliveryState: String
   deliveryZip: String
+  deliveryCountryCode: String
   secretKey: String
   tableSeatedAt: DateTime
   tableFreedAt: DateTime
@@ -1597,6 +1612,7 @@ type Address {
   city: String
   state: String
   postalCode: String
+  countryCode: String
   country: String
   phone: String
   isDefault: Boolean
@@ -1622,6 +1638,7 @@ input AddressWhereInput {
   city: StringFilter
   state: StringFilter
   postalCode: StringFilter
+  countryCode: StringFilter
   country: StringFilter
   phone: StringFilter
   isDefault: BooleanFilter
@@ -1639,6 +1656,7 @@ input AddressOrderByInput {
   city: OrderDirection
   state: OrderDirection
   postalCode: OrderDirection
+  countryCode: OrderDirection
   country: OrderDirection
   phone: OrderDirection
   isDefault: OrderDirection
@@ -1654,6 +1672,7 @@ input AddressUpdateInput {
   city: String
   state: String
   postalCode: String
+  countryCode: String
   country: String
   phone: String
   isDefault: Boolean
@@ -1676,6 +1695,7 @@ input AddressCreateInput {
   city: String
   state: String
   postalCode: String
+  countryCode: String
   country: String
   phone: String
   isDefault: Boolean
@@ -2519,8 +2539,11 @@ type Cart {
   customerName: String
   customerPhone: String
   deliveryAddress: String
+  deliveryAddress2: String
   deliveryCity: String
+  deliveryState: String
   deliveryZip: String
+  deliveryCountryCode: String
   paymentCollection: PaymentCollection
   tipPercent: String
   order: RestaurantOrder
@@ -2546,8 +2569,11 @@ input CartWhereInput {
   customerName: StringFilter
   customerPhone: StringFilter
   deliveryAddress: StringFilter
+  deliveryAddress2: StringFilter
   deliveryCity: StringFilter
+  deliveryState: StringFilter
   deliveryZip: StringFilter
+  deliveryCountryCode: StringFilter
   paymentCollection: PaymentCollectionWhereInput
   tipPercent: StringNullableFilter
   order: RestaurantOrderWhereInput
@@ -2568,8 +2594,11 @@ input CartOrderByInput {
   customerName: OrderDirection
   customerPhone: OrderDirection
   deliveryAddress: OrderDirection
+  deliveryAddress2: OrderDirection
   deliveryCity: OrderDirection
+  deliveryState: OrderDirection
   deliveryZip: OrderDirection
+  deliveryCountryCode: OrderDirection
   tipPercent: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
@@ -2583,8 +2612,11 @@ input CartUpdateInput {
   customerName: String
   customerPhone: String
   deliveryAddress: String
+  deliveryAddress2: String
   deliveryCity: String
+  deliveryState: String
   deliveryZip: String
+  deliveryCountryCode: String
   paymentCollection: PaymentCollectionRelateToOneForUpdateInput
   tipPercent: String
   order: RestaurantOrderRelateToOneForUpdateInput
@@ -2612,8 +2644,11 @@ input CartCreateInput {
   customerName: String
   customerPhone: String
   deliveryAddress: String
+  deliveryAddress2: String
   deliveryCity: String
+  deliveryState: String
   deliveryZip: String
+  deliveryCountryCode: String
   paymentCollection: PaymentCollectionRelateToOneForCreateInput
   tipPercent: String
   order: RestaurantOrderRelateToOneForCreateInput
@@ -3893,6 +3928,8 @@ type StoreSettings {
   countryCode: String
   hours: JSON
   taxRate: Decimal
+  deliveryEnabled: Boolean
+  deliveryPostalCodes: JSON
   deliveryFee: Decimal
   deliveryMinimum: Decimal
   pickupDiscount: Int
@@ -3927,6 +3964,7 @@ input StoreSettingsWhereInput {
   timezone: StringFilter
   countryCode: StringFilter
   taxRate: DecimalNullableFilter
+  deliveryEnabled: BooleanFilter
   deliveryFee: DecimalNullableFilter
   deliveryMinimum: DecimalNullableFilter
   pickupDiscount: IntNullableFilter
@@ -3954,6 +3992,7 @@ input StoreSettingsOrderByInput {
   timezone: OrderDirection
   countryCode: OrderDirection
   taxRate: OrderDirection
+  deliveryEnabled: OrderDirection
   deliveryFee: OrderDirection
   deliveryMinimum: OrderDirection
   pickupDiscount: OrderDirection
@@ -3981,6 +4020,8 @@ input StoreSettingsUpdateInput {
   countryCode: String
   hours: JSON
   taxRate: Decimal
+  deliveryEnabled: Boolean
+  deliveryPostalCodes: JSON
   deliveryFee: Decimal
   deliveryMinimum: Decimal
   pickupDiscount: Int
@@ -4013,6 +4054,8 @@ input StoreSettingsCreateInput {
   countryCode: String
   hours: JSON
   taxRate: Decimal
+  deliveryEnabled: Boolean
+  deliveryPostalCodes: JSON
   deliveryFee: Decimal
   deliveryMinimum: Decimal
   pickupDiscount: Int

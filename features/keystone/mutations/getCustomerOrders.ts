@@ -9,15 +9,28 @@ export default async function getCustomerOrders(
   { limit = 10, offset = 0 }: { limit?: number; offset?: number },
   context: Context
 ) {
-  if (!context.session?.itemId) {
+  const sessionUserId = context.session?.itemId;
+
+  if (!sessionUserId) {
     throw new Error("Not authenticated");
   }
 
   const sudoContext = context.sudo();
+  const currentUser = await sudoContext.query.User.findOne({
+    where: { id: sessionUserId },
+    query: `email`,
+  });
+  const whereClauses: any[] = [{ customer: { id: { equals: sessionUserId } } }];
+
+  if (currentUser?.email) {
+    whereClauses.push({
+      customerEmail: { equals: currentUser.email },
+    });
+  }
 
   const orders = await sudoContext.query.RestaurantOrder.findMany({
     where: {
-      customer: { id: { equals: context.session.itemId } },
+      OR: whereClauses,
     },
     orderBy: { createdAt: "desc" },
     take: limit,

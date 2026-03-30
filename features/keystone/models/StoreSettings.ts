@@ -1,5 +1,5 @@
 import { list } from "@keystone-6/core";
-import { text, integer, decimal, json } from "@keystone-6/core/fields";
+import { text, integer, decimal, json, checkbox } from "@keystone-6/core/fields";
 
 import { permissions } from "../access";
 import { trackingFields } from "./trackingFields";
@@ -90,6 +90,16 @@ export const StoreSettings = list({
     }),
 
     // Delivery/Pickup Settings
+    deliveryEnabled: checkbox({
+      defaultValue: true,
+      ui: { description: "Allow customers to choose delivery at checkout" },
+    }),
+
+    deliveryPostalCodes: json({
+      defaultValue: ["11201"],
+      ui: { description: "Allowed delivery ZIP/postal codes" },
+    }),
+
     deliveryFee: decimal({
       precision: 10,
       scale: 2,

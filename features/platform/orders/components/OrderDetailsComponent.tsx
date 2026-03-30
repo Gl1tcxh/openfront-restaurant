@@ -217,9 +217,16 @@ export function OrderDetailsComponent({
                     <span className="text-muted-foreground">Address</span>
                     <div className="text-right max-w-[220px] font-medium">
                       <p className="truncate">{order.deliveryAddress}</p>
-                      {(order.deliveryCity || order.deliveryZip) && (
+                      {order.deliveryAddress2 ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {order.deliveryAddress2}
+                        </p>
+                      ) : null}
+                      {(order.deliveryCity || order.deliveryState || order.deliveryZip || order.deliveryCountryCode) && (
                         <p className="text-xs text-muted-foreground">
-                          {[order.deliveryCity, order.deliveryZip].filter(Boolean).join(" ")}
+                          [order.deliveryCity, order.deliveryState, order.deliveryZip, order.deliveryCountryCode]
+                            .filter(Boolean)
+                            .join(", ")
                         </p>
                       )}
                     </div>

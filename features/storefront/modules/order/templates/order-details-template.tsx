@@ -1,4 +1,8 @@
-import { OrderStatusTimeline, OrderStatus, OrderType } from "../components/order-status-timeline";
+import {
+  OrderStatusTimeline,
+  OrderStatus,
+  OrderType,
+} from "../components/order-status-timeline";
 import { OrderItemsList } from "../components/order-items-list";
 import { OrderSummary } from "../components/order-summary";
 import { OrderDetailsCard } from "../components/order-details-card";
@@ -22,8 +26,11 @@ interface RestaurantOrder {
   customerEmail?: string;
   customerPhone?: string;
   deliveryAddress?: string;
+  deliveryAddress2?: string;
   deliveryCity?: string;
+  deliveryState?: string;
   deliveryZip?: string;
+  deliveryCountryCode?: string;
   createdAt: string;
   updatedAt: string;
   orderItems: any[];
@@ -34,19 +41,21 @@ interface OrderDetailsTemplateProps {
   order: RestaurantOrder;
 }
 
-export default function OrderDetailsTemplate({ order }: OrderDetailsTemplateProps) {
+export default function OrderDetailsTemplate({
+  order,
+}: OrderDetailsTemplateProps) {
   return (
     <div className="py-6 min-h-[calc(100vh-64px)]">
       <div className="mx-auto px-6 flex flex-col gap-y-6 max-w-4xl w-full">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Order #{order.orderNumber}</h1>
+        <div className="flex flex-col justify-between gap-3">
           <Link
             href="/account"
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 mt-px" />
             Back to Account
           </Link>
+          <h1 className="text-2xl font-semibold">Order #{order.orderNumber}</h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -60,7 +69,10 @@ export default function OrderDetailsTemplate({ order }: OrderDetailsTemplateProp
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-6">
-            <OrderStatusTimeline status={order.status} orderType={order.orderType} />
+            <OrderStatusTimeline
+              status={order.status}
+              orderType={order.orderType}
+            />
             <OrderDetailsCard
               orderNumber={order.orderNumber}
               orderType={order.orderType}
@@ -69,8 +81,11 @@ export default function OrderDetailsTemplate({ order }: OrderDetailsTemplateProp
               customerEmail={order.customerEmail}
               customerPhone={order.customerPhone}
               deliveryAddress={order.deliveryAddress}
+              deliveryAddress2={order.deliveryAddress2}
               deliveryCity={order.deliveryCity}
+              deliveryState={order.deliveryState}
               deliveryZip={order.deliveryZip}
+              deliveryCountryCode={order.deliveryCountryCode}
               specialInstructions={order.specialInstructions}
             />
           </div>

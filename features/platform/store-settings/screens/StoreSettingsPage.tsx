@@ -12,12 +12,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import MultipleSelector, { type Option } from '@/components/ui/multiple-selector'
+import { Switch } from '@/components/ui/switch'
 import { Globe2, Save, Store, CalendarClock } from 'lucide-react'
 import {
   WeeklyHoursEditor,
   type DayKey,
   type HoursState,
 } from '@/features/platform/store-settings/components/WeeklyHoursEditor'
+import { getUniqueDeliveryPostalCodes, normalizeCountryCode, normalizePostalCode } from '@/features/lib/delivery-zones'
 
 interface StoreSettingsData {
   id?: string
@@ -30,6 +33,8 @@ interface StoreSettingsData {
   locale?: string | null
   timezone?: string | null
   countryCode?: string | null
+  deliveryEnabled?: boolean | null
+  deliveryPostalCodes?: string[] | null
   taxRate?: string | null
   deliveryFee?: string | null
   deliveryMinimum?: string | null
@@ -48,6 +53,8 @@ const UPDATE_STORE_SETTINGS = gql`
       currencyCode
       locale
       timezone
+      deliveryEnabled
+      deliveryPostalCodes
       taxRate
       hours
     }
@@ -206,7 +213,9 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
     currencyCode: initialSettings?.currencyCode || 'USD',
     locale: initialSettings?.locale || 'en-US',
     timezone: initialSettings?.timezone || 'America/New_York',
-    countryCode: initialSettings?.countryCode || 'US',
+    countryCode: normalizeCountryCode(initialSettings?.countryCode || 'US'),
+    deliveryEnabled: initialSettings?.deliveryEnabled ?? true,
+    deliveryPostalCodes: getUniqueDeliveryPostalCodes(initialSettings?.deliveryPostalCodes),
     taxRate: initialSettings?.taxRate || '8.75',
     deliveryFee: initialSettings?.deliveryFee || '4.99',
     deliveryMinimum: initialSettings?.deliveryMinimum || '15.00',
@@ -217,6 +226,11 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
   })
 
   const [hours, setHours] = useState<HoursState>(parseHours(initialSettings?.hours))
+
+  const deliveryPostalCodeOptions = useMemo<Option[]>(
+    () => form.deliveryPostalCodes.map((code) => ({ value: code, label: code })),
+    [form.deliveryPostalCodes]
+  )
 
   const breadcrumbs = [
     { type: 'link' as const, label: 'Dashboard', href: '' },
@@ -294,7 +308,9 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
         currencyCode: form.currencyCode,
         locale: form.locale,
         timezone: form.timezone,
-        countryCode: form.countryCode,
+        countryCode: normalizeCountryCode(form.countryCode),
+        deliveryEnabled: form.deliveryEnabled,
+        deliveryPostalCodes: getUniqueDeliveryPostalCodes(form.deliveryPostalCodes),
         taxRate: String(form.taxRate || '8.75'),
         deliveryFee: String(form.deliveryFee || '0'),
         deliveryMinimum: String(form.deliveryMinimum || '0'),
@@ -424,8 +440,8 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Country Code</p>
                 <Input
                   value={form.countryCode}
-                  onChange={(e) => setForm((f) => ({ ...f, countryCode: e.target.value.toUpperCase() }))}
-                  placeholder="US"
+                  onChange={(e) => setForm((f) => ({ ...f, countryCode: normalizeCountryCode(e.target.value) }))}
+                  placeholder="US, GB, AE"
                   className={fieldInput}
                 />
               </div>
@@ -480,10 +496,71 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
             </div>
           </Section>
 
-          {/* Order Defaults */}
-          <Section title="Order Defaults" icon={<CalendarClock size={13} />}>
-            {/* Row 1: Delivery fee + Minimum */}
-            <div className="grid grid-cols-2 divide-x divide-border">
+          {/* Fulfillment */}
+          <Section title="Fulfillment" icon={<CalendarClock size={13} />}>
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 px-5 py-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Delivery Availability</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">
+                  {form.deliveryEnabled ? 'Customers can choose delivery' : 'Pickup only'}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Delivery is matched by store country and the ZIP / postal codes below.
+                </p>
+              </div>
+              <div className="flex items-center justify-start md:justify-end">
+                <Switch
+                  checked={form.deliveryEnabled}
+                  onCheckedChange={(checked) => setForm((f) => ({ ...f, deliveryEnabled: checked }))}
+                  aria-label="Toggle delivery availability"
+                />
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-border">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Delivery ZIP / Postal Codes</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Add every postal code you want to serve. Customers can still save any address, but delivery will only be offered inside these codes.
+              </p>
+              <div className="mt-3">
+                <MultipleSelector
+                  value={deliveryPostalCodeOptions}
+                  onChange={(options) =>
+                    setForm((f) => ({
+                      ...f,
+                      deliveryPostalCodes: getUniqueDeliveryPostalCodes(
+                        options.map((option) => normalizePostalCode(option.value))
+                      ),
+                    }))
+                  }
+                  placeholder={form.deliveryEnabled ? "Add a ZIP / postal code..." : "Enable delivery to manage zones"}
+                  emptyIndicator={
+                    <p className="text-center text-sm text-muted-foreground py-3">
+                      No postal codes added yet.
+                    </p>
+                  }
+                  creatable
+                  hidePlaceholderWhenSelected={false}
+                  disabled={!form.deliveryEnabled}
+                  inputProps={{
+                    onBlur: (event) => {
+                      const value = normalizePostalCode(event.currentTarget.value)
+                      if (!value) return
+
+                      setForm((f) => ({
+                        ...f,
+                        deliveryPostalCodes: getUniqueDeliveryPostalCodes([
+                          ...f.deliveryPostalCodes,
+                          value,
+                        ]),
+                      }))
+                    },
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 divide-x divide-border border-t border-border">
               <div className="px-5 py-3">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Delivery Fee</p>
                 <Input
@@ -503,8 +580,7 @@ export function StoreSettingsPage({ initialSettings }: { initialSettings: StoreS
                 />
               </div>
             </div>
-            {/* Row 2: Pickup discount + est. pickup + est. delivery */}
-            <div className="grid grid-cols-3 divide-x divide-border">
+            <div className="grid grid-cols-3 divide-x divide-border border-t border-border">
               <div className="px-5 py-3">
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Pickup Discount %</p>
                 <Input

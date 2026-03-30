@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { MapPin, Plus, Trash2, Edit2, Loader2 } from "lucide-react"
 import { deleteAddress } from "@/features/storefront/lib/data/user"
@@ -11,6 +11,21 @@ export function AddressBook({ addresses }: { addresses: any[] }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingAddress, setEditingAddress] = useState<any>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const sortedAddresses = useMemo(
+    () =>
+      [...addresses].sort((left, right) => {
+        if (left.isDefault !== right.isDefault) {
+          return left.isDefault ? -1 : 1
+        }
+
+        if (left.isBilling !== right.isBilling) {
+          return left.isBilling ? -1 : 1
+        }
+
+        return (left.name || "").localeCompare(right.name || "")
+      }),
+    [addresses]
+  )
 
   const handleEdit = (address: any) => {
     setEditingAddress(address)
@@ -40,7 +55,7 @@ export function AddressBook({ addresses }: { addresses: any[] }) {
         </Button>
       </div>
 
-      {addresses.length === 0 ? (
+      {sortedAddresses.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-muted/20 py-12 text-center">
           <MapPin className="h-8 w-8 text-muted-foreground mx-auto mb-3 opacity-30" />
           <p className="text-sm text-muted-foreground">No saved addresses yet.</p>
@@ -53,7 +68,7 @@ export function AddressBook({ addresses }: { addresses: any[] }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {addresses.map((address: any) => (
+          {sortedAddresses.map((address: any) => (
             <div
               key={address.id}
               className={cn(
@@ -66,6 +81,16 @@ export function AddressBook({ addresses }: { addresses: any[] }) {
               {address.isDefault && (
                 <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider text-muted-foreground border border-border rounded-full px-2 py-0.5">
                   Default
+                </span>
+              )}
+              {address.isBilling && (
+                <span
+                  className={cn(
+                    "absolute text-[10px] uppercase tracking-wider text-muted-foreground border border-border rounded-full px-2 py-0.5",
+                    address.isDefault ? "top-10 right-3" : "top-3 right-3"
+                  )}
+                >
+                  Billing
                 </span>
               )}
 
@@ -83,6 +108,9 @@ export function AddressBook({ addresses }: { addresses: any[] }) {
                   {address.city}
                   {address.state ? `, ${address.state}` : ""} {address.postalCode}
                 </p>
+                {(address.countryCode || address.country) && (
+                  <p>{address.countryCode || address.country}</p>
+                )}
                 {address.phone && <p className="pt-1">{address.phone}</p>}
               </div>
 

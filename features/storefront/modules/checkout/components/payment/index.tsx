@@ -10,18 +10,26 @@ import ErrorMessage from "../error-message";
 import { StripeContext } from "../payment-wrapper/stripe-wrapper";
 import { CardElement } from "@stripe/react-stripe-js";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState, useTransition } from "react";
 import { RiLoader2Fill } from "@remixicon/react";
 import { cn } from "@/lib/utils";
+import { setCheckoutTip } from "@/features/storefront/lib/data/cart";
+import { Loader2 } from "lucide-react";
+import { calculateRestaurantTotals } from "@/features/lib/restaurant-order-pricing";
+import { formatCurrency } from "@/features/storefront/lib/currency";
+import { useCheckoutPaymentState } from "../checkout-state";
 
 interface PaymentProps {
   cart: {
     id: string;
     total: number;
+    subtotal?: number;
+    tipPercent?: string | number;
     paymentCollection?: {
       paymentSessions?: Array<{
         id: string;
         isSelected: boolean;
+        amount: number;
         status?: string;
         paymentProvider: {
           code: string;
@@ -30,37 +38,78 @@ interface PaymentProps {
     };
     orderType: string;
   };
+  storeSettings: any;
   availablePaymentMethods: Array<{
     id: string;
     code: string;
   }>;
 }
 
-const Payment = ({ cart, availablePaymentMethods }: PaymentProps) => {
+const TIP_OPTIONS = ["0", "15", "18", "20", "25"] as const;
+
+const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps) => {
   const activeSession = cart.paymentCollection?.paymentSessions?.find(
     (session) => session.isSelected
   );
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cardBrand, setCardBrand] = useState<string | null>(null);
-  const [cardComplete, setCardComplete] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(
     activeSession?.paymentProvider?.code ?? ""
   );
+  const { cardBrand, setCardBrand, cardComplete, setCardComplete } =
+    useCheckoutPaymentState();
 
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const [isTipPending, startTipTransition] = useTransition();
 
-  const isOpen = searchParams?.get("step") === "payment";
+  const currentStep = searchParams?.get("step");
+  const isOpen = currentStep === "payment" || currentStep === "review";
 
   const isStripePayment = isStripe(selectedPaymentMethod);
   const stripeReady = useContext(StripeContext);
 
   const isSandboxMode = isStripeSandbox() || isPayPalSandbox();
+  const currencyConfig = {
+    currencyCode: storeSettings?.currencyCode || "USD",
+    locale: storeSettings?.locale || "en-US",
+  }
+  const deliveryPricing = useMemo(
+    () =>
+      calculateRestaurantTotals({
+        subtotal: Number(cart?.subtotal || 0),
+        orderType: cart?.orderType,
+        tipPercent: Number(cart?.tipPercent || 0),
+        deliveryFee: storeSettings?.deliveryFee,
+        deliveryMinimum: storeSettings?.deliveryMinimum,
+        pickupDiscountPercent: Number(storeSettings?.pickupDiscount || 0),
+        taxRate: Number(storeSettings?.taxRate || 0),
+        currencyCode: currencyConfig.currencyCode,
+      }),
+    [
+      cart?.subtotal,
+      cart?.orderType,
+      cart?.tipPercent,
+      storeSettings?.deliveryFee,
+      storeSettings?.deliveryMinimum,
+      storeSettings?.pickupDiscount,
+      storeSettings?.taxRate,
+      currencyConfig.currencyCode,
+    ]
+  )
+  const deliveryMinimumNotMet =
+    cart?.orderType === "delivery" && deliveryPricing.deliveryMinimumNotMet
 
-  const paymentReady = !!activeSession;
+  const activeSessionMatchesTotal = Boolean(
+    activeSession &&
+      activeSession.amount === deliveryPricing.total &&
+      activeSession.status !== "error"
+  );
+  const selectedSessionMatchesTotal =
+    activeSessionMatchesTotal && activeSession?.paymentProvider?.code === selectedPaymentMethod;
+  const paymentReady = selectedSessionMatchesTotal;
 
   const useOptions = useMemo(() => {
     return {
@@ -99,27 +148,25 @@ const Payment = ({ cart, availablePaymentMethods }: PaymentProps) => {
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
-      const shouldInputCard = isStripe(selectedPaymentMethod) && !cardComplete;
-
-      const hasExistingSelectedSession =
-        cart.paymentCollection?.paymentSessions?.some(
-          (session) =>
-            session.isSelected &&
-            session.paymentProvider.code === selectedPaymentMethod &&
-            session.status !== "error"
-        );
-
-      if (!hasExistingSelectedSession) {
-        await initiatePaymentSession(cart.id, selectedPaymentMethod);
+      if (deliveryMinimumNotMet) {
+        throw new Error(
+          `Delivery requires a minimum subtotal of ${formatCurrency(storeSettings?.deliveryMinimum || 0, currencyConfig, {
+            inputIsCents: false,
+          })}. Add ${formatCurrency(deliveryPricing.deliveryMinimumShortfall, currencyConfig)} more or switch to pickup.`
+        )
       }
 
-      if (!shouldInputCard) {
-        return router.push(
-          pathname + "?" + createQueryString("step", "review"),
-          {
-            scroll: false,
-          }
-        );
+      if (!selectedSessionMatchesTotal) {
+        await initiatePaymentSession(cart.id, selectedPaymentMethod);
+        router.replace(pathname + "?" + createQueryString("step", "payment"), {
+          scroll: false,
+        });
+        router.refresh();
+        return;
+      }
+
+      if (isStripe(selectedPaymentMethod) && !cardComplete) {
+        throw new Error("Enter your card details to continue.");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
@@ -128,9 +175,32 @@ const Payment = ({ cart, availablePaymentMethods }: PaymentProps) => {
     }
   };
 
+  const subtotal = Number(cart?.subtotal || 0);
+  const tipPercent = String(cart?.tipPercent || "0");
+
+  const handleTipChange = (nextTipPercent: string) => {
+    if (nextTipPercent === tipPercent || isTipPending) {
+      return;
+    }
+
+    startTipTransition(async () => {
+      const result = await setCheckoutTip(nextTipPercent);
+      if (result.success) {
+        router.refresh();
+      }
+    });
+  };
+
   useEffect(() => {
     setError(null);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isStripe(selectedPaymentMethod)) {
+      setCardComplete(false);
+      setCardBrand(null);
+    }
+  }, [selectedPaymentMethod, setCardBrand, setCardComplete]);
 
   return (
     <div>
@@ -166,6 +236,50 @@ const Payment = ({ cart, availablePaymentMethods }: PaymentProps) => {
       </div>
       <div>
         <div className={isOpen ? "block" : "hidden"}>
+          {/* Tipping Section */}
+          <div className="mb-6 rounded-2xl border border-border/60 bg-muted/30 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Tip the team</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Optional for both pickup and delivery.
+                </p>
+              </div>
+              {isTipPending ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {TIP_OPTIONS.map((option) => {
+                const optionTip = Math.round(subtotal * (Number(option) / 100));
+                const selected = tipPercent === option;
+
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => handleTipChange(option)}
+                    disabled={isTipPending}
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-left transition-all",
+                      selected
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border bg-background hover:border-warm-200 hover:bg-muted/40"
+                    )}
+                  >
+                    <span className="block text-sm font-semibold text-foreground">
+                      {option}%
+                    </span>
+                    <span className="block text-[11px] text-muted-foreground mt-0.5">
+                      {option === "0"
+                        ? "No tip"
+                        : formatCurrency(optionTip, currencyConfig)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {availablePaymentMethods?.length > 0 && (
             <>
               <RadioGroup
@@ -256,19 +370,33 @@ const Payment = ({ cart, availablePaymentMethods }: PaymentProps) => {
             error={error}
             data-testid="payment-method-error-message"
           />
+          {deliveryMinimumNotMet ? (
+            <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
+              <p className="text-sm font-medium text-amber-800">
+                Delivery requires a minimum subtotal of{" "}
+                {formatCurrency(storeSettings?.deliveryMinimum || 0, currencyConfig, {
+                  inputIsCents: false,
+                })}
+                .
+              </p>
+              <p className="mt-1 text-xs text-amber-700/90">
+                Add {formatCurrency(deliveryPricing.deliveryMinimumShortfall, currencyConfig)} more or switch this order to pickup.
+              </p>
+            </div>
+          ) : null}
 
-          <Button
-            onClick={handleSubmit}
-            size="lg"
-            disabled={!selectedPaymentMethod || isLoading}
-            data-testid="submit-payment-button"
-            className="mt-5 w-full rounded-xl h-12 font-semibold"
-          >
-            {isLoading && <RiLoader2Fill className="mr-2 h-4 w-4 animate-spin" />}
-            {isStripePayment && !cardComplete
-              ? "Enter card details"
-              : "Continue to Review"}
-          </Button>
+          {!selectedSessionMatchesTotal ? (
+            <Button
+              onClick={handleSubmit}
+              size="lg"
+              disabled={!selectedPaymentMethod || isLoading || deliveryMinimumNotMet}
+              data-testid="submit-payment-button"
+              className="mt-5 w-full rounded-xl h-12 font-semibold"
+            >
+              {isLoading && <RiLoader2Fill className="mr-2 h-4 w-4 animate-spin" />}
+              Set up payment
+            </Button>
+          ) : null}
         </div>
 
         <div className={isOpen ? "hidden" : "block"}>
@@ -302,7 +430,7 @@ const Payment = ({ cart, availablePaymentMethods }: PaymentProps) => {
                   <span>
                     {isStripe(selectedPaymentMethod) && cardBrand
                       ? cardBrand
-                      : "Another step will appear"}
+                      : "Ready in order summary"}
                   </span>
                 </div>
               </div>
