@@ -7,7 +7,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/features/storefront/lib/currency"
 import { addToCart } from "@/features/storefront/lib/data/cart"
-import type { MenuItem, MenuItemModifier, SelectedModifier } from "@/features/storefront/lib/store-data"
+import type {
+  MenuItem,
+  MenuItemModifier,
+  SelectedModifier,
+} from "@/features/storefront/lib/store-data"
 
 interface MenuItemPurchaseFormProps {
   item: MenuItem
@@ -162,27 +166,26 @@ export function MenuItemPurchaseForm({
   }
 
   return (
-    <div className={cn("space-y-5 px-5 py-5 md:px-6", className)}>
-      {modifierGroups.length > 0 && (
-        <div className="space-y-5">
+    <div className={cn("space-y-6 px-5 py-5 sm:px-6", className)}>
+      {modifierGroups.length > 0 ? (
+        <div className="space-y-6">
           {modifierGroups.map((group) => (
-            <div key={group.id}>
-              <div className="mb-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {group.name}
-                  </h3>
-                  {group.required && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-warm-100 text-warm-700 rounded-full px-2 py-0.5">
+            <div key={group.id} className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base font-medium text-foreground">{group.name}</h3>
+                  {group.required ? (
+                    <span className="border border-border bg-background px-2 py-0.5 text-xs font-medium text-primary">
                       Required
                     </span>
-                  )}
+                  ) : null}
                 </div>
-                <span className="text-[13px] text-muted-foreground">
-                  {group.required ? "Select one" : "Optional"}
-                  {group.max > 1 && ` · up to ${group.max}`}
-                </span>
+                <p className="text-sm text-muted-foreground">
+                  {group.required ? "Choose an option" : "Optional"}
+                  {group.max > 1 ? ` · up to ${group.max}` : ""}
+                </p>
               </div>
+
               <div className="space-y-2">
                 {group.modifiers.map((modifier) => {
                   const isSelected = isModifierSelected(group.id, modifier.id)
@@ -193,43 +196,32 @@ export function MenuItemPurchaseForm({
                       type="button"
                       onClick={() => toggleModifier(group, modifier.id)}
                       className={cn(
-                        "w-full rounded-xl border px-4 py-3 text-left transition-all duration-200",
+                        "w-full border px-4 py-3 text-left transition-colors",
                         isSelected
-                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                          : "border-border bg-background text-foreground hover:border-warm-200 hover:bg-muted/50"
+                          ? "border-primary bg-primary/8"
+                          : "border-border bg-background hover:border-primary/25"
                       )}
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors",
-                            isSelected
-                              ? "border-primary-foreground"
-                              : "border-border"
-                          )}>
-                            {isSelected && (
-                              <div className="h-2.5 w-2.5 rounded-full bg-primary-foreground" />
+                          <span
+                            className={cn(
+                              "flex size-4 items-center justify-center rounded-full border",
+                              isSelected ? "border-primary" : "border-border"
                             )}
-                          </div>
-                          <span className="text-sm font-medium">{modifier.name}</span>
+                          >
+                            {isSelected ? <span className="size-2 rounded-full bg-primary" /> : null}
+                          </span>
+                          <span className="text-sm font-medium text-foreground">{modifier.name}</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          {modifier.calories ? (
-                            <span className={cn(
-                              "text-xs",
-                              isSelected ? "text-primary-foreground/60" : "text-muted-foreground"
-                            )}>
-                              {modifier.calories} cal
-                            </span>
-                          ) : null}
-                          {modifier.price > 0 && (
-                            <span className={cn(
-                              "text-xs font-semibold",
-                              isSelected ? "text-primary-foreground/70" : "text-muted-foreground"
-                            )}>
+
+                        <div className="text-right text-xs text-muted-foreground">
+                          {modifier.calories ? <p>{modifier.calories} cal</p> : null}
+                          {modifier.price > 0 ? (
+                            <p className="font-medium text-foreground">
                               +{formatCurrency(modifier.price, { currencyCode, locale })}
-                            </span>
-                          )}
+                            </p>
+                          ) : null}
                         </div>
                       </div>
                     </button>
@@ -239,53 +231,55 @@ export function MenuItemPurchaseForm({
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
-      {/* Kitchen Notes */}
-      <div className="rounded-xl bg-muted/50 p-4 border border-border/40">
-        <h3 className="mb-2 text-sm font-semibold text-foreground">
-          Special Instructions
-        </h3>
+      <div className="space-y-2">
+        <h3 className="text-base font-medium text-foreground">Special instructions</h3>
         <Textarea
-          placeholder="Any allergies or special requests?"
+          placeholder="Add any preparation notes for the kitchen."
           value={specialInstructions}
           onChange={(event) => setSpecialInstructions(event.target.value)}
-          className="min-h-24 resize-none rounded-lg border-border/60 bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-warm-500/30"
+          className="min-h-24 resize-none border-border bg-background text-sm text-foreground"
           rows={3}
         />
       </div>
 
-      {/* Quantity + Add to Cart */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center pt-2">
-        <div className="flex items-center rounded-xl border border-border bg-background">
+      <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center">
+        <div className="inline-flex self-start items-center border border-border bg-background">
           <button
             type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-l-xl text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+            className="flex size-11 items-center justify-center text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
             onClick={() => setQuantity(Math.max(1, quantity - 1))}
             disabled={quantity <= 1}
+            aria-label="Decrease quantity"
           >
-            <Minus className="h-4 w-4" />
+            <Minus className="size-4" />
           </button>
-          <span className="w-11 text-center text-base font-semibold text-foreground tabular-nums">{quantity}</span>
+          <span className="w-12 text-center text-base font-semibold tabular-nums text-foreground">
+            {quantity}
+          </span>
           <button
             type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-r-xl text-muted-foreground transition-colors hover:bg-muted"
+            className="flex size-11 items-center justify-center text-muted-foreground transition-colors hover:bg-muted"
             onClick={() => setQuantity(quantity + 1)}
+            aria-label="Increase quantity"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="size-4" />
           </button>
         </div>
+
         <Button
-          className="h-12 flex-1 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 shadow-sm gap-2"
+          variant="ghost"
+          className="h-12 flex-1 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
           onClick={handleAddToCart}
           disabled={isAdding || item.available === false}
         >
-          <ShoppingBag className="h-4 w-4" />
+          <ShoppingBag className="size-4" />
           {item.available === false
-            ? "Currently Unavailable"
+            ? "Currently unavailable"
             : isAdding
-              ? "Adding..."
-              : `Add to Order — ${formatCurrency(itemTotal, { currencyCode, locale })}`}
+              ? "Adding to order..."
+              : `Add to order — ${formatCurrency(itemTotal, { currencyCode, locale })}`}
         </Button>
       </div>
     </div>

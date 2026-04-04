@@ -6,9 +6,9 @@ import { retrieveCart } from "@/features/storefront/lib/data/cart";
 import { getUser } from "@/features/storefront/lib/data/user";
 import { getStoreSettings } from "@/features/storefront/lib/data/menu";
 import { CheckoutPaymentStateProvider } from "@/features/storefront/modules/checkout/components/checkout-state";
-import React from "react"
-import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import React from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export const metadata = {
   title: "Checkout",
@@ -29,9 +29,19 @@ export async function CheckoutPage() {
   return (
     <Wrapper cart={cart}>
       <CheckoutPaymentStateProvider>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] max-w-[1080px] w-full mx-auto px-6 gap-y-8 lg:gap-x-16 py-10 md:py-14">
-          <CheckoutForm cart={cart} customer={customer} storeSettings={storeSettings} />
-          <CheckoutSummary cart={cart} customer={customer} storeSettings={storeSettings} />
+        <div className="storefront-shell py-8 sm:py-10 lg:py-14">
+          <div className="mb-8 max-w-2xl space-y-3">
+            <span className="storefront-kicker">Checkout</span>
+            <h1 className="storefront-heading">Finish your order</h1>
+            <p className="storefront-copy">
+              Review contact details, choose delivery or pickup, select payment, and place your order.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-12">
+            <CheckoutForm cart={cart} customer={customer} storeSettings={storeSettings} />
+            <CheckoutSummary cart={cart} customer={customer} storeSettings={storeSettings} />
+          </div>
         </div>
       </CheckoutPaymentStateProvider>
     </Wrapper>
@@ -41,25 +51,30 @@ export async function CheckoutPage() {
 export function CheckoutLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
-    <div className="w-full bg-background relative">
-      <div className="h-16 bg-background/95 backdrop-blur-sm border-b border-border/50">
-        <nav className="flex h-full items-center max-w-[1080px] w-full mx-auto px-6 justify-between">
+    <div className="storefront-ui min-h-dvh w-full bg-background">
+      <div className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
+        <nav className="storefront-shell flex h-16 items-center justify-between gap-4">
           <Link
             href="/"
-            className="text-muted-foreground hover:text-foreground text-[13px] font-medium flex items-center gap-2 group"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
             data-testid="back-to-menu-link"
           >
-            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+            <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Back to menu</span>
           </Link>
-          <div className="font-serif font-bold text-xl tracking-tight">Checkout</div>
-          <div className="flex-1 basis-0 max-w-[100px]" />
+
+          <div className="text-center">
+            <div className="text-lg font-semibold text-foreground">Checkout</div>
+          </div>
+
+          <div className="h-10 min-w-[112px]" />
         </nav>
       </div>
-      <div className="relative" data-testid="checkout-container">{children}</div>
+
+      <div data-testid="checkout-container">{children}</div>
     </div>
-  )
+  );
 }

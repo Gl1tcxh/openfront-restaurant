@@ -1,31 +1,45 @@
-import { Plus_Jakarta_Sans, Sora } from "next/font/google"
+import {
+  Geist,
+  Geist_Mono,
+  Unbounded,
+} from "next/font/google"
 import Nav from "@/features/storefront/modules/layout/templates/nav"
 import Footer from "@/features/storefront/modules/layout/templates/footer"
 import StorefrontServer from "./StorefrontServer"
 
-const plusJakarta = Plus_Jakarta_Sans({
+const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 })
 
-const sora = Sora({
+const unboundedDisplay = Unbounded({
+  variable: "--font-unbounded-display",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-  variable: "--font-instrument",
 })
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+})
+
 
 export async function MainLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`${plusJakarta.variable} ${sora.variable} min-h-screen bg-background font-sans text-foreground`}>
+    <div
+      className={`storefront-ui ${geistSans.variable} ${unboundedDisplay.variable} ${geistMono.variable} min-h-dvh bg-background font-sans text-foreground antialiased`}
+    >
       <StorefrontServer
         prefetchUser={true}
         prefetchCart={true}
         prefetchStoreSettings={true}
         prefetchMenuCategories={true}
       >
-        <Nav />
-        {children}
-        <Footer />
+        <div className="relative flex min-h-dvh flex-col overflow-x-clip">
+          <Nav />
+          {children}
+          <Footer />
+        </div>
       </StorefrontServer>
     </div>
   )
@@ -33,10 +47,11 @@ export async function MainLayout({ children }: { children: React.ReactNode }) {
 
 export function MainNotFound() {
   return (
-    <div className="flex flex-col gap-4 items-center justify-center min-h-[calc(100vh-64px)]">
-      <h1 className="text-2xl font-semibold text-foreground">Page not found</h1>
-      <p className="text-xs font-normal text-foreground">
-        The page you tried to access does not exist.
+    <div className="storefront-shell flex min-h-[calc(100dvh-16rem)] flex-col items-center justify-center gap-4 py-24 text-center">
+      <span className="storefront-kicker">Not found</span>
+      <h1 className="storefront-heading max-w-xl">This page is not on the menu.</h1>
+      <p className="storefront-copy max-w-md">
+        The page you tried to open does not exist or may have been removed.
       </p>
     </div>
   )

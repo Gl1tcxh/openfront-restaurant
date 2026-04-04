@@ -57,32 +57,31 @@ export default function LineItemDisplay({
   );
   const lineTotal = ((Number(item.menuItem?.price) || 0) + modifiersTotal) * item.quantity;
   const currencyConfig = { currencyCode, locale };
-  const thumbnail = item.menuItem?.thumbnail || item.thumbnail || "/placeholder.jpg";
+  const thumbnail = item.menuItem?.thumbnail || item.thumbnail || null;
 
   return (
-    <div
-      className={cn(
-        "flex gap-4 rounded-2xl border border-border/40 bg-card p-4",
-        className
-      )}
-    >
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
-        <Image
-          src={thumbnail}
-          alt={item.menuItem?.name || "Item"}
-          fill
-          className="object-cover"
-          sizes="64px"
-        />
+    <div className={cn("flex gap-4 border-b border-border/70 py-4 last:border-b-0", className)}>
+      <div className="relative size-18 shrink-0 overflow-hidden border border-border bg-muted">
+        {thumbnail ? (
+          <Image
+            src={thumbnail}
+            alt={item.menuItem?.name || "Item"}
+            fill
+            className="object-cover"
+            sizes="72px"
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center p-2 text-center text-xs text-muted-foreground">
+            {item.menuItem?.name}
+          </div>
+        )}
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h4 className="truncate text-sm font-medium text-foreground">
-              {item.menuItem?.name}
-            </h4>
-            <p className="mt-0.5 text-xs text-muted-foreground">Qty: {item.quantity}</p>
+            <h4 className="truncate font-medium text-foreground">{item.menuItem?.name}</h4>
+            <p className="mt-0.5 text-sm text-muted-foreground">Quantity {item.quantity}</p>
           </div>
 
           <div className="flex items-start gap-3">
@@ -97,16 +96,16 @@ export default function LineItemDisplay({
                 className="text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
                 aria-label={`Remove ${item.menuItem?.name}`}
               >
-                <X className="h-4 w-4" />
+                <X className="size-4" />
               </button>
             ) : null}
           </div>
         </div>
 
         {modifiers.length > 0 ? (
-          <div className="mt-1.5 space-y-0">
+          <div className="mt-2 space-y-1">
             {modifiers.map((modifier) => (
-              <p key={modifier.id} className="text-xs text-muted-foreground">
+              <p key={modifier.id} className="text-sm text-muted-foreground">
                 + {modifier.name}
                 {(modifier.priceAdjustment || 0) > 0
                   ? ` (${formatCurrency(modifier.priceAdjustment || 0, currencyConfig)})`
@@ -117,34 +116,32 @@ export default function LineItemDisplay({
         ) : null}
 
         {item.specialInstructions ? (
-          <p className="mt-1.5 text-xs italic text-muted-foreground">
-            Note: {item.specialInstructions}
-          </p>
+          <p className="mt-2 text-sm italic text-muted-foreground">Note: {item.specialInstructions}</p>
         ) : null}
 
         {editable && onIncrease && onDecrease ? (
           <div className="mt-4">
-            <div className="inline-flex items-center overflow-hidden rounded-xl border border-border bg-background">
+            <div className="inline-flex items-center border border-border bg-background">
               <button
                 type="button"
-                className="flex h-10 w-10 items-center justify-center text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                className="flex size-10 items-center justify-center text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
                 onClick={() => onDecrease(item.id, item.quantity - 1)}
                 disabled={isUpdating || item.quantity <= 1}
                 aria-label={`Decrease quantity of ${item.menuItem?.name}`}
               >
-                <Minus className="h-4 w-4" />
+                <Minus className="size-4" />
               </button>
               <span className="w-10 text-center text-sm font-semibold tabular-nums text-foreground">
                 {item.quantity}
               </span>
               <button
                 type="button"
-                className="flex h-10 w-10 items-center justify-center text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+                className="flex size-10 items-center justify-center text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
                 onClick={() => onIncrease(item.id, item.quantity + 1)}
                 disabled={isUpdating}
                 aria-label={`Increase quantity of ${item.menuItem?.name}`}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="size-4" />
               </button>
             </div>
           </div>

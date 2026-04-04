@@ -35,46 +35,44 @@ export function OrderSummary({
   });
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Order Summary</h3>
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
+    <div className="space-y-5">
+      <p className="text-sm font-medium text-primary">Order summary</p>
+      <div className="space-y-3 text-sm">
+        <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Subtotal</span>
-          <span>{formatCurrency(subtotal, currencyConfig)}</span>
+          <span className="text-foreground">{formatCurrency(subtotal, currencyConfig)}</span>
         </div>
-        <div className="flex justify-between text-sm">
+        <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Tax</span>
-          <span>{formatCurrency(tax, currencyConfig)}</span>
+          <span className="text-foreground">{formatCurrency(tax, currencyConfig)}</span>
         </div>
-        {tip > 0 && (
-          <div className="flex justify-between text-sm">
+        {tip > 0 ? (
+          <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Tip</span>
-            <span>{formatCurrency(tip, currencyConfig)}</span>
+            <span className="text-foreground">{formatCurrency(tip, currencyConfig)}</span>
           </div>
-        )}
-        {pickupDiscount > 0 && (
-          <div className="flex justify-between text-sm text-emerald-600">
-            <span>Pickup Discount</span>
+        ) : null}
+        {pickupDiscount > 0 ? (
+          <div className="flex items-center justify-between text-emerald-700">
+            <span>Pickup discount</span>
             <span>-{formatCurrency(pickupDiscount, currencyConfig)}</span>
           </div>
-        )}
-        {deliveryFee > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Delivery Fee</span>
-            <span>{formatCurrency(deliveryFee, currencyConfig)}</span>
+        ) : null}
+        {deliveryFee > 0 ? (
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Delivery fee</span>
+            <span className="text-foreground">{formatCurrency(deliveryFee, currencyConfig)}</span>
           </div>
-        )}
-        {remainingDiscount > 0 && (
-          <div className="flex justify-between text-sm text-emerald-600">
+        ) : null}
+        {remainingDiscount > 0 ? (
+          <div className="flex items-center justify-between text-emerald-700">
             <span>Discount</span>
             <span>-{formatCurrency(remainingDiscount, currencyConfig)}</span>
           </div>
-        )}
-        <div className="border-t border-border pt-2 mt-2">
-          <div className="flex justify-between text-base font-semibold">
-            <span>Total</span>
-            <span>{formatCurrency(total, currencyConfig)}</span>
-          </div>
+        ) : null}
+        <div className="flex items-center justify-between border-t border-border pt-4 text-base font-medium">
+          <span className="text-foreground">Total</span>
+          <span className="text-foreground">{formatCurrency(total, currencyConfig)}</span>
         </div>
       </div>
     </div>

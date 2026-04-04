@@ -29,7 +29,8 @@ const Contact = ({
   const router = useRouter()
   const pathname = usePathname()
 
-  const isOpen = searchParams?.get("step") === "contact"
+  const currentStep = searchParams?.get("step") || "contact"
+  const isOpen = currentStep === "contact"
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,8 +38,13 @@ const Contact = ({
     cart?.orderType === "delivery" && !deliveryEnabled ? "pickup" : cart?.orderType || "pickup"
   )
   const [customerInfo, setCustomerInfo] = useState({
-    firstName: user?.name?.split(" ")[0] || cart?.customerName?.split(" ")[0] || "",
-    lastName: user?.name?.split(" ").slice(1).join(" ") || cart?.customerName?.split(" ").slice(1).join(" ") || "",
+    firstName:
+      user?.firstName || user?.name?.split(" ")[0] || cart?.customerName?.split(" ")[0] || "",
+    lastName:
+      user?.lastName ||
+      user?.name?.split(" ").slice(1).join(" ") ||
+      cart?.customerName?.split(" ").slice(1).join(" ") ||
+      "",
     email: user?.email || cart?.email || "",
     phone: user?.phone || cart?.customerPhone || "",
   })
@@ -61,7 +67,7 @@ const Contact = ({
   const deliveryMinimumNotMet = Boolean(deliveryPricing.deliveryMinimumNotMet)
 
   const handleEdit = () => {
-    router.push(pathname + "?step=contact")
+    router.push(pathname + "?step=contact", { scroll: false })
   }
 
   const handleSubmit = async () => {
@@ -82,7 +88,6 @@ const Contact = ({
 
       let customerId = user?.id
 
-      // Create guest user if not logged in
       if (!user) {
         const result = await createGuestUser({
           email: customerInfo.email,
@@ -97,7 +102,6 @@ const Contact = ({
         customerId = result.userId
       }
 
-      // Save to cart
       const result = await setCheckoutContact({
         email: customerInfo.email,
         customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
@@ -113,7 +117,7 @@ const Contact = ({
       }
 
       router.refresh()
-      router.push(pathname + "?step=delivery")
+      router.push(pathname + "?step=delivery", { scroll: false })
     } catch (err: any) {
       setError(err.message || "An error occurred")
     } finally {
@@ -123,120 +127,176 @@ const Contact = ({
 
   return (
     <div>
-      <div className="flex flex-row items-center justify-between mb-5">
+      <div className="mb-5 flex flex-row items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-warm-100 flex items-center justify-center">
-            <User className="h-4 w-4 text-warm-700" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+            <User className="h-4 w-4 text-foreground" />
           </div>
-          <h2 className={cn("font-serif font-bold text-xl tracking-tight", { "text-muted-foreground": !isOpen && !isComplete })}>
+          <h2
+            className={cn("font-serif text-xl font-bold tracking-tight", {
+              "text-muted-foreground": !isOpen && !isComplete,
+            })}
+          >
             Contact
           </h2>
-          {!isOpen && isComplete && <CircleCheck className="h-4 w-4 text-green-600" />}
+          {!isOpen && isComplete ? <CircleCheck className="h-4 w-4 text-green-600" /> : null}
         </div>
-        {!isOpen && isComplete && (
-          <Button onClick={handleEdit} data-testid="edit-contact-button" variant="ghost" size="sm" className="text-[13px] font-medium text-muted-foreground hover:text-foreground">
+        {!isOpen && isComplete ? (
+          <Button
+            onClick={handleEdit}
+            data-testid="edit-contact-button"
+            variant="ghost"
+            size="sm"
+            className="text-[13px] font-medium text-muted-foreground hover:text-foreground"
+          >
             Edit
           </Button>
-        )}
+        ) : null}
       </div>
 
       {isOpen ? (
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div className="space-y-3">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Order Type</Label>
+            <div className="text-sm font-medium text-primary">Order type</div>
             <RadioGroup
               value={orderType}
               onValueChange={(val) => setOrderType(val)}
-              className={deliveryEnabled ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}
+              className={deliveryEnabled ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid grid-cols-1 gap-3"}
             >
               <div>
                 <RadioGroupItem value="pickup" id="order-pickup" className="peer sr-only" />
-                <Label htmlFor="order-pickup" className="flex flex-col items-start gap-1 border border-border rounded-xl p-4 hover:bg-muted/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all">
-                  <div className="flex items-center gap-2">
-                    <ShoppingBag className="h-4 w-4" />
-                    <span className="text-sm font-semibold">Pickup</span>
+                <Label
+                  htmlFor="order-pickup"
+                  className="flex cursor-pointer flex-col gap-2 border border-border bg-muted/35 p-4 transition-colors hover:border-primary/30 peer-data-[state=checked]:border-primary/50 peer-data-[state=checked]:bg-muted"
+                >
+                  <div className="flex items-center gap-2 text-foreground">
+                    <ShoppingBag className="size-4" />
+                    <span className="text-base font-medium">Pickup</span>
                   </div>
-                  <span className="text-[12px] text-muted-foreground pl-6">Free</span>
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <span className="block">Free</span>
+                    <span className="block">Minimum {formatCurrency(0, currencyConfig, { inputIsCents: false })}</span>
+                  </div>
                 </Label>
               </div>
+
               {deliveryEnabled ? (
                 <div>
                   <RadioGroupItem value="delivery" id="order-delivery" className="peer sr-only" />
-                  <Label htmlFor="order-delivery" className="flex flex-col items-start gap-1 border border-border rounded-xl p-4 hover:bg-muted/50 peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all">
-                    <div className="flex items-center gap-2">
-                      <Truck className="h-4 w-4" />
-                      <span className="text-sm font-semibold">Delivery</span>
+                  <Label
+                    htmlFor="order-delivery"
+                    className="flex cursor-pointer flex-col gap-2 border border-border bg-muted/35 p-4 transition-colors hover:border-primary/30 peer-data-[state=checked]:border-primary/50 peer-data-[state=checked]:bg-muted"
+                  >
+                    <div className="flex items-center gap-2 text-foreground">
+                      <Truck className="size-4" />
+                      <span className="text-base font-medium">Delivery</span>
                     </div>
-                    <div className="text-[12px] text-muted-foreground pl-6 flex flex-col items-start">
-                      <span>{formatCurrency(storeSettings?.deliveryFee || 0, currencyConfig, { inputIsCents: false })}</span>
-                      <span>Min. {formatCurrency(storeSettings?.deliveryMinimum || 0, currencyConfig, { inputIsCents: false })}</span>
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <p>{formatCurrency(storeSettings?.deliveryFee || 0, currencyConfig, { inputIsCents: false })}</p>
+                      <p>Minimum {formatCurrency(storeSettings?.deliveryMinimum || 0, currencyConfig, { inputIsCents: false })}</p>
                     </div>
                   </Label>
                 </div>
               ) : null}
             </RadioGroup>
+
             {orderType === "delivery" && deliveryMinimumNotMet ? (
-              <p className="text-sm text-amber-600 font-medium">
+              <p className="text-sm font-medium text-amber-700">
                 Add {formatCurrency(deliveryPricing.deliveryMinimumShortfall, currencyConfig)} more for delivery, or switch to pickup.
               </p>
             ) : null}
+
             {!deliveryEnabled ? (
-              <p className="text-xs text-muted-foreground">
-                This restaurant is currently pickup only.
-              </p>
+              <p className="text-sm text-muted-foreground">This restaurant is currently pickup only.</p>
             ) : null}
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">Your Information</h3>
-              {!user && (
-                <Link href="/account" className="text-[12px] font-medium text-warm-600 hover:text-warm-700 transition-colors">
-                  Sign in →
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-sm font-medium text-primary">Your details</Label>
+              {!user ? (
+                <Link href="/account" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                  Sign in instead
                 </Link>
-              )}
+              ) : null}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input placeholder="First name" value={customerInfo.firstName} onChange={(e) => setCustomerInfo(prev => ({ ...prev, firstName: e.target.value }))} required data-testid="first-name-input" className="rounded-lg h-11" />
-              <Input placeholder="Last name" value={customerInfo.lastName} onChange={(e) => setCustomerInfo(prev => ({ ...prev, lastName: e.target.value }))} required data-testid="last-name-input" className="rounded-lg h-11" />
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Input
+                placeholder="First name"
+                value={customerInfo.firstName}
+                onChange={(e) => setCustomerInfo((prev) => ({ ...prev, firstName: e.target.value }))}
+                required
+                data-testid="first-name-input"
+                className="h-11 border-border bg-background"
+              />
+              <Input
+                placeholder="Last name"
+                value={customerInfo.lastName}
+                onChange={(e) => setCustomerInfo((prev) => ({ ...prev, lastName: e.target.value }))}
+                required
+                data-testid="last-name-input"
+                className="h-11 border-border bg-background"
+              />
             </div>
-            <Input type="email" placeholder="Email" value={customerInfo.email} onChange={(e) => setCustomerInfo(prev => ({ ...prev, email: e.target.value }))} required data-testid="email-input" className="rounded-lg h-11" />
-            <Input type="tel" placeholder="Phone" value={customerInfo.phone} onChange={(e) => setCustomerInfo(prev => ({ ...prev, phone: e.target.value }))} required data-testid="phone-input" className="rounded-lg h-11" />
+            <Input
+              type="email"
+              placeholder="Email"
+              value={customerInfo.email}
+              onChange={(e) => setCustomerInfo((prev) => ({ ...prev, email: e.target.value }))}
+              required
+              data-testid="email-input"
+              className="h-11 border-border bg-background"
+            />
+            <Input
+              type="tel"
+              placeholder="Phone"
+              value={customerInfo.phone}
+              onChange={(e) => setCustomerInfo((prev) => ({ ...prev, phone: e.target.value }))}
+              required
+              data-testid="phone-input"
+              className="h-11 border-border bg-background"
+            />
           </div>
 
-          {error && (
-            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-destructive text-xs leading-5">
+          {error ? (
+            <div className="border border-destructive/30 bg-destructive/10 p-3 text-sm leading-6 text-destructive">
               {error}
             </div>
-          )}
+          ) : null}
 
           <Button
             size="lg"
             onClick={handleSubmit}
             disabled={!isComplete || isLoading || (orderType === "delivery" && deliveryMinimumNotMet)}
             data-testid="submit-contact-button"
-            className="w-full rounded-xl h-12 font-semibold"
+            variant="ghost"
+            className="h-12 w-full rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
           >
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Continue
+            {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+            Continue to delivery
           </Button>
         </div>
-      ) : (
-        isComplete && (
-          <div className="flex flex-col sm:flex-row items-start gap-6 sm:gap-x-8 pl-11">
-            <div className="flex flex-col" data-testid="contact-summary">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Contact</p>
-              <p className="text-sm text-foreground">{customerInfo.firstName} {customerInfo.lastName}</p>
-              <p className="text-sm text-muted-foreground">{customerInfo.email}</p>
-              <p className="text-sm text-muted-foreground">{customerInfo.phone}</p>
-            </div>
-            <div className="flex flex-col" data-testid="order-type-summary">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Order Type</p>
-              <p className="text-sm text-foreground capitalize">{orderType}</p>
-            </div>
+      ) : isComplete ? (
+        <div className="space-y-4 pl-11" data-testid="contact-summary">
+          <div>
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Contact
+            </p>
+            <p className="text-sm text-foreground">
+              {customerInfo.firstName} {customerInfo.lastName}
+            </p>
+            <p className="text-sm text-muted-foreground">{customerInfo.email}</p>
+            <p className="text-sm text-muted-foreground">{customerInfo.phone}</p>
           </div>
-        )
-      )}
+          <div data-testid="order-type-summary">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Order Type
+            </p>
+            <p className="text-sm capitalize text-foreground">{orderType}</p>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

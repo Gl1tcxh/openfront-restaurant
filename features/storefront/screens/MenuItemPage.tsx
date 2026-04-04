@@ -5,9 +5,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, Clock3, Flame, Tag } from "lucide-react"
 import { getCurrencyConfig, formatCurrency } from "@/features/storefront/lib/currency"
 import { getMenuItem, getStoreSettings } from "@/features/storefront/lib/data/menu"
-import {
-  getMenuItemDescriptionText,
-} from "@/features/storefront/lib/menu-item-utils"
+import { getMenuItemDescriptionText } from "@/features/storefront/lib/menu-item-utils"
 import { MenuItemPurchaseForm } from "@/features/storefront/components/MenuItemPurchaseForm"
 
 type Props = {
@@ -19,23 +17,23 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const [item, storeSettings] = await Promise.all([getMenuItem(id), getStoreSettings()])
 
   if (!item) {
-    return {
-      title: "Menu Item",
-    }
+    return { title: "Menu Item" }
   }
 
   const storeName = storeSettings?.name || "Restaurant"
   const description = getMenuItemDescriptionText(item.description)
-  const thumbnail = item.thumbnail || "/placeholder.jpg"
+  const image = item.thumbnail || undefined
 
   return {
     title: `${item.name} | ${storeName}`,
     description: description || `${item.name} from ${storeName}`,
-    openGraph: {
-      title: `${item.name} | ${storeName}`,
-      description: description || `${item.name} from ${storeName}`,
-      images: [thumbnail],
-    },
+    openGraph: image
+      ? {
+          title: `${item.name} | ${storeName}`,
+          description: description || `${item.name} from ${storeName}`,
+          images: [image],
+        }
+      : undefined,
   }
 }
 
@@ -49,135 +47,141 @@ export default async function MenuItemPage(props: Props) {
 
   const currencyConfig = getCurrencyConfig(storeSettings)
   const description = getMenuItemDescriptionText(item.description)
-  const thumbnail = item.thumbnail || "/placeholder.jpg"
+  const categoryName = typeof item.category === "object" ? item.category?.name : null
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-6xl px-6 py-8 md:px-8 lg:px-10 lg:py-12">
+    <main className="pb-12 pt-8 sm:pb-16 lg:pb-24">
+      <div className="storefront-shell">
         <Link
           href="/"
-          className="mb-8 inline-flex items-center gap-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground group"
+          className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
         >
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to Menu
+          <ArrowLeft className="size-4" />
+          Back to menu
         </Link>
 
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start">
-          {/* Image */}
-          <section>
-            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-muted shadow-lg shadow-foreground/5">
-              <Image
-                src={thumbnail}
-                alt={item.name}
-                fill
-                className="object-cover"
-                priority
-              />
-              {item.featured && (
-                <span className="absolute left-4 top-4 rounded-full bg-warm-500 text-white px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em]">
-                  Featured
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
+          <section className="space-y-6">
+            <div className="relative overflow-hidden border border-border bg-muted">
+              {item.thumbnail ? (
+                <div className="relative aspect-[4/3] w-full">
+                  <Image
+                    src={item.thumbnail}
+                    alt={item.name}
+                    fill
+                    priority
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 52vw"
+                  />
+                </div>
+              ) : (
+                <div className="flex aspect-[4/3] items-center justify-center p-8 text-center">
+                  <div>
+                    <p className="font-serif text-4xl font-semibold text-foreground">{item.name}</p>
+                    <p className="mt-3 text-base text-muted-foreground">Prepared fresh to order</p>
+                  </div>
+                </div>
+              )}
+
+              {(item.featured || item.popular) && (
+                <span className="absolute left-5 top-5 border border-border bg-background px-3 py-1 text-xs font-medium text-primary">
+                  {item.featured ? "Featured" : "Popular"}
                 </span>
               )}
             </div>
+
+            <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+              <div className="storefront-surface bg-card p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3 sm:block">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Clock3 className="size-4" />
+                    <p className="text-sm font-medium text-foreground">Prep time</p>
+                  </div>
+                  <p className="truncate text-right text-base font-semibold text-foreground sm:mt-3 sm:text-left sm:text-xl">
+                    {item.prepTime ? `${item.prepTime} min` : "Made to order"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="storefront-surface bg-card p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3 sm:block">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Flame className="size-4" />
+                    <p className="text-sm font-medium text-foreground">Calories</p>
+                  </div>
+                  <p className="truncate text-right text-base font-semibold text-foreground sm:mt-3 sm:text-left sm:text-xl">
+                    {item.calories ? `${item.calories}` : "Seasonal"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="storefront-surface bg-card p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3 sm:block">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Tag className="size-4" />
+                    <p className="text-sm font-medium text-foreground">Station</p>
+                  </div>
+                  <p className="truncate text-right text-base font-semibold capitalize text-foreground sm:mt-3 sm:text-left sm:text-xl">
+                    {item.kitchenStation || "Chef line"}
+                  </p>
+                </div>
+              </div>
+            </div>
           </section>
 
-          {/* Details sidebar */}
           <section className="space-y-6">
-            <div>
-              <div className="mb-3 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                {categoryName ? <span className="storefront-kicker">{categoryName}</span> : null}
                 {item.mealPeriods?.[0] ? (
-                  <span className="bg-muted rounded-full px-3 py-1">{item.mealPeriods[0].replace(/_/g, " ")}</span>
-                ) : null}
-                {item.category && typeof item.category === "object" ? (
-                  <span className="bg-muted rounded-full px-3 py-1">{item.category.name}</span>
+                  <span className="storefront-kicker">{item.mealPeriods[0].replace(/_/g, " ")}</span>
                 ) : null}
               </div>
-              <h1 className="font-serif font-bold text-4xl leading-[0.95] tracking-tight md:text-5xl">
+
+              <h1 className="text-balance font-serif text-4xl font-semibold leading-tight sm:text-5xl">
                 {item.name}
               </h1>
-              <p className="mt-4 text-2xl font-semibold text-foreground tabular-nums">
+
+              <p className="text-2xl font-medium tabular-nums text-foreground">
                 {formatCurrency(item.price, currencyConfig)}
               </p>
-              {description && (
-                <p className="mt-4 max-w-2xl text-[15px] leading-7 text-muted-foreground">
+
+              {description ? (
+                <p className="max-w-2xl text-pretty text-lg leading-8 text-muted-foreground">
                   {description}
                 </p>
-              )}
+              ) : null}
             </div>
 
-            {/* At a Glance */}
-            <div className="rounded-2xl bg-muted/60 p-5 border border-border/50">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground mb-4">
-                At a Glance
-              </p>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-background flex items-center justify-center border border-border/50">
-                    <Clock3 className="h-4 w-4 text-warm-600" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground block">Prep</span>
-                    <p className="text-sm font-semibold text-foreground">
-                      {item.prepTime ? `${item.prepTime} min` : "House made"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-background flex items-center justify-center border border-border/50">
-                    <Flame className="h-4 w-4 text-warm-600" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground block">Calories</span>
-                    <p className="text-sm font-semibold text-foreground">
-                      {item.calories ? `${item.calories}` : "Seasonal"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-background flex items-center justify-center border border-border/50">
-                    <Tag className="h-4 w-4 text-warm-600" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground block">Station</span>
-                    <p className="text-sm font-semibold text-foreground capitalize">
-                      {item.kitchenStation ? item.kitchenStation : "Chef line"}
-                    </p>
-                  </div>
+            {(item.dietaryFlags?.length > 0 || item.allergens?.length > 0) && (
+              <div className="storefront-surface bg-card p-5">
+                <p className="text-sm font-medium text-primary">Details</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {item.dietaryFlags?.map((flag: string) => (
+                    <span
+                      key={flag}
+                      className="border border-border bg-background px-3 py-1 text-xs font-medium text-foreground"
+                    >
+                      {flag.replace(/_/g, " ")}
+                    </span>
+                  ))}
+                  {item.allergens?.map((allergen: string) => (
+                    <span
+                      key={allergen}
+                      className="border border-border bg-muted px-3 py-1 text-xs text-muted-foreground"
+                    >
+                      {allergen.replace(/_/g, " ")}
+                    </span>
+                  ))}
                 </div>
               </div>
+            )}
 
-              {(item.dietaryFlags?.length > 0 || item.allergens?.length > 0) && (
-                <div className="mt-4 pt-4 border-t border-border/50">
-                  <div className="flex flex-wrap gap-2">
-                    {item.dietaryFlags?.map((flag: string) => (
-                      <span
-                        key={flag}
-                        className="rounded-full bg-warm-100 text-warm-800 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider"
-                      >
-                        {flag.replace(/_/g, " ")}
-                      </span>
-                    ))}
-                    {item.allergens?.map((allergen: string) => (
-                      <span
-                        key={allergen}
-                        className="rounded-full bg-background border border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground"
-                      >
-                        {allergen.replace(/_/g, " ")}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Customize & Add to Cart */}
-            <div className="rounded-2xl bg-card border border-border/60 shadow-sm overflow-hidden">
-              <div className="px-5 pt-5 md:px-6">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Customize Your Order
-                </p>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-                  Select modifiers and add to your cart.
+            <div className="storefront-surface overflow-hidden bg-card">
+              <div className="border-b border-border px-5 py-4 sm:px-6">
+                <p className="text-sm font-medium text-primary">Customize your order</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Choose modifiers and add this item to your cart without leaving the product page.
                 </p>
               </div>
               <MenuItemPurchaseForm

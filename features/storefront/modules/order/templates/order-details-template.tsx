@@ -1,8 +1,4 @@
-import {
-  OrderStatusTimeline,
-  OrderStatus,
-  OrderType,
-} from "../components/order-status-timeline";
+import { OrderStatusTimeline, OrderType, OrderStatus } from "../components/order-status-timeline";
 import { OrderItemsList } from "../components/order-items-list";
 import { OrderSummary } from "../components/order-summary";
 import { OrderDetailsCard } from "../components/order-details-card";
@@ -41,65 +37,59 @@ interface OrderDetailsTemplateProps {
   order: RestaurantOrder;
 }
 
-export default function OrderDetailsTemplate({
-  order,
-}: OrderDetailsTemplateProps) {
+export default function OrderDetailsTemplate({ order }: OrderDetailsTemplateProps) {
   return (
-    <div className="py-6 min-h-[calc(100vh-64px)]">
-      <div className="mx-auto px-6 flex flex-col gap-y-6 max-w-4xl w-full">
-        <div className="flex flex-col justify-between gap-3">
-          <Link
-            href="/account"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4 mt-px" />
-            Back to Account
+    <div className="py-8">
+      <div className="grid gap-6">
+        <div className="border-b border-border pb-6">
+          <Link href="/account" className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary">
+            <ArrowLeft className="size-4" />
+            Back to account
           </Link>
-          <h1 className="text-2xl font-semibold">Order #{order.orderNumber}</h1>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/order/confirmed/${order.id}`}
-            className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4"
-          >
+          <h1 className="mt-6 font-serif text-4xl font-semibold text-foreground">Order #{order.orderNumber}</h1>
+          <Link href={`/order/confirmed/${order.id}`} className="mt-2 inline-block text-sm text-primary hover:underline">
             View confirmation
           </Link>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-6">
-            <OrderStatusTimeline
-              status={order.status}
-              orderType={order.orderType}
-            />
-            <OrderDetailsCard
-              orderNumber={order.orderNumber}
-              orderType={order.orderType}
-              createdAt={order.createdAt}
-              customerName={order.customerName}
-              customerEmail={order.customerEmail}
-              customerPhone={order.customerPhone}
-              deliveryAddress={order.deliveryAddress}
-              deliveryAddress2={order.deliveryAddress2}
-              deliveryCity={order.deliveryCity}
-              deliveryState={order.deliveryState}
-              deliveryZip={order.deliveryZip}
-              deliveryCountryCode={order.deliveryCountryCode}
-              specialInstructions={order.specialInstructions}
-            />
+            <div className="storefront-surface bg-background p-6">
+              <OrderStatusTimeline status={order.status} orderType={order.orderType} />
+            </div>
+            <div className="storefront-surface bg-background p-6">
+              <OrderDetailsCard
+                orderNumber={order.orderNumber}
+                orderType={order.orderType}
+                createdAt={order.createdAt}
+                customerName={order.customerName}
+                customerEmail={order.customerEmail}
+                customerPhone={order.customerPhone}
+                deliveryAddress={order.deliveryAddress}
+                deliveryAddress2={order.deliveryAddress2}
+                deliveryCity={order.deliveryCity}
+                deliveryState={order.deliveryState}
+                deliveryZip={order.deliveryZip}
+                deliveryCountryCode={order.deliveryCountryCode}
+                specialInstructions={order.specialInstructions}
+              />
+            </div>
           </div>
 
           <div className="space-y-6">
-            <OrderItemsList items={order.orderItems} />
-            <OrderSummary
-              orderType={order.orderType}
-              subtotal={order.subtotal}
-              tax={order.tax}
-              tip={order.tip}
-              discount={order.discount}
-              total={order.total}
-            />
+            <div className="storefront-surface bg-background p-6">
+              <OrderItemsList items={order.orderItems} />
+            </div>
+            <div className="storefront-surface bg-background p-6">
+              <OrderSummary
+                orderType={order.orderType}
+                subtotal={order.subtotal}
+                tax={order.tax}
+                tip={order.tip}
+                discount={order.discount}
+                total={order.total}
+              />
+            </div>
           </div>
         </div>
       </div>

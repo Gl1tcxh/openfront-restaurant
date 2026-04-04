@@ -1,5 +1,7 @@
+import Link from "next/link"
 import { getStoreSettings } from "@/features/storefront/lib/data/menu"
 import type { DayHours } from "@/features/storefront/lib/store-data"
+import { StorefrontSectionLink } from "@/features/storefront/components/StorefrontSectionLink"
 
 function parseHours(value: string | DayHours | undefined): DayHours | null {
   if (!value) return null
@@ -20,7 +22,7 @@ function parseHours(value: string | DayHours | undefined): DayHours | null {
     if (!normalized || normalized === "closed") {
       return { enabled: false, ranges: [] }
     }
-    const [open, close] = normalized.split("-").map((s: string) => s.trim())
+    const [open, close] = normalized.split("-").map((segment: string) => segment.trim())
     if (!open || !close) return null
     return { enabled: true, ranges: [{ open, close }] }
   }
@@ -32,26 +34,26 @@ function formatTime(time: string, locale: string, timezone: string): string {
   const normalized = time.trim().toLowerCase()
   const meridianMatch = normalized.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/)
 
-  let h = 0
-  let m = 0
+  let hours = 0
+  let minutes = 0
 
   if (meridianMatch) {
-    h = Number.parseInt(meridianMatch[1], 10)
-    m = Number.parseInt(meridianMatch[2] || "0", 10)
+    hours = Number.parseInt(meridianMatch[1], 10)
+    minutes = Number.parseInt(meridianMatch[2] || "0", 10)
     const meridian = meridianMatch[3]
-    if (meridian === 'pm' && h < 12) h += 12
-    if (meridian === 'am' && h === 12) h = 0
+    if (meridian === "pm" && hours < 12) hours += 12
+    if (meridian === "am" && hours === 12) hours = 0
   } else {
     const hhmm = normalized.includes(":") ? normalized : `${normalized}:00`
     const [hRaw, mRaw] = hhmm.split(":")
-    h = Number.parseInt(hRaw, 10)
-    m = Number.parseInt(mRaw || "0", 10)
+    hours = Number.parseInt(hRaw, 10)
+    minutes = Number.parseInt(mRaw || "0", 10)
   }
 
-  if (Number.isNaN(h) || Number.isNaN(m)) return time
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return time
 
   const date = new Date()
-  date.setHours(h, m, 0, 0)
+  date.setHours(hours, minutes, 0, 0)
 
   try {
     return new Intl.DateTimeFormat(locale || "en-US", {
@@ -64,7 +66,7 @@ function formatTime(time: string, locale: string, timezone: string): string {
   }
 }
 
-const dayOrder: Array<string> = [
+const dayOrder = [
   "monday",
   "tuesday",
   "wednesday",
@@ -72,6 +74,12 @@ const dayOrder: Array<string> = [
   "friday",
   "saturday",
   "sunday",
+] as const
+
+const quickLinks = [
+  { href: "/#menu", label: "Menu" },
+  { href: "/account", label: "Account" },
+  { href: "/checkout?step=contact", label: "Checkout" },
 ]
 
 export default async function Footer() {
@@ -100,51 +108,56 @@ export default async function Footer() {
   })
 
   return (
-    <footer className="bg-primary text-primary-foreground mt-auto">
-      <div className="container mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12">
-          {/* Restaurant identity */}
-          <div className="md:col-span-5">
-            <div className="flex items-center gap-3 mb-6">
-              <h3 className="font-serif font-bold text-2xl tracking-tight">{storeName}</h3>
+    <footer
+      id="visit-us"
+      className="mt-auto border-t border-border bg-muted"
+      style={{ clipPath: "polygon(0 16px, 100% 0, 100% 100%, 0 100%)" }}
+    >
+      <div className="storefront-shell py-12 sm:py-14 lg:py-16">
+        <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr_1fr] lg:gap-12">
+          <div>
+            <div>
+              <span className="block font-serif text-[1.55rem] font-bold leading-none tracking-tight text-primary">{storeName}</span>
             </div>
-            {tagline && (
-              <p className="text-primary-foreground/70 max-w-sm leading-relaxed text-[15px]">
-                {tagline}
-              </p>
-            )}
+            {tagline ? <p className="mt-4 max-w-xl text-pretty text-base leading-7 text-muted-foreground">{tagline}</p> : null}
+
+            <div className="mt-6 space-y-2 text-sm text-muted-foreground">
+              {address ? <p>{address}</p> : null}
+              {phone ? <p>{phone}</p> : null}
+            </div>
           </div>
 
-          {/* Hours */}
-          <div className="md:col-span-4">
-            <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground/50 mb-5">Hours</h4>
-            <div className="text-sm text-primary-foreground/70 space-y-2">
-              {footerHours.map((entry) => (
-                <div key={entry.day} className="flex justify-between">
-                  <span className="font-medium text-primary-foreground/80">{entry.day}</span>
-                  <span>{entry.value}</span>
-                </div>
+          <div>
+            <p className="text-sm font-medium text-primary">Quick links</p>
+            <div className="mt-4 flex flex-col gap-2">
+              {quickLinks.map((link) => (
+                <StorefrontSectionLink
+                  key={link.href}
+                  href={link.href}
+                  className="w-fit text-base text-foreground transition-colors hover:text-primary"
+                >
+                  {link.label}
+                </StorefrontSectionLink>
               ))}
             </div>
           </div>
 
-          {/* Contact */}
-          <div className="md:col-span-3">
-            <h4 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground/50 mb-5">Visit Us</h4>
-            <div className="text-sm text-primary-foreground/70 space-y-2">
-              {address && <p className="leading-relaxed">{address}</p>}
-              {phone && <p>{phone}</p>}
+          <div>
+            <p className="text-sm font-medium text-primary">Hours</p>
+            <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+              {footerHours.map((entry) => (
+                <div key={entry.day} className="flex items-center justify-between gap-6">
+                  <span className="font-medium text-foreground">{entry.day}</span>
+                  <span className="text-right">{entry.value}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        <div className="border-t border-primary-foreground/10 mt-14 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-primary-foreground/40" suppressHydrationWarning>
-            © {new Date().getFullYear()} {storeName}
-          </p>
-          <p className="text-[11px] text-primary-foreground/30 tracking-wide">
-            Powered by OpenFront
-          </p>
+        <div className="mt-10 border-t border-border/70 pt-6 text-center text-sm text-muted-foreground sm:flex sm:items-center sm:justify-between sm:text-left">
+          <p suppressHydrationWarning>© {new Date().getFullYear()} {storeName}</p>
+          <p className="mt-2 sm:mt-0">Powered by OpenFront</p>
         </div>
       </div>
     </footer>

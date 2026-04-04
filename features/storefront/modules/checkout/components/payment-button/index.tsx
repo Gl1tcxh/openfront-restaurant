@@ -72,7 +72,7 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
     case isManual(paymentSession?.paymentProvider?.code):
       return <ManualPaymentButton cart={cart} billingAddress={billingAddress} data-testid={dataTestId} />
     default:
-      return <Button disabled size="lg" className="w-full rounded-xl h-12 font-semibold">Select a payment method</Button>
+      return <Button disabled size="lg" variant="ghost" className="h-12 w-full rounded-full border border-border px-6 text-sm font-medium text-foreground">Select a payment method</Button>
   }
 }
 
@@ -151,11 +151,12 @@ const StripePaymentButton: React.FC<PaymentButtonProps> = ({
         disabled={submitting}
         onClick={handlePayment}
         size="lg"
-        className="w-full rounded-xl h-12 font-semibold"
+        variant="ghost"
+        className="h-12 w-full rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
         data-testid={dataTestId || "submit-order-button"}
       >
         {submitting && <RiLoader2Fill className="mr-2 h-4 w-4 animate-spin" />}
-        Place Order
+        Place order
       </Button>
       <ErrorMessage error={errorMessage} data-testid="stripe-payment-error-message" />
     </>
@@ -201,11 +202,12 @@ const ManualPaymentButton: React.FC<PaymentButtonProps> = ({
         disabled={submitting}
         onClick={handlePayment}
         size="lg"
-        className="w-full rounded-xl h-12 font-semibold"
+        variant="ghost"
+        className="h-12 w-full rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
         data-testid={dataTestId || "submit-order-button"}
       >
         {submitting && <RiLoader2Fill className="mr-2 h-4 w-4 animate-spin" />}
-        Place Order
+        Place order
       </Button>
       <ErrorMessage error={errorMessage} data-testid="cash-payment-error-message" />
     </>

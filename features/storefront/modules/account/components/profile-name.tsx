@@ -20,48 +20,27 @@ export default function ProfileName({ customer }: { customer: any }) {
   }, [state])
 
   return (
-    <form action={action}>
-      <div className="px-5 py-5 bg-card">
-        <div className="flex items-start justify-between gap-6">
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-3">Display Name</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="firstName" className="text-xs text-muted-foreground">First name</Label>
-                <Input
-                  id="firstName"
-                  name="firstName"
-                  defaultValue={customer.firstName || customer.name?.split(" ")[0]}
-                  required
-                  className="h-9"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="lastName" className="text-xs text-muted-foreground">Last name</Label>
-                <Input
-                  id="lastName"
-                  name="lastName"
-                  defaultValue={customer.lastName || customer.name?.split(" ").slice(1).join(" ")}
-                  required
-                  className="h-9"
-                />
-              </div>
+    <form action={action} className="storefront-surface bg-background p-5 sm:p-6">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-primary">Display name</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="firstName" className="text-sm font-medium text-foreground">First name</Label>
+              <Input id="firstName" name="firstName" defaultValue={customer.firstName || ""} required className="h-11 border-border bg-card" />
             </div>
-            {state?.error && (
-              <p className="text-xs text-destructive mt-2">{state.error}</p>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="lastName" className="text-sm font-medium text-foreground">Last name</Label>
+              <Input id="lastName" name="lastName" defaultValue={customer.lastName || ""} required className="h-11 border-border bg-card" />
+            </div>
           </div>
-          <div className="pt-6 shrink-0">
-            <Button type="submit" size="sm" variant="outline" disabled={isPending} className="h-9">
-              {isPending ? (
-                <Loader2 size={13} className="animate-spin mr-1.5" />
-              ) : success ? (
-                <Check size={13} className="mr-1.5 text-emerald-600" />
-              ) : null}
-              {success ? "Saved" : "Save"}
-            </Button>
-          </div>
+          {state?.error ? <p className="mt-3 text-sm text-destructive">{state.error}</p> : null}
         </div>
+
+        <Button type="submit" variant="ghost" disabled={isPending} className="h-11 rounded-full border border-border px-5 text-sm text-foreground hover:border-primary/30 hover:text-primary">
+          {isPending ? <Loader2 size={14} className="mr-2 animate-spin" /> : success ? <Check size={14} className="mr-2 text-emerald-600" /> : null}
+          {success ? "Saved" : "Save"}
+        </Button>
       </div>
     </form>
   )

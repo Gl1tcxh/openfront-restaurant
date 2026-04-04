@@ -1,4 +1,4 @@
-import Link from "next/link"
+import { StorefrontSectionLink } from "@/features/storefront/components/StorefrontSectionLink"
 
 interface CategoryNavProps {
   items: Array<{
@@ -9,18 +9,18 @@ interface CategoryNavProps {
 
 export function CategoryNav({ items }: CategoryNavProps) {
   return (
-    <div className="bg-background/95 backdrop-blur-md border-b border-border/50">
-      <div className="container mx-auto px-6">
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide py-3">
+    <div className="border-b border-border bg-background/95 backdrop-blur">
+      <div className="storefront-shell">
+        <div className="flex gap-2 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {items.map((item) => (
-            <Link
+            <StorefrontSectionLink
               key={item.href}
               href={item.href}
               prefetch={false}
-              className="whitespace-nowrap rounded-full px-5 py-2 text-[13px] font-medium text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground"
+              className="whitespace-nowrap rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
             >
               {item.label}
-            </Link>
+            </StorefrontSectionLink>
           ))}
         </div>
       </div>

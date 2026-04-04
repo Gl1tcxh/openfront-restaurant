@@ -21,7 +21,7 @@ const PICKUP_STEPS: StatusStep[] = [
   { status: "sent_to_kitchen", label: "Kitchen" },
   { status: "in_progress", label: "Preparing" },
   { status: "ready", label: "Ready" },
-  { status: "completed", label: "Picked Up" },
+  { status: "completed", label: "Picked up" },
 ];
 
 const DELIVERY_STEPS: StatusStep[] = [
@@ -29,7 +29,7 @@ const DELIVERY_STEPS: StatusStep[] = [
   { status: "sent_to_kitchen", label: "Kitchen" },
   { status: "in_progress", label: "Preparing" },
   { status: "ready", label: "Ready" },
-  { status: "served", label: "On the Way" },
+  { status: "served", label: "On the way" },
   { status: "completed", label: "Delivered" },
 ];
 
@@ -72,48 +72,27 @@ export function OrderStatusTimeline({ status, orderType }: OrderStatusTimelinePr
   if (isCancelled) {
     return (
       <div>
-        <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-4">Status</h3>
-        <div className="text-destructive text-sm font-medium">Order Cancelled</div>
+        <p className="text-sm font-medium text-primary">Status</p>
+        <div className="mt-4 border border-destructive/30 bg-destructive/10 p-4 text-sm font-medium text-destructive">
+          Order cancelled
+        </div>
       </div>
     );
   }
 
   return (
     <div>
-      <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-4">Status</h3>
-      <div className="flex items-center space-x-2">
+      <p className="text-sm font-medium text-primary">Status</p>
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-none xl:grid-flow-col xl:auto-cols-fr">
         {steps.map((step, index) => {
           const isCompleted = index <= currentIndex;
           const isCurrent = index === currentIndex;
 
           return (
-            <div key={step.status} className="flex-1 truncate">
-              {/* Progress bar segment */}
-              <div className="flex w-full items-center [&>*]:h-1.5">
-                <div
-                  className={`relative flex h-1.5 w-full items-center rounded-full ${
-                    isCompleted ? "bg-primary/20" : "bg-muted"
-                  }`}
-                >
-                  <div
-                    className={`h-full flex-col rounded-full ${
-                      isCompleted ? "bg-primary" : "bg-muted"
-                    }`}
-                    style={{ width: isCompleted ? "100%" : "0%" }}
-                  />
-                </div>
-              </div>
-              {/* Label below */}
-              <div className="mt-2 truncate">
-                <p
-                  className={`text-xs truncate ${
-                    isCompleted
-                      ? isCurrent
-                        ? "text-foreground font-medium"
-                        : "text-foreground"
-                      : "text-muted-foreground"
-                  }`}
-                >
+            <div key={step.status} className="space-y-3">
+              <div className={`h-1.5 w-full ${isCompleted ? "bg-primary" : "bg-muted"}`} />
+              <div>
+                <p className={`text-sm ${isCurrent ? "font-medium text-foreground" : isCompleted ? "text-foreground" : "text-muted-foreground"}`}>
                   {step.label}
                 </p>
               </div>

@@ -39,7 +39,7 @@ interface OrderCompletedTemplateProps {
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Received",
-  sent_to_kitchen: "Sent to Kitchen",
+  sent_to_kitchen: "Sent to kitchen",
   in_progress: "Preparing",
   ready: "Ready",
   served: "Served",
@@ -58,61 +58,34 @@ export default function OrderCompletedTemplate({ order }: OrderCompletedTemplate
   const typeLabel = ORDER_TYPE_LABEL[order.orderType] ?? order.orderType;
 
   return (
-    <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* Back link */}
-        <div className="pb-4">
-          <Link
-            href="/account/orders"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft size={12} />
-            Back to orders
-          </Link>
-        </div>
+    <div className="py-8 sm:py-10 lg:py-14">
+      <div className="storefront-shell">
+        <Link href="/account/orders" className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary">
+          <ArrowLeft size={14} />
+          Back to orders
+        </Link>
 
-        {/* Order header */}
-        <div className="pb-6 border-b border-border">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="mt-8 border-b border-border pb-6">
+          <span className="storefront-kicker">Order confirmed</span>
+          <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-serif">Order #{order.orderNumber}</h1>
-              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                <span className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {typeLabel}
-                </span>
-                <span className="text-muted-foreground text-xs">·</span>
-                <span className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {new Date(order.createdAt).toLocaleDateString()}
-                </span>
-              </div>
+              <h1 className="font-serif text-4xl font-semibold text-foreground">Order #{order.orderNumber}</h1>
+              <p className="mt-2 text-base text-muted-foreground">
+                {typeLabel} · {new Date(order.createdAt).toLocaleDateString()}
+              </p>
             </div>
-            <div className="text-right">
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium">
-                <span
-                  className={`inline-block w-1.5 h-1.5 rounded-full ${
-                    order.status === "completed"
-                      ? "bg-emerald-500"
-                      : order.status === "cancelled"
-                      ? "bg-red-500"
-                      : order.status === "ready"
-                      ? "bg-purple-500"
-                      : "bg-amber-500"
-                  }`}
-                />
-                {statusLabel}
-              </div>
+            <div className="border border-border bg-background px-4 py-2 text-sm font-medium text-foreground">
+              {statusLabel}
             </div>
           </div>
         </div>
 
-        {/* Two-column layout */}
-        <div className="pt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
-          {/* Left column: status + details */}
-          <div className="space-y-8">
-            <div className="rounded-lg border border-border bg-card p-5">
+        <div className="mt-8 grid gap-6 lg:grid-cols-2">
+          <div className="space-y-6">
+            <div className="storefront-surface bg-card p-6">
               <OrderStatusTimeline status={order.status} orderType={order.orderType} />
             </div>
-            <div className="rounded-lg border border-border bg-card p-5">
+            <div className="storefront-surface bg-card p-6">
               <OrderDetailsCard
                 orderNumber={order.orderNumber}
                 orderType={order.orderType}
@@ -131,12 +104,11 @@ export default function OrderCompletedTemplate({ order }: OrderCompletedTemplate
             </div>
           </div>
 
-          {/* Right column: items + summary */}
-          <div className="space-y-8">
-            <div className="rounded-lg border border-border bg-card p-5">
+          <div className="space-y-6">
+            <div className="storefront-surface bg-card p-6">
               <OrderItemsList items={order.orderItems} />
             </div>
-            <div className="rounded-lg border border-border bg-card p-5">
+            <div className="storefront-surface bg-card p-6">
               <OrderSummary
                 orderType={order.orderType}
                 subtotal={order.subtotal}

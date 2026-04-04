@@ -251,7 +251,8 @@ const Delivery = ({
   const router = useRouter()
   const pathname = usePathname()
 
-  const isOpen = searchParams?.get("step") === "delivery"
+  const currentStep = searchParams?.get("step") || "contact"
+  const isOpen = currentStep === "delivery"
   const orderType = cart?.orderType || "pickup"
   const deliveryEnabled = storeInfo.deliveryEnabled ?? true
   const allowedPostalCodes = Array.isArray(storeInfo.deliveryPostalCodes)
@@ -408,7 +409,7 @@ const Delivery = ({
       : null
 
   const handleEdit = () => {
-    router.push(pathname + "?step=delivery")
+    router.push(pathname + "?step=delivery", { scroll: false })
   }
 
   const handleAddressFieldChange = (field: keyof AddressFormState, value: string) => {
@@ -496,7 +497,7 @@ const Delivery = ({
       }
 
       router.refresh()
-      router.push(pathname + "?step=delivery")
+      router.push(pathname + "?step=delivery", { scroll: false })
     } catch (err: any) {
       setError(err.message || "Could not switch to pickup")
     } finally {
@@ -508,7 +509,7 @@ const Delivery = ({
     if (!isComplete) return
 
     if (orderType !== "delivery") {
-      router.push(pathname + "?step=payment")
+      router.push(pathname + "?step=payment", { scroll: false })
       return
     }
 
@@ -543,7 +544,7 @@ const Delivery = ({
       }
 
       router.refresh()
-      router.push(pathname + "?step=payment")
+      router.push(pathname + "?step=payment", { scroll: false })
     } catch (err: any) {
       setError(err.message || "Could not update delivery details")
     } finally {
@@ -555,11 +556,11 @@ const Delivery = ({
     <div>
       <div className="mb-5 flex flex-row items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warm-100">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
             {orderType === "delivery" ? (
-              <Truck className="h-4 w-4 text-warm-700" />
+              <Truck className="h-4 w-4 text-foreground" />
             ) : (
-              <MapPin className="h-4 w-4 text-warm-700" />
+              <MapPin className="h-4 w-4 text-foreground" />
             )}
           </div>
           <h2
@@ -722,13 +723,13 @@ const Delivery = ({
             <div className="rounded-xl border border-border/50 bg-muted/50 p-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-background">
-                  <MapPin className="h-4 w-4 text-warm-600" />
+                  <MapPin className="h-4 w-4 text-foreground" />
                 </div>
                 <div>
                   <h3 className="mb-1 text-sm font-semibold">Pickup Location</h3>
                   <p className="text-sm text-muted-foreground">{storeInfo.address}</p>
                   {storeInfo.estimatedPickup ? (
-                    <p className="mt-1 text-[13px] font-medium text-warm-600">
+                    <p className="mt-1 text-[13px] font-medium text-foreground">
                       Ready in {storeInfo.estimatedPickup}
                     </p>
                   ) : null}
@@ -792,7 +793,7 @@ const Delivery = ({
               </p>
               <p className="text-sm text-foreground">{storeInfo.address}</p>
               {storeInfo.estimatedPickup ? (
-                <p className="text-sm font-medium text-warm-600">
+                <p className="text-sm font-medium text-foreground">
                   Ready in {storeInfo.estimatedPickup}
                 </p>
               ) : null}

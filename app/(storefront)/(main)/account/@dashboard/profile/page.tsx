@@ -20,14 +20,15 @@ export default async function AccountProfilePage() {
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="pb-6">
-        <h1 className="text-3xl font-serif">Profile</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage your name, email address, phone number, and billing address.
+      <div className="border-b border-border pb-6">
+        <span className="storefront-kicker">Profile</span>
+        <h1 className="mt-4 font-serif text-4xl font-semibold text-foreground">Manage your details</h1>
+        <p className="mt-2 text-base text-muted-foreground">
+          Update your name, email address, phone number, and billing address.
         </p>
       </div>
 
-      <div className="space-y-0 divide-y divide-border rounded-lg border border-border overflow-hidden">
+      <div className="mt-6 space-y-4">
         <ProfileName customer={customer} />
         <ProfileEmail customer={customer} />
         <ProfilePhone customer={customer} />

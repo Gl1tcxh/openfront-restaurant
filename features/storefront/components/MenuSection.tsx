@@ -1,18 +1,20 @@
-import { MenuItemCard } from "./MenuItemCard"
+import { FeatureMenuItemCard, MenuItemCard } from "./MenuItemCard"
 import type { MenuItem } from "@/features/storefront/lib/store-data"
 
 interface MenuSectionProps {
   sectionId: string
   title: string
+  description?: string
   items: MenuItem[]
   currencyCode?: string
   locale?: string
   className?: string
 }
 
-export function MenuSection({
+function MenuSectionComponent({
   sectionId,
   title,
+  description,
   items,
   currencyCode = "USD",
   locale = "en-US",
@@ -21,24 +23,33 @@ export function MenuSection({
   if (items.length === 0) return null
 
   return (
-    <section id={sectionId} className={className || "scroll-mt-44"}>
-      <div className="mb-8 flex items-end justify-between">
-        <div>
-          <h2 className="font-serif font-bold text-3xl md:text-4xl tracking-tight text-foreground">{title}</h2>
-          <div className="mt-2 h-0.5 w-12 bg-warm-500 rounded-full" />
+    <section id={sectionId} className={className || "scroll-mt-32"}>
+      <div className="mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-2xl">
+          <h2 className="storefront-heading">{title}</h2>
+          {description ? <p className="storefront-copy mt-3">{description}</p> : null}
         </div>
-        <span className="text-[13px] font-medium text-muted-foreground">{items.length} items</span>
+        <span className="text-sm font-medium text-muted-foreground">
+          {items.length} item{items.length !== 1 ? "s" : ""}
+        </span>
       </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {items.map((item) => (
           <MenuItemCard
             key={item.id}
             item={item}
             currencyCode={currencyCode}
             locale={locale}
+            showCategory={false}
           />
         ))}
       </div>
     </section>
   )
 }
+
+export const MenuSection = Object.assign(MenuSectionComponent, {
+  Card: MenuItemCard,
+  FeatureCard: FeatureMenuItemCard,
+})

@@ -23,7 +23,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 function StatusDot({ status }: { status: string }) {
   const color = STATUS_COLORS[status] ?? "bg-zinc-400"
-  return <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${color}`} />
+  return <span className={`inline-block size-2 rounded-full shrink-0 ${color}`} />
 }
 
 export default async function AccountOrdersPage() {
@@ -39,9 +39,10 @@ export default async function AccountOrdersPage() {
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="pb-6 border-b border-border">
-        <h1 className="text-3xl font-serif">Order History</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+      <div className="border-b border-border pb-6">
+        <span className="storefront-kicker">Order history</span>
+        <h1 className="mt-4 font-serif text-4xl font-semibold text-foreground">Your orders</h1>
+        <p className="mt-2 text-base text-muted-foreground">
           {orders.length > 0
             ? `${orders.length} order${orders.length !== 1 ? "s" : ""} placed`
             : "No orders yet."}
@@ -50,60 +51,42 @@ export default async function AccountOrdersPage() {
 
       <div className="pt-6">
         {orders.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-muted/20 py-16 text-center">
-            <Package className="h-8 w-8 text-muted-foreground mx-auto mb-3 opacity-30" />
-            <p className="text-sm text-muted-foreground">You haven't placed any orders yet.</p>
-            <Link
-              href="/"
-              className="inline-block mt-3 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-            >
-              Start browsing our menu
+          <div className="border border-dashed border-border bg-muted/30 py-16 text-center">
+            <Package className="mx-auto mb-4 size-8 text-muted-foreground/70" />
+            <p className="text-base text-muted-foreground">You haven&apos;t placed any orders yet.</p>
+            <Link href="/" className="mt-3 inline-block text-sm text-primary hover:underline">
+              Start browsing the menu
             </Link>
           </div>
         ) : (
-          <div className="rounded-lg border border-border divide-y">
+          <div className="border border-border bg-background">
             {orders.map((order: any) => (
               <Link
                 key={order.id}
                 href={`/account/orders/details/${order.id}`}
-                className="flex items-center justify-between px-4 py-4 hover:bg-muted/20 transition-colors group"
+                className="flex items-center justify-between gap-4 border-b border-border px-5 py-4 transition-colors last:border-b-0 hover:bg-muted/30"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex min-w-0 items-start gap-3">
                   <StatusDot status={order.status} />
                   <div className="min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-semibold truncate">
-                        #{order.orderNumber}
-                      </span>
-                      <span className="text-[11px] uppercase tracking-wider text-muted-foreground hidden sm:inline">
-                        {order.status.replace(/_/g, " ")}
-                      </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-base font-medium text-foreground">#{order.orderNumber}</span>
+                      <span className="text-sm text-muted-foreground">{order.status.replace(/_/g, " ")}</span>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleDateString()} ·{" "}
-                        {new Date(order.createdAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      {order.orderItems?.length > 0 && (
-                        <span className="text-xs text-muted-foreground hidden sm:inline">
-                          · {order.orderItems.length} item{order.orderItems.length !== 1 ? "s" : ""}
-                        </span>
-                      )}
-                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {new Date(order.createdAt).toLocaleDateString()} · {new Date(order.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-sm font-semibold">
+                <div className="flex items-center gap-4 shrink-0">
+                  <span className="text-sm font-medium text-foreground">
                     {formatCurrency(order.total, currencyConfig)}
                   </span>
-                  <ChevronRight
-                    size={14}
-                    className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all"
-                  />
+                  <ChevronRight size={14} className="text-muted-foreground" />
                 </div>
               </Link>
             ))}

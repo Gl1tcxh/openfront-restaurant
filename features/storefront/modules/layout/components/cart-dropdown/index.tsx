@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ArrowRight, ShoppingBag } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatCurrency } from "@/features/storefront/lib/currency"
@@ -49,7 +48,6 @@ export default function CartDropdown({ cart, currencyCode, locale }: CartDropdow
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
   const subtotal = cart?.subtotal || 0
 
-  // Auto-open cart when items are added
   const prevItemCount = useRef(itemCount)
   useEffect(() => {
     if (itemCount > prevItemCount.current) {
@@ -85,13 +83,14 @@ export default function CartDropdown({ cart, currencyCode, locale }: CartDropdow
     <>
       <button
         onClick={() => setIsCartOpen(true)}
-        className="relative flex items-center gap-2 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+        className="relative inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        aria-label="Open cart"
       >
         <span className="hidden sm:inline">Order</span>
         <span className="relative">
-          <ShoppingBag className="h-5 w-5" />
+          <ShoppingBag className="size-4" />
           {itemCount > 0 ? (
-            <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+            <span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-background text-[10px] font-semibold text-foreground">
               {itemCount > 9 ? "9+" : itemCount}
             </span>
           ) : null}
@@ -99,74 +98,86 @@ export default function CartDropdown({ cart, currencyCode, locale }: CartDropdow
       </button>
 
       <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
-        <SheetContent className="w-full sm:max-w-md flex flex-col p-0 bg-background border-l border-border/50">
-          <SheetHeader className="px-6 py-5 border-b border-border/50">
-            <SheetTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Your Order</SheetTitle>
+        <SheetContent className="flex w-full max-w-xl flex-col border-l border-border bg-background p-0 sm:max-w-xl">
+          <SheetHeader className="border-b border-border px-6 py-5 text-left">
+            <SheetTitle className="font-serif text-2xl font-semibold text-foreground">Your order</SheetTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Review items, adjust quantities, and continue to checkout.
+            </p>
           </SheetHeader>
 
           {items.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <ShoppingBag className="h-7 w-7 text-muted-foreground" />
+            <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
+              <div className="flex size-16 items-center justify-center rounded-full border border-border bg-muted">
+                <ShoppingBag className="size-7 text-muted-foreground" />
               </div>
-              <p className="font-serif font-semibold text-xl mb-1.5">Your order is empty</p>
-              <p className="text-sm text-muted-foreground mb-6 max-w-[200px]">Browse our menu and add some delicious items</p>
-              <Button
-                variant="outline"
+              <p className="mt-5 font-serif text-2xl font-semibold text-foreground">Your order is empty</p>
+              <p className="mt-2 max-w-xs text-base leading-7 text-muted-foreground">
+                Browse the menu and add something fresh from the kitchen.
+              </p>
+              <button
+                type="button"
                 onClick={() => setIsCartOpen(false)}
-                className="rounded-full px-6 text-sm font-medium"
+                className="mt-6 rounded-full border border-border bg-background px-5 py-3 text-sm font-medium text-foreground transition-colors hover:border-primary/30 hover:text-primary"
               >
-                Browse Menu
-              </Button>
+                Browse menu
+              </button>
             </div>
           ) : (
             <>
               <ScrollArea className="flex-1">
-                <div className="p-6 divide-y divide-border/50">
-                  {items.map((item) => {
-                    return (
-                      <LineItemDisplay
-                        key={item.id}
-                        item={item}
-                        currencyCode={currencyCode}
-                        locale={locale}
-                        editable
-                        isUpdating={isUpdating}
-                        onRemove={handleRemoveItem}
-                        onIncrease={handleUpdateQuantity}
-                        onDecrease={handleUpdateQuantity}
-                        className="rounded-none border-0 bg-transparent px-0 py-4 first:pt-0 last:pb-0"
-                      />
-                    )
-                  })}
+                <div className="px-6 py-4">
+                  {items.map((item) => (
+                    <LineItemDisplay
+                      key={item.id}
+                      item={item}
+                      currencyCode={currencyCode}
+                      locale={locale}
+                      editable
+                      isUpdating={isUpdating}
+                      onRemove={handleRemoveItem}
+                      onIncrease={handleUpdateQuantity}
+                      onDecrease={handleUpdateQuantity}
+                      className="py-5"
+                    />
+                  ))}
                 </div>
               </ScrollArea>
 
-              <div className="border-t border-border/50 p-6 space-y-4 bg-muted/30">
-                <div className="space-y-1.5 text-sm">
-                  <div className="flex justify-between">
+              <div className="border-t border-border bg-muted/50 p-6">
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium tabular-nums">{formatCurrency(subtotal, currencyConfig)}</span>
+                    <span className="font-medium tabular-nums text-foreground">
+                      {formatCurrency(subtotal, currencyConfig)}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Tax (estimated)</span>
-                    <span className="font-medium tabular-nums">{formatCurrency(subtotal * 0.0875, currencyConfig)}</span>
+                    <span className="font-medium tabular-nums text-foreground">
+                      {formatCurrency(subtotal * 0.0875, currencyConfig)}
+                    </span>
                   </div>
                 </div>
-                <div className="flex justify-between items-center pt-3 border-t border-border">
-                  <span className="font-medium">Total</span>
-                  <span className="font-medium tabular-nums">{formatCurrency(subtotal * 1.0875, currencyConfig)}</span>
+
+                <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                  <span className="text-base font-medium text-foreground">Total</span>
+                  <span className="text-base font-semibold tabular-nums text-foreground">
+                    {formatCurrency(subtotal * 1.0875, currencyConfig)}
+                  </span>
                 </div>
-                <Button
-                  className="w-full h-12 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 shadow-sm gap-2"
+
+                <button
+                  type="button"
+                  className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
                   onClick={() => {
                     setIsCartOpen(false)
                     router.push("/checkout?step=contact")
                   }}
                 >
-                  Proceed to Checkout
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                  Proceed to checkout
+                  <ArrowRight className="size-4" />
+                </button>
               </div>
             </>
           )}

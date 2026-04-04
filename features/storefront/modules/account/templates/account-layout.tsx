@@ -2,8 +2,8 @@ import React from "react"
 import AccountNav from "../components/account-nav"
 
 interface AccountLayoutProps {
-  user: any;
-  children: React.ReactNode;
+  user: any
+  children: React.ReactNode
 }
 
 export default function AccountLayout({
@@ -13,16 +13,14 @@ export default function AccountLayout({
   const isAuthView = !user
 
   return (
-    <div className="flex-1 bg-background" data-testid="account-page">
-      <div className="container mx-auto max-w-6xl">
+    <div className="flex-1 bg-background py-8 sm:py-10 lg:py-14" data-testid="account-page">
+      <div className="storefront-shell">
         {isAuthView ? (
-          <div className="flex min-h-[calc(100vh-12rem)] items-center justify-center px-6 py-12">
-            {children}
-          </div>
+          <div className="flex min-h-[calc(100dvh-16rem)] items-center justify-center">{children}</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
+          <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-8">
             <AccountNav user={user} />
-            <div className="flex-1 p-6 md:p-12 overflow-hidden">{children}</div>
+            <div className="storefront-surface bg-card p-6 sm:p-8">{children}</div>
           </div>
         )}
       </div>

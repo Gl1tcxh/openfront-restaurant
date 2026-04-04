@@ -292,6 +292,15 @@ export async function updateCustomerEmail(_prevState: any, formData: FormData) {
 export async function updateCustomerName(_prevState: any, formData: FormData) {
   try {
     const headers = await getAuthHeaders();
+    const firstName = String(formData.get("firstName") || "").trim();
+    const lastName = String(formData.get("lastName") || "").trim();
+    const fallbackName = String(formData.get("name") || "").trim();
+    const name = [firstName, lastName].filter(Boolean).join(" ") || fallbackName;
+
+    if (!name) {
+      return { success: false, error: "Enter your first and last name." };
+    }
+
     await openfrontClient.request(
       gql`
         mutation UpdateUser($data: UserUpdateProfileInput!) {
@@ -303,7 +312,7 @@ export async function updateCustomerName(_prevState: any, formData: FormData) {
       `,
       {
         data: {
-          name: formData.get("name"),
+          name,
         },
       },
       headers

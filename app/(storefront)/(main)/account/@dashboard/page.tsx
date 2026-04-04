@@ -1,118 +1,93 @@
-import { getUser, getUserOrders } from "@/features/storefront/lib/data/user";
-import { formatCurrency } from "@/features/storefront/lib/currency";
-import { getStoreSettings } from "@/features/storefront/lib/data/menu";
-import { Badge } from "@/components/ui/badge";
-import { Package, ChevronRight, MapPin, User } from "lucide-react";
-import Link from "next/link";
-import { notFound } from "next/navigation";
+import { getUser, getUserOrders } from "@/features/storefront/lib/data/user"
+import { formatCurrency } from "@/features/storefront/lib/currency"
+import { getStoreSettings } from "@/features/storefront/lib/data/menu"
+import { Package, ChevronRight } from "lucide-react"
+import Link from "next/link"
+import { notFound } from "next/navigation"
 
 export default async function AccountOverviewPage() {
-  const user = await getUser();
-  const orders = await getUserOrders();
-  const storeSettings = await getStoreSettings();
+  const user = await getUser()
+  const orders = await getUserOrders()
+  const storeSettings = await getStoreSettings()
   const currencyConfig = {
     currencyCode: storeSettings?.currencyCode || "USD",
     locale: storeSettings?.locale || "en-US",
-  };
+  }
 
-  if (!user) notFound();
+  if (!user) notFound()
 
-  const completion = getProfileCompletion(user);
-  const firstName = user.firstName || user.name?.split(" ")[0] || "there";
+  const completion = getProfileCompletion(user)
+  const firstName = user.firstName || user.name?.split(" ")[0] || "there"
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="pb-6 border-b border-border">
-        <h1 className="text-3xl font-serif">Hello, {firstName}</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Welcome back to your account.
-        </p>
+      <div className="border-b border-border pb-6">
+        <span className="storefront-kicker">Overview</span>
+        <h1 className="mt-4 font-serif text-4xl font-semibold text-foreground">Hello, {firstName}</h1>
+        <p className="mt-2 text-base text-muted-foreground">Welcome back to your account.</p>
       </div>
 
-      <div className="grid grid-cols-3 divide-x border-b border-border">
-        <div className="px-6 py-5">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Profile</p>
-          <p className="text-2xl font-semibold mt-1">{completion}%</p>
-          <Link
-            href="/account/profile"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2 transition-colors"
-          >
-            Edit profile <ChevronRight size={11} />
+      <div className="grid gap-4 border-b border-border py-6 sm:grid-cols-3">
+        <div className="storefront-surface-soft bg-background px-5 py-4">
+          <p className="text-sm font-medium text-primary">Profile</p>
+          <p className="mt-3 text-3xl font-semibold text-foreground">{completion}%</p>
+          <Link href="/account/profile" className="mt-3 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary">
+            Edit profile <ChevronRight size={14} />
           </Link>
         </div>
-        <div className="px-6 py-5">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Addresses</p>
-          <p className="text-2xl font-semibold mt-1">{user.addresses?.length || 0}</p>
-          <Link
-            href="/account/addresses"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2 transition-colors"
-          >
-            Manage <ChevronRight size={11} />
+        <div className="storefront-surface-soft bg-background px-5 py-4">
+          <p className="text-sm font-medium text-primary">Addresses</p>
+          <p className="mt-3 text-3xl font-semibold text-foreground">{user.addresses?.length || 0}</p>
+          <Link href="/account/addresses" className="mt-3 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary">
+            Manage <ChevronRight size={14} />
           </Link>
         </div>
-        <div className="px-6 py-5">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Orders</p>
-          <p className="text-2xl font-semibold mt-1">{orders.length}</p>
-          <Link
-            href="/account/orders"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mt-2 transition-colors"
-          >
-            View history <ChevronRight size={11} />
+        <div className="storefront-surface-soft bg-background px-5 py-4">
+          <p className="text-sm font-medium text-primary">Orders</p>
+          <p className="mt-3 text-3xl font-semibold text-foreground">{orders.length}</p>
+          <Link href="/account/orders" className="mt-3 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary">
+            View history <ChevronRight size={14} />
           </Link>
         </div>
       </div>
 
       <div className="pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold">Recent Orders</h2>
-          {orders.length > 0 && (
-            <Link
-              href="/account/orders"
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-            >
-              View all <ChevronRight size={12} />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="font-serif text-2xl font-semibold text-foreground">Recent orders</h2>
+          {orders.length > 0 ? (
+            <Link href="/account/orders" className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary">
+              View all <ChevronRight size={14} />
             </Link>
-          )}
+          ) : null}
         </div>
 
         {orders.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-muted/20 py-12 text-center">
-            <Package className="h-8 w-8 text-muted-foreground mx-auto mb-3 opacity-30" />
-            <p className="text-sm text-muted-foreground">No orders yet.</p>
-            <Link
-              href="/"
-              className="inline-block mt-3 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-            >
+          <div className="border border-dashed border-border bg-muted/30 py-16 text-center">
+            <Package className="mx-auto mb-4 size-8 text-muted-foreground/70" />
+            <p className="text-base text-muted-foreground">No orders yet.</p>
+            <Link href="/" className="mt-3 inline-block text-sm text-primary hover:underline">
               Browse the menu
             </Link>
           </div>
         ) : (
-          <div className="rounded-lg border border-border divide-y">
+          <div className="border border-border bg-background">
             {orders.slice(0, 4).map((order: any) => (
               <Link
                 key={order.id}
                 href={`/account/orders/details/${order.id}`}
-                className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors group"
+                className="flex items-center justify-between gap-4 border-b border-border px-5 py-4 transition-colors last:border-b-0 hover:bg-muted/30"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <Package size={14} className="text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">#{order.orderNumber}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
+                <div>
+                  <p className="text-base font-medium text-foreground">#{order.orderNumber}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {new Date(order.createdAt).toLocaleDateString()}
+                  </p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-sm font-semibold">
+                  <span className="text-sm font-medium text-foreground">
                     {formatCurrency(order.total, currencyConfig)}
                   </span>
-                  <ChevronRight
-                    size={14}
-                    className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all"
-                  />
+                  <ChevronRight size={14} className="text-muted-foreground" />
                 </div>
               </Link>
             ))}
@@ -120,14 +95,14 @@ export default async function AccountOverviewPage() {
         )}
       </div>
     </div>
-  );
+  )
 }
 
 function getProfileCompletion(user: any) {
-  let count = 0;
-  if (user.email) count++;
-  if (user.firstName && user.lastName) count++;
-  if (user.phone) count++;
-  if (user.addresses?.length > 0) count++;
-  return Math.round((count / 4) * 100);
+  let count = 0
+  if (user.email) count++
+  if (user.firstName && user.lastName) count++
+  if (user.phone) count++
+  if (user.addresses?.length > 0) count++
+  return Math.round((count / 4) * 100)
 }

@@ -7,78 +7,138 @@ import {
   getMenuItemHref,
 } from "@/features/storefront/lib/menu-item-utils"
 
-interface MenuItemCardProps {
+type MenuItemCardProps = {
   item: MenuItem
   currencyCode?: string
   locale?: string
+  variant?: "default" | "feature"
+  showCategory?: boolean
 }
 
-export function MenuItemCard({ item, currencyCode = "USD", locale = "en-US" }: MenuItemCardProps) {
-  const badgeLabel = item.featured ? "Featured" : item.popular ? "Popular" : null
-  const description = getMenuItemDescriptionText(item.description)
-  const ctaLabel = item.modifiers?.length ? "Customize" : "View Item"
-  const thumbnail = item.thumbnail || "/placeholder.jpg"
+function ItemImage({ item, priority = false }: { item: MenuItem; priority?: boolean }) {
+  const thumbnail = item.thumbnail || null
+
+  if (!thumbnail) {
+    return (
+      <div className="flex aspect-[4/3] w-full items-center justify-center bg-muted p-6 text-center">
+        <div>
+          <p className="font-serif text-2xl font-semibold text-foreground">{item.name}</p>
+          <p className="mt-2 text-sm text-muted-foreground">Prepared fresh to order</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <Link
-      href={getMenuItemHref(item.id)}
-      prefetch={false}
-      className="group block"
-    >
-      <article className="relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-300 hover:border-border hover:shadow-lg hover:shadow-foreground/5 sm:flex-row">
-        <div className="relative aspect-[16/10] shrink-0 overflow-hidden bg-muted sm:min-h-[160px] sm:w-44 sm:aspect-auto">
-          <Image
-            src={thumbnail}
-            alt={item.name}
-            fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-          />
+    <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+      <Image
+        src={thumbnail}
+        alt={item.name}
+        fill
+        className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+        priority={priority}
+        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
+      />
+    </div>
+  )
+}
+
+function ItemMeta({ item }: { item: MenuItem }) {
+  const categoryName = typeof item.category === "object" ? item.category?.name : null
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      {categoryName ? <span>{categoryName}</span> : null}
+      {item.calories ? <span>· {item.calories} cal</span> : null}
+      {item.modifiers?.length ? <span>· Customizable</span> : null}
+    </div>
+  )
+}
+
+export function MenuItemCard({
+  item,
+  currencyCode = "USD",
+  locale = "en-US",
+  variant = "default",
+  showCategory = false,
+}: MenuItemCardProps) {
+  const description = getMenuItemDescriptionText(item.description)
+  const badgeLabel = item.featured ? "Featured" : item.popular ? "Popular" : null
+  const ctaLabel = item.modifiers?.length ? "Customize" : "View item"
+  const categoryName = typeof item.category === "object" ? item.category?.name : null
+
+  if (variant === "feature") {
+    return (
+      <Link href={getMenuItemHref(item.id)} prefetch={false} className="group block h-full">
+        <article className="storefront-surface flex h-full flex-col overflow-hidden bg-card transition-colors hover:border-primary/35">
+          <ItemImage item={item} priority={true} />
+
+          <div className="flex flex-1 flex-col gap-4 p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                {categoryName ? <p className="text-sm font-medium text-primary">{categoryName}</p> : null}
+                <h3 className="font-serif text-2xl font-semibold text-foreground">{item.name}</h3>
+              </div>
+              <span className="text-lg font-medium tabular-nums text-foreground">
+                {formatCurrency(item.price, { currencyCode, locale })}
+              </span>
+            </div>
+
+            <p className="text-pretty text-base leading-7 text-muted-foreground">
+              {description || "Prepared fresh and available for the full ordering flow."}
+            </p>
+
+            <div className="mt-auto flex items-center justify-between border-t border-border pt-4">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                {item.calories ? <span>{item.calories} cal</span> : null}
+                {item.dietaryFlags?.slice(0, 2).map((flag) => (
+                  <span key={flag}>{flag.replace(/_/g, " ")}</span>
+                ))}
+              </div>
+              <span className="text-sm font-medium text-primary">{ctaLabel}</span>
+            </div>
+          </div>
+        </article>
+      </Link>
+    )
+  }
+
+  return (
+    <Link href={getMenuItemHref(item.id)} prefetch={false} className="group block h-full">
+      <article className="storefront-surface flex h-full flex-col overflow-hidden bg-card transition-colors hover:border-primary/35">
+        <div className="relative">
+          <ItemImage item={item} />
           {badgeLabel ? (
-            <span className="absolute left-3 top-3 rounded-full bg-warm-500 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-white">
+            <span className="absolute left-4 top-4 border border-border bg-background px-3 py-1 text-xs font-medium text-primary">
               {badgeLabel}
             </span>
           ) : null}
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col justify-between p-4 sm:p-5">
-          <div>
-            <div className="mb-1.5 flex items-start justify-between gap-3">
-              <h3 className="font-serif font-semibold text-xl leading-tight tracking-tight text-foreground group-hover:text-warm-700 transition-colors">
-                {item.name}
-              </h3>
-              <span className="shrink-0 text-lg font-semibold text-foreground tabular-nums">
+        <div className="flex flex-1 flex-col gap-4 p-5">
+          <div className="space-y-2">
+            {showCategory && categoryName ? <p className="text-sm font-medium text-primary">{categoryName}</p> : null}
+            <div className="flex items-start justify-between gap-4">
+              <h3 className="font-serif text-2xl font-semibold text-foreground">{item.name}</h3>
+              <span className="text-base font-medium tabular-nums text-foreground">
                 {formatCurrency(item.price, { currencyCode, locale })}
               </span>
             </div>
-            {description ? (
-              <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
-                {description}
-              </p>
-            ) : null}
+            <p className="line-clamp-3 text-pretty text-base leading-7 text-muted-foreground">
+              {description || "Prepared fresh and ready to customize."}
+            </p>
           </div>
 
-          <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-3">
-            <div className="flex items-center gap-2">
-              {(item.calories ?? 0) > 0 ? (
-                <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                  {item.calories} cal
-                </span>
-              ) : null}
-              {item.dietaryFlags?.slice(0, 2).map((flag: string) => (
-                <span
-                  key={flag}
-                  className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
-                >
-                  {flag.replace(/_/g, " ")}
-                </span>
-              ))}
-            </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-warm-100 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-700 transition-colors group-hover:bg-warm-200 group-hover:text-warm-900">
-              {ctaLabel}
-            </span>
+          <div className="mt-auto flex items-center justify-between gap-4 border-t border-border pt-4">
+            <ItemMeta item={item} />
+            <span className="shrink-0 text-sm font-medium text-primary">{ctaLabel}</span>
           </div>
         </div>
       </article>
     </Link>
   )
+}
+
+export function FeatureMenuItemCard(props: Omit<MenuItemCardProps, "variant">) {
+  return <MenuItemCard {...props} variant="feature" />
 }

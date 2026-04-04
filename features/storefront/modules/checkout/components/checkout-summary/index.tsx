@@ -1,15 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { formatCurrency } from "@/features/storefront/lib/currency";
-import { calculateRestaurantCheckoutTotals } from "@/features/storefront/lib/checkout-totals";import PaymentButton from "../payment-button";
-import { cn } from "@/lib/utils";
+import { calculateRestaurantCheckoutTotals } from "@/features/storefront/lib/checkout-totals";
+import PaymentButton from "../payment-button";
 import { isStripe } from "@/features/storefront/lib/constants";
 import { useCheckoutPaymentState } from "../checkout-state";
 import LineItemDisplay from "@/features/storefront/modules/common/components/line-item-display";
-
 
 type CheckoutSummaryProps = {
   cart: any;
@@ -22,9 +19,7 @@ const CheckoutSummary = ({
   customer,
   storeSettings,
 }: CheckoutSummaryProps) => {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
   const { cardComplete } = useCheckoutPaymentState();
 
   const items = cart?.items || [];
@@ -33,8 +28,7 @@ const CheckoutSummary = ({
     items.reduce((sum: number, item: any) => {
       const itemPrice = item.menuItem?.price || 0;
       const modifierPrice = (item.modifiers || []).reduce(
-        (subtotalSum: number, modifier: any) =>
-          subtotalSum + (modifier.priceAdjustment || 0),
+        (subtotalSum: number, modifier: any) => subtotalSum + (modifier.priceAdjustment || 0),
         0
       );
       return sum + (itemPrice + modifierPrice) * item.quantity;
@@ -61,19 +55,15 @@ const CheckoutSummary = ({
     (session: any) => session.isSelected
   );
   const activeSessionMatchesTotal = Boolean(
-    activeSession &&
-      activeSession.amount === total &&
-      activeSession.status !== "error"
+    activeSession && activeSession.amount === total && activeSession.status !== "error"
   );
   const requiresStripeCard =
     activeSessionMatchesTotal && isStripe(activeSession?.paymentProvider?.code);
 
-  const currentStep = searchParams?.get("step");
+  const currentStep = searchParams?.get("step") || "contact";
   const isPaymentStage = currentStep === "payment" || currentStep === "review";
 
-  const hasCustomerInfo = Boolean(
-    cart?.customerName && cart?.email && cart?.customerPhone
-  );
+  const hasCustomerInfo = Boolean(cart?.customerName && cart?.email && cart?.customerPhone);
   const hasDeliveryInfo =
     orderType === "pickup" ||
     Boolean(
@@ -91,80 +81,95 @@ const CheckoutSummary = ({
       (!requiresStripeCard || cardComplete)
   );
 
-
   return (
-    <div className="sticky top-20 flex flex-col gap-y-6 py-8 sm:py-0">
-      <div className="rounded-lg border border-border bg-card p-5">
-        <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-          Order Items
-        </h3>
-
-        <div className="mt-4 divide-y divide-border/50">
-          {items.map((item: any) => {
-            return (
-              <LineItemDisplay
-                key={item.id}
-                item={item}
-                currencyCode={currencyConfig.currencyCode}
-                locale={currencyConfig.locale}
-                className="rounded-none border-0 bg-transparent px-0 py-4 first:pt-0 last:pb-0"
-              />
-            );
-          })}
+    <aside className="lg:sticky lg:top-24 lg:self-start">
+      <div className="storefront-surface bg-card p-6">
+        <div className="border-b border-border pb-4">
+          <p className="text-sm font-medium text-primary">Order summary</p>
+          <h2 className="mt-1 font-serif text-2xl font-semibold text-foreground">{items.length} item{items.length !== 1 ? "s" : ""}</h2>
         </div>
 
+        <div className="mt-2">
+          {items.map((item: any) => (
+            <LineItemDisplay
+              key={item.id}
+              item={item}
+              currencyCode={currencyConfig.currencyCode}
+              locale={currencyConfig.locale}
+            />
+          ))}
+        </div>
 
-        <div className="mt-4 border-t border-border pt-4 space-y-1.5">
-          <div className="flex items-center justify-between text-sm">
+        <div className="mt-4 border-t border-border pt-4 space-y-2 text-sm">
+          <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-medium tabular-nums">{formatCurrency(subtotal, currencyConfig)}</span>
+            <span className="font-medium tabular-nums text-foreground">
+              {formatCurrency(subtotal, currencyConfig)}
+            </span>
           </div>
+
           {pickupDiscount > 0 && (
-            <div className="flex items-center justify-between text-sm text-emerald-600">
-              <span>Pickup Discount</span>
+            <div className="flex items-center justify-between text-emerald-700">
+              <span>Pickup discount</span>
               <span className="font-medium tabular-nums">
                 -{formatCurrency(pickupDiscount, currencyConfig)}
               </span>
             </div>
           )}
+
           {deliveryFee > 0 && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Delivery Fee</span>
-              <span className="font-medium tabular-nums">{formatCurrency(deliveryFee, currencyConfig)}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Delivery fee</span>
+              <span className="font-medium tabular-nums text-foreground">
+                {formatCurrency(deliveryFee, currencyConfig)}
+              </span>
             </div>
           )}
-          <div className="flex items-center justify-between text-sm">
+
+          <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Tax</span>
-            <span className="font-medium tabular-nums">{formatCurrency(tax, currencyConfig)}</span>
+            <span className="font-medium tabular-nums text-foreground">
+              {formatCurrency(tax, currencyConfig)}
+            </span>
           </div>
+
           {Number(tipPercent) > 0 && (
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Tip ({tipPercent}%)</span>
-              <span className="font-medium tabular-nums">{formatCurrency(tip, currencyConfig)}</span>
+              <span className="font-medium tabular-nums text-foreground">
+                {formatCurrency(tip, currencyConfig)}
+              </span>
             </div>
           )}
-          <div className="flex items-center justify-between pt-3 border-t border-border">
-            <span className="font-medium">Total</span>
-            <span className="font-medium tabular-nums">
+
+          <div className="flex items-center justify-between border-t border-border pt-4 text-base">
+            <span className="font-medium text-foreground">Total</span>
+            <span className="font-semibold tabular-nums text-foreground">
               {formatCurrency(total, currencyConfig)}
             </span>
           </div>
-          {canPlaceOrder ? (
-            <div className="mt-4 pt-4 border-t border-border space-y-3">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              By placing your order, you agree to our Terms of Use, Terms of Sale
-              and acknowledge our Privacy Policy.
+        </div>
+
+        {canPlaceOrder ? (
+          <div className="mt-5 border-t border-border pt-5 space-y-3">
+            <p className="text-sm leading-6 text-muted-foreground">
+              By placing your order, you agree to our terms and acknowledge our privacy policy.
             </p>
             <PaymentButton
               cart={cart}
               billingAddress={customer?.billingAddress || null}
               data-testid="submit-order-button"
             />
-            </div>
-          ) : null}
-        </div>
+          </div>
+        ) : (
+          <div className="mt-5 border-t border-border pt-5">
+            <p className="text-sm leading-6 text-muted-foreground">
+              Complete the steps on the left to unlock order placement.
+            </p>
+          </div>
+        )}
       </div>
-    </div>
+    </aside>
   );
 };
 

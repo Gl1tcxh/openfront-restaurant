@@ -1,7 +1,12 @@
 "use client";
-import { isStripe, paymentInfoMap, isStripeSandbox, isPayPalSandbox } from "@/features/storefront/lib/constants";
+import {
+  isStripe,
+  paymentInfoMap,
+  isStripeSandbox,
+  isPayPalSandbox,
+} from "@/features/storefront/lib/constants";
 import { initiatePaymentSession } from "@/features/storefront/lib/data/payment";
-import { CircleCheck, CreditCard, FlaskConical, Wallet } from "lucide-react";
+import { CircleCheck, CreditCard, FlaskConical, Wallet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -14,7 +19,6 @@ import { useCallback, useContext, useEffect, useMemo, useState, useTransition } 
 import { RiLoader2Fill } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 import { setCheckoutTip } from "@/features/storefront/lib/data/cart";
-import { Loader2 } from "lucide-react";
 import { calculateRestaurantTotals } from "@/features/lib/restaurant-order-pricing";
 import { formatCurrency } from "@/features/storefront/lib/currency";
 import { useCheckoutPaymentState } from "../checkout-state";
@@ -65,7 +69,7 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
   const pathname = usePathname();
   const [isTipPending, startTipTransition] = useTransition();
 
-  const currentStep = searchParams?.get("step");
+  const currentStep = searchParams?.get("step") || "contact";
   const isOpen = currentStep === "payment" || currentStep === "review";
 
   const isStripePayment = isStripe(selectedPaymentMethod);
@@ -75,7 +79,7 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
   const currencyConfig = {
     currencyCode: storeSettings?.currencyCode || "USD",
     locale: storeSettings?.locale || "en-US",
-  }
+  };
   const deliveryPricing = useMemo(
     () =>
       calculateRestaurantTotals({
@@ -98,9 +102,9 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
       storeSettings?.taxRate,
       currencyConfig.currencyCode,
     ]
-  )
+  );
   const deliveryMinimumNotMet =
-    cart?.orderType === "delivery" && deliveryPricing.deliveryMinimumNotMet
+    cart?.orderType === "delivery" && deliveryPricing.deliveryMinimumNotMet;
 
   const activeSessionMatchesTotal = Boolean(
     activeSession &&
@@ -115,16 +119,16 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
     return {
       style: {
         base: {
-          fontFamily: "Inter, sans-serif",
+          fontFamily: "Outfit, sans-serif",
           fontSize: "16px",
-          color: "#3d2e1e",
+          color: "#3f2b26",
           "::placeholder": {
-            color: "rgb(128 115 100)",
+            color: "rgb(138 122 116)",
           },
         },
       },
       classes: {
-        base: "pt-3 pb-1 block w-full h-12 px-4 mt-0 bg-background border rounded-lg appearance-none focus:outline-none focus:ring-0 focus:shadow-borders-interactive-with-active border-border hover:bg-muted/50 transition-all duration-300 ease-in-out",
+        base: "block h-11 w-full border border-border bg-background px-4 py-3 text-sm",
       },
       hidePostalCode: true,
     };
@@ -153,7 +157,7 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
           `Delivery requires a minimum subtotal of ${formatCurrency(storeSettings?.deliveryMinimum || 0, currencyConfig, {
             inputIsCents: false,
           })}. Add ${formatCurrency(deliveryPricing.deliveryMinimumShortfall, currencyConfig)} more or switch to pickup.`
-        )
+        );
       }
 
       if (!selectedSessionMatchesTotal) {
@@ -204,25 +208,21 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
 
   return (
     <div>
-      <div className="flex flex-row items-center justify-between mb-5">
+      <div className="mb-5 flex flex-row items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-warm-100 flex items-center justify-center">
-            <Wallet className="h-4 w-4 text-warm-700" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+            <Wallet className="h-4 w-4 text-foreground" />
           </div>
           <h2
-            className={cn(
-              "font-serif font-bold text-xl tracking-tight",
-              {
-                "text-muted-foreground":
-                  !isOpen && !paymentReady,
-              }
-            )}
+            className={cn("font-serif text-xl font-bold tracking-tight", {
+              "text-muted-foreground": !isOpen && !paymentReady,
+            })}
           >
             Payment
           </h2>
-          {!isOpen && paymentReady && <CircleCheck className="h-4 w-4 text-green-600" />}
+          {!isOpen && paymentReady ? <CircleCheck className="h-4 w-4 text-green-600" /> : null}
         </div>
-        {!isOpen && paymentReady && (
+        {!isOpen && paymentReady ? (
           <Button
             onClick={handleEdit}
             data-testid="edit-payment-button"
@@ -232,23 +232,21 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
           >
             Edit
           </Button>
-        )}
+        ) : null}
       </div>
+
       <div>
         <div className={isOpen ? "block" : "hidden"}>
-          {/* Tipping Section */}
-          <div className="mb-6 rounded-2xl border border-border/60 bg-muted/30 p-4">
+          <div className="border border-border bg-muted/30 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-foreground">Tip the team</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Optional for both pickup and delivery.
-                </p>
+                <p className="text-base font-medium text-foreground">Tip the team</p>
+                <p className="mt-1 text-sm text-muted-foreground">Optional for both pickup and delivery.</p>
               </div>
-              {isTipPending ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+              {isTipPending ? <Loader2 className="size-4 animate-spin text-muted-foreground" /> : null}
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
               {TIP_OPTIONS.map((option) => {
                 const optionTip = Math.round(subtotal * (Number(option) / 100));
                 const selected = tipPercent === option;
@@ -260,19 +258,15 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
                     onClick={() => handleTipChange(option)}
                     disabled={isTipPending}
                     className={cn(
-                      "rounded-xl border px-3 py-2 text-left transition-all",
+                      "border px-3 py-3 text-left transition-colors",
                       selected
-                        ? "border-primary bg-primary/5 shadow-sm"
-                        : "border-border bg-background hover:border-warm-200 hover:bg-muted/40"
+                        ? "border-primary/50 bg-muted"
+                        : "border-border bg-muted/35 hover:border-primary/25"
                     )}
                   >
-                    <span className="block text-sm font-semibold text-foreground">
-                      {option}%
-                    </span>
-                    <span className="block text-[11px] text-muted-foreground mt-0.5">
-                      {option === "0"
-                        ? "No tip"
-                        : formatCurrency(optionTip, currencyConfig)}
+                    <span className="block text-sm font-medium text-foreground">{option}%</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      {option === "0" ? "No tip" : formatCurrency(optionTip, currencyConfig)}
                     </span>
                   </button>
                 );
@@ -280,56 +274,39 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
             </div>
           </div>
 
-          {availablePaymentMethods?.length > 0 && (
-            <>
-              <RadioGroup
-                value={selectedPaymentMethod}
-                onValueChange={setSelectedPaymentMethod}
-                className="space-y-2"
-              >
+          {availablePaymentMethods?.length > 0 ? (
+            <div className="mt-6 space-y-3">
+              <RadioGroup value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod} className="space-y-3">
                 {availablePaymentMethods.map((method) => (
-                  <div
-                    key={method.id}
-                    className="relative"
-                  >
-                    <RadioGroupItem
-                      value={method.code}
-                      id={method.id}
-                      className="sr-only"
-                    />
+                  <div key={method.id} className="relative">
+                    <RadioGroupItem value={method.code} id={method.id} className="sr-only" />
                     <Label
                       htmlFor={method.id}
                       className={cn(
-                        "flex items-center justify-between text-sm font-normal cursor-pointer py-4 border rounded-xl px-5 transition-all",
-                        {
-                          "border-primary bg-primary/5 shadow-sm": selectedPaymentMethod === method.code,
-                          "border-border hover:border-warm-200 hover:bg-muted/30": selectedPaymentMethod !== method.code,
-                        }
+                        "flex cursor-pointer items-center justify-between border px-5 py-4 transition-colors",
+                        selectedPaymentMethod === method.code
+                          ? "border-primary/50 bg-muted"
+                          : "border-border bg-muted/35 hover:border-primary/25"
                       )}
                     >
-                      <div className="flex items-center gap-x-4">
-                        <div className={cn(
-                          "w-4 h-4 border-2 rounded-full flex items-center justify-center transition-colors",
-                          {
-                            "border-primary": selectedPaymentMethod === method.code,
-                            "border-border": selectedPaymentMethod !== method.code,
-                          }
-                        )}>
-                          {selectedPaymentMethod === method.code && (
-                            <div className="w-2 h-2 bg-primary rounded-full" />
-                          )}
+                      <div className="flex items-center gap-4">
+                        <div className={cn("flex size-4 items-center justify-center rounded-full border", {
+                          "border-primary": selectedPaymentMethod === method.code,
+                          "border-border": selectedPaymentMethod !== method.code,
+                        })}>
+                          {selectedPaymentMethod === method.code ? <div className="size-2 rounded-full bg-primary" /> : null}
                         </div>
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-medium text-foreground">
                           {paymentInfoMap[method.code]?.title || method.code}
                         </span>
                       </div>
-                      <div className="flex items-center gap-x-3">
-                        {isSandboxMode && (
+                      <div className="flex items-center gap-3">
+                        {isSandboxMode ? (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <div className="w-5 h-5 flex items-center justify-center rounded-full bg-warm-100 text-warm-700 border border-warm-200">
-                                  <FlaskConical className="w-3 h-3" strokeWidth={2.5} />
+                                <div className="flex size-5 items-center justify-center rounded-full bg-muted text-foreground">
+                                  <FlaskConical className="size-3" strokeWidth={2.5} />
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
@@ -337,8 +314,8 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                        )}
-                        <div className="w-5 h-5 flex items-center justify-center">
+                        ) : null}
+                        <div className="flex size-5 items-center justify-center text-foreground">
                           {paymentInfoMap[method.code]?.icon}
                         </div>
                       </div>
@@ -346,40 +323,35 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
                   </div>
                 ))}
               </RadioGroup>
-              {isStripePayment && stripeReady && (
-                <div className="mt-4 transition-all duration-150 ease-in-out">
-                  <p className="text-sm font-semibold mb-2">
-                    Card details
-                  </p>
-                  <CardElement
-                    options={useOptions}
-                    onChange={(e) => {
-                      if (e.brand) {
-                        setCardBrand(e.brand.charAt(0).toUpperCase() + e.brand.slice(1));
-                      }
-                      setError(e.error?.message || null);
-                      setCardComplete(e.complete);
-                    }}
-                  />
-                </div>
-              )}
-            </>
-          )}
 
-          <ErrorMessage
-            error={error}
-            data-testid="payment-method-error-message"
-          />
+              {isStripePayment && stripeReady ? (
+                <div className="border border-border bg-background p-4">
+                  <p className="text-sm font-medium text-primary">Card details</p>
+                  <div className="mt-3">
+                    <CardElement
+                      options={useOptions}
+                      onChange={(e) => {
+                        if (e.brand) {
+                          setCardBrand(e.brand.charAt(0).toUpperCase() + e.brand.slice(1));
+                        }
+                        setError(e.error?.message || null);
+                        setCardComplete(e.complete);
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <ErrorMessage error={error} data-testid="payment-method-error-message" />
+
           {deliveryMinimumNotMet ? (
-            <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
+            <div className="mt-4 border border-amber-500/30 bg-amber-500/10 p-4">
               <p className="text-sm font-medium text-amber-800">
-                Delivery requires a minimum subtotal of{" "}
-                {formatCurrency(storeSettings?.deliveryMinimum || 0, currencyConfig, {
-                  inputIsCents: false,
-                })}
-                .
+                Delivery requires a minimum subtotal of {formatCurrency(storeSettings?.deliveryMinimum || 0, currencyConfig, { inputIsCents: false })}.
               </p>
-              <p className="mt-1 text-xs text-amber-700/90">
+              <p className="mt-1 text-sm text-amber-700">
                 Add {formatCurrency(deliveryPricing.deliveryMinimumShortfall, currencyConfig)} more or switch this order to pickup.
               </p>
             </div>
@@ -391,9 +363,10 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
               size="lg"
               disabled={!selectedPaymentMethod || isLoading || deliveryMinimumNotMet}
               data-testid="submit-payment-button"
-              className="mt-5 w-full rounded-xl h-12 font-semibold"
+              variant="ghost"
+              className="mt-5 h-12 w-full rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
             >
-              {isLoading && <RiLoader2Fill className="mr-2 h-4 w-4 animate-spin" />}
+              {isLoading ? <RiLoader2Fill className="mr-2 h-4 w-4 animate-spin" /> : null}
               Set up payment
             </Button>
           ) : null}
@@ -401,36 +374,25 @@ const Payment = ({ cart, availablePaymentMethods, storeSettings }: PaymentProps)
 
         <div className={isOpen ? "hidden" : "block"}>
           {cart && paymentReady && activeSession ? (
-            <div className="flex flex-col sm:flex-row items-start gap-6 sm:gap-x-8 pl-11">
-              <div className="flex flex-col">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                  Payment method
+            <div className="space-y-4 pl-11">
+              <div>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Payment Method
                 </p>
-                <p
-                  className="text-sm text-foreground"
-                  data-testid="payment-method-summary"
-                >
-                  {paymentInfoMap[selectedPaymentMethod]?.title ||
-                    selectedPaymentMethod}
+                <p className="text-sm text-foreground" data-testid="payment-method-summary">
+                  {paymentInfoMap[selectedPaymentMethod]?.title || selectedPaymentMethod}
                 </p>
               </div>
-              <div className="flex flex-col">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+              <div>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Details
                 </p>
-                <div
-                  className="flex gap-2 text-sm text-muted-foreground items-center"
-                  data-testid="payment-details-summary"
-                >
-                  <div className="flex items-center h-7 w-fit p-2 bg-muted/50 border border-border/50 rounded-lg">
-                    {paymentInfoMap[selectedPaymentMethod]?.icon || (
-                      <CreditCard />
-                    )}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="payment-details-summary">
+                  <div className="flex size-8 items-center justify-center border border-border bg-background">
+                    {paymentInfoMap[selectedPaymentMethod]?.icon || <CreditCard className="size-4" />}
                   </div>
                   <span>
-                    {isStripe(selectedPaymentMethod) && cardBrand
-                      ? cardBrand
-                      : "Ready in order summary"}
+                    {isStripe(selectedPaymentMethod) && cardBrand ? cardBrand : "Ready in order summary"}
                   </span>
                 </div>
               </div>
