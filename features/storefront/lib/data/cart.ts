@@ -260,6 +260,66 @@ export async function setCheckoutContact(data: {
   }
 }
 
+export async function submitCheckoutContact(data: {
+  email: string;
+  customerName: string;
+  customerPhone: string;
+  orderType: string;
+}) {
+  const cartId = await getCartId();
+  if (!cartId) return { success: false, message: "No cartId cookie found" };
+
+  try {
+    let user = await getUser();
+
+    if (!user) {
+      const guestResult = await createGuestUser({
+        email: data.email,
+        name: data.customerName,
+        phone: data.customerPhone,
+      });
+
+      if (!guestResult.success || !guestResult.userId) {
+        return {
+          success: false,
+          message:
+            guestResult.error ||
+            "We couldn't create your customer account for checkout. Please try again.",
+        };
+      }
+
+      user = {
+        id: guestResult.userId,
+      };
+    }
+
+    const authHeaders = await getAuthHeaders();
+
+    await openfrontClient.request(
+      UPDATE_ACTIVE_CART_MUTATION,
+      {
+        cartId,
+        data: {
+          email: data.email,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          orderType: data.orderType,
+          user: user?.id ? { connect: { id: user.id } } : undefined,
+        },
+      },
+      authHeaders
+    );
+
+    updateTag("cart");
+    updateTag("customer");
+    return { success: true };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Could not update checkout contact";
+    return { success: false, message };
+  }
+}
+
 export async function setCheckoutDelivery(data: {
   selectedAddressId?: string | null;
   hasModifiedFields?: boolean;

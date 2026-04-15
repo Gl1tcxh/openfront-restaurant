@@ -7,8 +7,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
-import { createGuestUser } from "@/features/storefront/lib/data/user"
-import { setCheckoutContact } from "@/features/storefront/lib/data/cart"
+import { submitCheckoutContact } from "@/features/storefront/lib/data/cart"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { formatCurrency } from "@/features/storefront/lib/currency"
@@ -86,28 +85,11 @@ const Contact = ({
         return
       }
 
-      let customerId = user?.id
-
-      if (!user) {
-        const result = await createGuestUser({
-          email: customerInfo.email,
-          name: `${customerInfo.firstName} ${customerInfo.lastName}`,
-          phone: customerInfo.phone,
-        })
-        if (!result.success) {
-          setError(result.error || "Could not proceed. Please try again.")
-          setIsLoading(false)
-          return
-        }
-        customerId = result.userId
-      }
-
-      const result = await setCheckoutContact({
+      const result = await submitCheckoutContact({
         email: customerInfo.email,
         customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
         customerPhone: customerInfo.phone,
         orderType,
-        userId: customerId,
       })
 
       if (!result.success) {
@@ -116,7 +98,6 @@ const Contact = ({
         return
       }
 
-      router.refresh()
       router.push(pathname + "?step=delivery", { scroll: false })
     } catch (err: any) {
       setError(err.message || "An error occurred")
