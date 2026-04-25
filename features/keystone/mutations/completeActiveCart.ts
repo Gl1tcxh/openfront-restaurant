@@ -11,6 +11,7 @@ import {
   assertDeliveryAddressEligible,
   getStoreDeliverySettings,
 } from "../utils/deliveryValidation";
+import { isKitchenActiveOrderStatus, syncKitchenTicketsForOrder } from "../utils/kitchenTicketSync";
 
 interface CompleteActiveCartArgs {
   cartId: string;
@@ -252,6 +253,10 @@ export default async function completeActiveCart(
           : undefined,
       },
     });
+  }
+
+  if (isKitchenActiveOrderStatus(order.status)) {
+    await syncKitchenTicketsForOrder(order.id, context);
   }
 
   const paymentMethodMap: Record<string, string> = {

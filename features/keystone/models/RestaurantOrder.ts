@@ -14,12 +14,15 @@ import crypto from "crypto";
 
 import { isSignedIn, permissions } from "../access";
 import { trackingFields } from "./trackingFields";
+import { isKitchenActiveOrderStatus, syncKitchenTicketsForOrder } from "../utils/kitchenTicketSync";
 
 export const RestaurantOrder = list({
   access: {
     operation: {
-      query: permissions.canManageOrders,
-      create: isSignedIn,
+      query: ({ session }) =>
+        permissions.canReadOrders({ session }) ||
+        permissions.canManageOrders({ session }),
+      create: permissions.canManageOrders,
       update: permissions.canManageOrders,
       delete: permissions.canManageOrders,
     },
@@ -58,6 +61,26 @@ export const RestaurantOrder = list({
               sudo.db.Table.updateOne({ where: { id: table.id }, data: { status: 'cleaning' } })
             ));
           }
+        }
+      }
+
+      const previousStatus = (originalItem as any)?.status;
+      const currentStatus = (item as any)?.status;
+      const orderId = String((item as any)?.id || '');
+      const enteredKitchenFlow =
+        operation === 'create'
+          ? isKitchenActiveOrderStatus((item as any)?.status)
+          : isKitchenActiveOrderStatus(currentStatus) && !isKitchenActiveOrderStatus(previousStatus);
+      const leftKitchenFlow =
+        operation === 'update' &&
+        isKitchenActiveOrderStatus(previousStatus) &&
+        ['completed', 'cancelled'].includes(currentStatus || '');
+
+      if (orderId && (enteredKitchenFlow || leftKitchenFlow)) {
+        try {
+          await syncKitchenTicketsForOrder(orderId, context as any);
+        } catch (err) {
+          console.error('Kitchen ticket sync error:', err);
         }
       }
       

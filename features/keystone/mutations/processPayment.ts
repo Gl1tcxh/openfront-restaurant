@@ -1,5 +1,6 @@
 import type { Context } from ".keystone/types";
 import { createPaymentIntent, capturePayment, getPaymentIntent } from "../../../lib/stripe";
+import { permissions } from "../access";
 import {
   createPayment as createProviderPayment,
   capturePayment as captureProviderPayment,
@@ -20,34 +21,108 @@ interface ProcessPaymentResult {
   error: string | null;
 }
 
+function cents(value: unknown): number {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? Math.round(parsed) : 0;
+}
+
+async function applyTipToOrder(orderId: string, tipAmount: number, context: Context) {
+  const sudo = context.sudo();
+  const order = await sudo.query.RestaurantOrder.findOne({
+    where: { id: orderId },
+    query: "id total tip",
+  });
+
+  if (!order) {
+    return null;
+  }
+
+  const currentTip = cents(order.tip);
+  const nextTip = Math.max(currentTip, cents(tipAmount));
+
+  if (nextTip !== currentTip) {
+    const baseTotal = Math.max(0, cents(order.total) - currentTip);
+    const nextTotal = baseTotal + nextTip;
+
+    await sudo.db.RestaurantOrder.updateOne({
+      where: { id: orderId },
+      data: {
+        tip: nextTip,
+        total: nextTotal,
+      },
+    });
+
+    return {
+      ...order,
+      tip: nextTip,
+      total: nextTotal,
+    };
+  }
+
+  return order;
+}
+
+async function maybeCompleteOrder(orderId: string, context: Context) {
+  const sudo = context.sudo();
+  const [order, payments] = await Promise.all([
+    sudo.query.RestaurantOrder.findOne({
+      where: { id: orderId },
+      query: "id status total",
+    }),
+    sudo.query.Payment.findMany({
+      where: {
+        order: { id: { equals: orderId } },
+        status: { equals: "succeeded" },
+      },
+      query: "id amount",
+    }),
+  ]);
+
+  if (!order) {
+    return;
+  }
+
+  const totalPaid = payments.reduce((sum: number, payment: any) => sum + cents(payment.amount), 0);
+  const totalDue = cents(order.total);
+
+  if (totalPaid >= totalDue && order.status !== "completed") {
+    await sudo.db.RestaurantOrder.updateOne({
+      where: { id: orderId },
+      data: { status: "completed" },
+    });
+  }
+}
+
 export default async function processPayment(
   root: any,
   args: ProcessPaymentArgs,
   context: Context
 ): Promise<ProcessPaymentResult> {
-  // Check if user is signed in
-  if (!context.session?.itemId) {
+  if (!permissions.canManagePayments({ session: context.session })) {
     return {
       success: false,
       paymentId: null,
       clientSecret: null,
-      error: "Must be signed in to process payment",
+      error: "Not authorized to process payment",
     };
   }
 
   const { orderId, amount, paymentMethod, tipAmount = 0 } = args;
 
   try {
+    const sudo = context.sudo();
+
     // Get store settings for currency
-    const settings = await context.sudo().query.StoreSettings.findOne({
+    const settings = await sudo.query.StoreSettings.findOne({
       where: { id: '1' },
       query: 'currencyCode'
     });
     const currency = (settings?.currencyCode || "USD").toLowerCase();
 
     // Verify the order exists and get its details
-    const order = await context.db.RestaurantOrder.findOne({
+    const order = await sudo.query.RestaurantOrder.findOne({
       where: { id: orderId },
+      query: 'id orderNumber status total tip'
     });
 
     if (!order) {
@@ -69,12 +144,13 @@ export default async function processPayment(
       };
     }
 
+    await applyTipToOrder(orderId, tipAmount, context);
+
+    const isImmediateSettlement = ["cash", "gift_card"].includes(paymentMethod);
     const providerCode =
       paymentMethod === "cash"
         ? "pp_system_default"
-        : ["credit_card", "debit_card", "apple_pay", "google_pay"].includes(
-            paymentMethod
-          )
+        : ["credit_card", "debit_card", "apple_pay", "google_pay"].includes(paymentMethod)
           ? "pp_stripe_stripe"
           : null;
 
@@ -92,10 +168,9 @@ export default async function processPayment(
 
     let clientSecret: string | null = null;
     let providerPaymentId: string | null = null;
-    let paymentStatus = "pending";
-    let usesStripe = false;
+    let paymentStatus = isImmediateSettlement ? "succeeded" : "pending";
 
-    if (provider && provider.isInstalled) {
+    if (!isImmediateSettlement && provider && provider.isInstalled) {
       const providerResponse = await createProviderPayment({
         provider,
         order,
@@ -110,8 +185,7 @@ export default async function processPayment(
         providerResponse?.paymentId ||
         null;
       paymentStatus = providerResponse?.status || "pending";
-      usesStripe = provider.code === "pp_stripe_stripe" && !!providerPaymentId;
-    } else {
+    } else if (!isImmediateSettlement) {
       // Create the Stripe PaymentIntent (legacy fallback)
       const paymentIntent = await createPaymentIntent({
         amount,
@@ -124,10 +198,9 @@ export default async function processPayment(
 
       clientSecret = paymentIntent.client_secret;
       providerPaymentId = paymentIntent.id;
-      usesStripe = true;
     }
 
-    // Create Payment record in database (store Stripe data in JSON, like OpenFront)
+    // Create Payment record in database (store provider data in JSON)
     const payment = await context.db.Payment.createOne({
       data: {
         amount: amount,
@@ -143,10 +216,15 @@ export default async function processPayment(
           ? { connect: { id: provider.id } }
           : undefined,
         tipAmount: tipAmount,
+        processedAt: paymentStatus === "succeeded" ? new Date().toISOString() : undefined,
         order: { connect: { id: orderId } },
         processedBy: { connect: { id: context.session.itemId } },
       },
     });
+
+    if (paymentStatus === "succeeded") {
+      await maybeCompleteOrder(orderId, context);
+    }
 
     return {
       success: true,
@@ -184,11 +262,11 @@ export async function capturePaymentMutation(
   args: CapturePaymentArgs,
   context: Context
 ): Promise<CapturePaymentResult> {
-  if (!context.session?.itemId) {
+  if (!permissions.canManagePayments({ session: context.session })) {
     return {
       success: false,
       status: null,
-      error: "Must be signed in to capture payment",
+      error: "Not authorized to capture payment",
     };
   }
 
@@ -222,25 +300,23 @@ export async function capturePaymentMutation(
         })
       : await capturePayment(paymentIntentId);
 
+    const didSucceed = ["succeeded", "captured"].includes(capturedPayment.status);
+
     await context.db.Payment.updateOne({
       where: { id: payment.id },
       data: {
-        status: capturedPayment.status === "succeeded" ? "succeeded" : "processing",
-        processedAt: new Date().toISOString(),
+        status: didSucceed ? "succeeded" : "processing",
+        processedAt: didSucceed ? new Date().toISOString() : undefined,
       },
     });
 
-    // Update order status if payment succeeded
-    if (capturedPayment.status === "succeeded" && payment.order?.id) {
-      await context.db.RestaurantOrder.updateOne({
-        where: { id: payment.order.id },
-        data: { status: "completed" },
-      });
+    if (didSucceed && payment.order?.id) {
+      await maybeCompleteOrder(payment.order.id, context);
     }
 
     return {
       success: true,
-      status: capturedPayment.status,
+      status: didSucceed ? "succeeded" : capturedPayment.status,
       error: null,
     };
   } catch (err) {
@@ -271,11 +347,11 @@ export async function getPaymentStatus(
   args: GetPaymentStatusArgs,
   context: Context
 ): Promise<GetPaymentStatusResult> {
-  if (!context.session?.itemId) {
+  if (!(permissions.canReadPayments({ session: context.session }) || permissions.canManagePayments({ session: context.session }))) {
     return {
       status: null,
       amount: null,
-      error: "Must be signed in to check payment status",
+      error: "Not authorized to check payment status",
     };
   }
 

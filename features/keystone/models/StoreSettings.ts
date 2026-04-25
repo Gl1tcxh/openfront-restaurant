@@ -131,17 +131,17 @@ export const StoreSettings = list({
 
     // Hero/Branding
     heroHeadline: text({
-      defaultValue: "Thoughtfully crafted burgers.",
+      defaultValue: "Fresh meals for pickup and delivery.",
       ui: { description: "Main hero headline" },
     }),
 
     heroSubheadline: text({
-      defaultValue: "Premium ingredients from local farms, bold flavors, and a commitment to quality in every bite.",
+      defaultValue: "A modern ordering storefront with house favorites, quick pickup, and a menu built to customize.",
       ui: { description: "Hero subheadline/description" },
     }),
 
     heroTagline: text({
-      defaultValue: "Locally Sourced · Made Fresh Daily",
+      defaultValue: "Made fresh daily · Ready when you are",
       ui: { description: "Small tagline above headline" },
     }),
 

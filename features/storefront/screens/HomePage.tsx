@@ -1,6 +1,4 @@
-import Image from "next/image"
 import { Metadata } from "next"
-import { Clock3, MapPin, Percent, Star, Truck } from "lucide-react"
 import {
   getMenuCategories,
   getMenuItems,
@@ -44,11 +42,15 @@ export default async function HomePage() {
   const featuredItems = allItems.filter((item: MenuItem) => item.featured).slice(0, 6)
   const popularItems = allItems.filter((item: MenuItem) => item.popular).slice(0, 4)
 
+  const prioritizedHeroItems = [
+    ...featuredItems.filter((item: MenuItem) => !/bacon/i.test(item.name)),
+    ...popularItems.filter((item: MenuItem) => !/bacon/i.test(item.name)),
+    ...allItems.filter((item: MenuItem) => !/bacon/i.test(item.name)).slice(0, 6),
+  ]
+
   const heroCandidates = Array.from(
-    new Map(
-      [...featuredItems, ...popularItems, ...allItems.slice(0, 6)].map((item) => [item.id, item])
-    ).values()
-  ).slice(0, 6)
+    new Map(prioritizedHeroItems.map((item) => [item.id, item])).values()
+  ).slice(0, 4)
 
   const currencyConfig = getCurrencyConfig(storeSettings)
 
@@ -128,11 +130,6 @@ export default async function HomePage() {
   const navOffset = storeSettings.promoBanner ? "top-[96px]" : "top-16"
   const sectionScrollMt = storeSettings.promoBanner ? "scroll-mt-44" : "scroll-mt-32"
 
-  const showcaseItems = featuredItems.length > 0 ? featuredItems.slice(0, 3) : allItems.slice(0, 3)
-  const leftShowcase = showcaseItems[0]
-  const rightShowcase = showcaseItems[1]
-  const lowerShowcase = showcaseItems[2]
-
   return (
     <div className="flex flex-col" id="menu">
       <HeroBanner
@@ -161,14 +158,14 @@ export default async function HomePage() {
         {popularItems.length > 0 ? (
           <section id={popularSectionId} className={cn("py-8 sm:py-16 lg:py-24", sectionScrollMt)}>
             <div className="storefront-shell">
-              <div className="mx-auto mb-12 flex max-w-2xl flex-col items-center justify-center space-y-4 text-center sm:mb-16">
-                <h2 className="storefront-heading">Favorites from today&apos;s menu</h2>
+              <div className="mx-auto mb-10 flex max-w-2xl flex-col items-center justify-center space-y-3 text-center sm:mb-12">
+                <h2 className="storefront-heading">Popular picks</h2>
                 <p className="storefront-copy max-w-2xl text-center">
-                  The dishes guests come back for most often, each prepared with the same ingredients and pricing available in the live menu below.
+                  The items customers order most often, available for the same quick checkout as the full menu below.
                 </p>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {popularItems.map((item: MenuItem) => (
                   <MenuSection.Card
                     key={item.id}
@@ -183,153 +180,17 @@ export default async function HomePage() {
           </section>
         ) : null}
 
-        <section className="relative py-8 before:absolute before:inset-0 before:-z-10 before:skew-y-3 before:bg-muted sm:py-16 lg:py-24">
-          <div className="storefront-shell">
-            <div className="grid gap-10 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:gap-14">
-              <div className="space-y-5">
-                <span className="storefront-kicker">Order your way</span>
-                <h2 className="storefront-heading">
-                  Pickup, delivery, and the full menu in one storefront.
-                </h2>
-                <p className="storefront-copy max-w-2xl">
-                  Browse the live menu, customize every item, and check out using the same ordering flow customers use every day.
-                </p>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {storeInfo.rating ? (
-                    <div className="storefront-surface bg-background p-5">
-                      <div className="flex items-center gap-2 text-primary">
-                        <Star className="size-4 fill-primary" />
-                        <span className="text-sm font-medium text-foreground">Customer rating</span>
-                      </div>
-                      <p className="mt-3 text-3xl font-semibold tabular-nums text-foreground">
-                        {storeInfo.rating}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {storeInfo.reviewCount
-                          ? `${storeInfo.reviewCount.toLocaleString()} verified reviews`
-                          : "Loved by regulars"}
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {storeInfo.pickupDiscount ? (
-                    <div className="storefront-surface bg-background p-5">
-                      <div className="flex items-center gap-2 text-primary">
-                        <Percent className="size-4" />
-                        <span className="text-sm font-medium text-foreground">Pickup savings</span>
-                      </div>
-                      <p className="mt-3 text-3xl font-semibold tabular-nums text-foreground">
-                        {storeInfo.pickupDiscount}%
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">Applied to pickup orders</p>
-                    </div>
-                  ) : null}
-
-                  {storeInfo.estimatedPickup ? (
-                    <div className="storefront-surface bg-background p-5">
-                      <div className="flex items-center gap-2 text-primary">
-                        <Clock3 className="size-4" />
-                        <span className="text-sm font-medium text-foreground">Pickup time</span>
-                      </div>
-                      <p className="mt-3 text-3xl font-semibold text-foreground">{storeInfo.estimatedPickup}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Prepared to order</p>
-                    </div>
-                  ) : null}
-
-                  {storeInfo.deliveryEnabled ? (
-                    <div className="storefront-surface bg-background p-5">
-                      <div className="flex items-center gap-2 text-primary">
-                        <Truck className="size-4" />
-                        <span className="text-sm font-medium text-foreground">Delivery</span>
-                      </div>
-                      <p className="mt-3 text-3xl font-semibold tabular-nums text-foreground">
-                        {formatCurrency(storeInfo.deliveryFee, currencyConfig, { inputIsCents: false })}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Minimum {formatCurrency(storeInfo.deliveryMinimum, currencyConfig, { inputIsCents: false })}
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2 sm:grid-rows-2">
-                {leftShowcase ? (
-                  <div className="storefront-surface relative row-span-2 min-h-[420px] overflow-hidden bg-background p-4">
-                    {leftShowcase.thumbnail ? (
-                      <Image
-                        src={leftShowcase.thumbnail}
-                        alt={leftShowcase.name}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 1024px) 100vw, 28vw"
-                      />
-                    ) : (
-                      <div className="flex size-full items-center justify-center p-6 text-center">
-                        <p className="font-serif text-2xl font-semibold">{leftShowcase.name}</p>
-                      </div>
-                    )}
-                    <div className="absolute inset-x-4 bottom-4 border border-border/80 bg-background/90 p-4 backdrop-blur">
-                      <p className="text-sm font-medium text-primary">{leftShowcase.name}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {getMenuItemDescriptionText(leftShowcase.description)}
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
-
-                {rightShowcase ? (
-                  <div className="storefront-surface relative min-h-[200px] overflow-hidden bg-background p-4">
-                    {rightShowcase.thumbnail ? (
-                      <Image
-                        src={rightShowcase.thumbnail}
-                        alt={rightShowcase.name}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 1024px) 100vw, 20vw"
-                      />
-                    ) : (
-                      <div className="flex size-full items-center justify-center p-6 text-center">
-                        <p className="font-serif text-xl font-semibold">{rightShowcase.name}</p>
-                      </div>
-                    )}
-                  </div>
-                ) : null}
-
-                <div className="storefront-surface flex flex-col justify-between bg-background p-6">
-                  <div>
-                    <div className="flex items-center gap-2 text-primary">
-                      <MapPin className="size-4" />
-                      <p className="text-sm font-medium text-foreground">Visit the restaurant</p>
-                    </div>
-                    <p className="mt-3 text-pretty text-base leading-7 text-muted-foreground">
-                      {storeInfo.address || `${storeInfo.name} is open for pickup and delivery.`}
-                    </p>
-                  </div>
-                  {lowerShowcase ? (
-                    <div className="mt-6 border-t border-border pt-4">
-                      <p className="text-sm font-medium text-foreground">Next up</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{lowerShowcase.name}</p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {featuredItems.length > 0 ? (
           <section id={featuredSectionId} className={cn("py-8 sm:py-16 lg:py-24", sectionScrollMt)}>
             <div className="storefront-shell">
-              <div className="mx-auto mb-12 flex max-w-2xl flex-col items-center justify-center space-y-4 text-center sm:mb-16">
-                <h2 className="storefront-heading">Featured dishes from the kitchen</h2>
+              <div className="mx-auto mb-10 flex max-w-2xl flex-col items-center justify-center space-y-3 text-center sm:mb-12">
+                <h2 className="storefront-heading">House favorites</h2>
                 <p className="storefront-copy max-w-2xl text-center">
-                  A curated selection from the live menu, with full customization and checkout available on every item.
+                  Signature items highlighted at the top, with the full live menu ready just below.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {featuredItems.slice(0, 3).map((item: MenuItem) => (
                   <MenuSection.FeatureCard
                     key={item.id}
@@ -343,8 +204,8 @@ export default async function HomePage() {
           </section>
         ) : null}
 
-        <div className="storefront-shell py-8 sm:py-12 lg:py-16">
-          <div className="space-y-16 sm:space-y-20">
+        <div className="storefront-shell py-8 sm:py-10 lg:py-14">
+          <div className="space-y-14 sm:space-y-16">
             {categorySections.map(({ category, items, sectionId }) => (
               <MenuSection
                 key={category.id}

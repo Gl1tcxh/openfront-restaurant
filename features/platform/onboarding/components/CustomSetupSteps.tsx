@@ -79,8 +79,8 @@ export function CustomSetupSteps({
 Start by telling me what this JSON configuration currently contains:
 
 **RESTAURANT INFORMATION:**
-- Name: Stack Burger Co.
-- Tagline: Stacked Fresh, Served Bold
+- Name: Stack Kitchen
+- Tagline: Cooked fresh, served your way
 - Address: 742 Artisan Way, Brooklyn, NY 11201
 
 **INFRASTRUCTURE:**
@@ -89,7 +89,7 @@ Start by telling me what this JSON configuration currently contains:
 
 **MENU:**
 - Categories: Featured, Burgers, Chicken, Sides, Drinks, Desserts
-- Menu Items: 23 items including The Big Stack, BBQ Bacon Burger, etc.
+- Menu Items: 23 items including The Big Stack, Signature Cheeseburger, etc.
 - Modifiers: Patty sizes, cheese types, extra toppings, drink sizes.
 
 **PAYMENT:**

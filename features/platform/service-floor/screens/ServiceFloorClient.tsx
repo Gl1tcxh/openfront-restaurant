@@ -96,7 +96,7 @@ const GET_SERVICE_FLOOR = gql`
     menuItems(where: { available: { equals: true } }, orderBy: { name: asc }) {
       id name price available
     }
-    storeSettings { currencyCode locale }
+    storeSettings { currencyCode locale taxRate }
   }
 `
 
@@ -212,7 +212,7 @@ export function ServiceFloorClient() {
   const [tables, setTables] = useState<Table[]>([])
   const [orders, setOrders] = useState<ActiveOrder[]>([])
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
-  const [currencyConfig, setCurrencyConfig] = useState({ currencyCode: 'USD', locale: 'en-US' })
+  const [currencyConfig, setCurrencyConfig] = useState({ currencyCode: 'USD', locale: 'en-US', taxRate: 0 })
 
   const [dragTableId, setDragTableId] = useState<string | null>(null)
   const [updatingTable, setUpdatingTable] = useState<string | null>(null)
@@ -240,6 +240,7 @@ export function ServiceFloorClient() {
         setCurrencyConfig({
           currencyCode: res.storeSettings.currencyCode || 'USD',
           locale: res.storeSettings.locale || 'en-US',
+          taxRate: Number(res.storeSettings.taxRate || 0),
         })
       }
     } catch (err) {
@@ -332,7 +333,7 @@ export function ServiceFloorClient() {
     const res: any = await request('/api/graphql', GET_ORDER_ITEMS, { id: orderId })
     const items = res?.restaurantOrder?.orderItems || []
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.quantity || 0) * (item.price || 0), 0)
-    const tax = Math.round(subtotal * 0.08)
+    const tax = Math.round(subtotal * (Number(currencyConfig.taxRate || 0) / 100))
     await request('/api/graphql', UPDATE_ORDER_TOTALS, { id: orderId, data: { subtotal, tax, total: subtotal + tax } })
   }
 

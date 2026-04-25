@@ -1,4 +1,5 @@
 import type { Context } from ".keystone/types";
+import { permissions } from "../access";
 
 interface FireCourseArgs {
   courseId: string;
@@ -18,8 +19,8 @@ export async function fireCourse(
   args: FireCourseArgs,
   context: Context
 ): Promise<CourseManagementResult> {
-  if (!context.session?.itemId) {
-    return { success: false, error: "Must be signed in" };
+  if (!permissions.canManageKitchen({ session: context.session })) {
+    return { success: false, error: "Not authorized" };
   }
 
   const { courseId } = args;
@@ -61,8 +62,8 @@ export async function recallCourse(
   args: RecallCourseArgs,
   context: Context
 ): Promise<CourseManagementResult> {
-  if (!context.session?.itemId) {
-    return { success: false, error: "Must be signed in" };
+  if (!permissions.canManageKitchen({ session: context.session })) {
+    return { success: false, error: "Not authorized" };
   }
 
   const { courseId } = args;

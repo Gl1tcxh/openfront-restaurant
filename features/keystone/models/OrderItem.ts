@@ -9,9 +9,36 @@ import {
 } from "@keystone-6/core/fields";
 
 import { permissions } from "../access";
+import { isKitchenActiveOrderStatus, syncKitchenTicketsForOrder } from "../utils/kitchenTicketSync";
 import { trackingFields } from "./trackingFields";
 
 export const OrderItem = list({
+  hooks: {
+    afterOperation: async ({ operation, item, originalItem, context }) => {
+      const orderId = String(
+        (item as any)?.orderId ||
+          (item as any)?.order?.id ||
+          (originalItem as any)?.orderId ||
+          (originalItem as any)?.order?.id ||
+          ""
+      );
+
+      if (!orderId) return;
+
+      const order = await context.sudo().query.RestaurantOrder.findOne({
+        where: { id: orderId },
+        query: "id status",
+      });
+
+      if (!order || !isKitchenActiveOrderStatus(order.status)) return;
+
+      try {
+        await syncKitchenTicketsForOrder(order.id, context as any);
+      } catch (err) {
+        console.error(`Kitchen ticket sync error after order item ${operation}:`, err);
+      }
+    },
+  },
   access: {
     operation: {
       query: permissions.canReadOrders,

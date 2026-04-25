@@ -61,31 +61,36 @@ const GET_DATA = gql`
       id name price available thumbnail
       category { id name }
     }
+    storeSettings {
+      taxRate
+      currencyCode
+      locale
+    }
   }
 `
 
-const CREATE_ORDER = gql`
-  mutation CreateOrder($data: RestaurantOrderCreateInput!) {
-    createRestaurantOrder(data: $data) { id orderNumber }
+const CREATE_POS_ORDER = gql`
+  mutation CreatePOSOrder(
+    $orderType: String!
+    $guestCount: Int
+    $tableIds: [ID!]
+    $isUrgent: Boolean
+    $specialInstructions: String
+    $items: [POSOrderItemInput!]!
+  ) {
+    createPOSOrder(
+      orderType: $orderType
+      guestCount: $guestCount
+      tableIds: $tableIds
+      isUrgent: $isUrgent
+      specialInstructions: $specialInstructions
+      items: $items
+    ) {
+      id
+      orderNumber
+    }
   }
 `
-
-const CREATE_ORDER_COURSE = gql`
-  mutation CreateOrderCourse($data: OrderCourseCreateInput!) {
-    createOrderCourse(data: $data) { id }
-  }
-`
-
-const CREATE_ORDER_ITEM = gql`
-  mutation CreateOrderItem($data: OrderItemCreateInput!) {
-    createOrderItem(data: $data) { id }
-  }
-`
-
-function generateOrderNumber(): string {
-  const now = new Date()
-  return `${now.toISOString().slice(2, 10).replace(/-/g, '')}-${now.getTime().toString().slice(-4)}`
-}
 
 function formatMoney(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
@@ -107,7 +112,8 @@ export function POSClient() {
     tables: Table[]
     categories: MenuCategory[]
     items: MenuItem[]
-  }>({ tables: [], categories: [], items: [] })
+    storeSettings: { taxRate?: string | null; currencyCode?: string | null; locale?: string | null } | null
+  }>({ tables: [], categories: [], items: [], storeSettings: null })
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [orderType, setOrderType] = useState<'dine_in' | 'takeout'>('dine_in')
@@ -127,6 +133,7 @@ export function POSClient() {
         tables: res.tables || [],
         categories: res.menuCategories || [],
         items: res.menuItems || [],
+        storeSettings: res.storeSettings || null,
       })
     } catch (err) {
       console.error(err)
@@ -159,49 +166,18 @@ export function POSClient() {
     if (cart.length === 0 || submitting || (orderType === 'dine_in' && selectedTables.length === 0)) return
     try {
       setSubmitting(true)
-      const subtotal = cart.reduce((s, i) => s + parseInt(i.menuItem.price) * i.quantity, 0)
-      const tax = Math.round(subtotal * 0.08)
-      const total = subtotal + tax
-      const orderData: any = {
-        orderNumber: generateOrderNumber(),
+      const res: any = await request('/api/graphql', CREATE_POS_ORDER, {
         orderType,
-        orderSource: 'pos',
-        status: 'open',
         guestCount,
-        subtotal,
-        tax,
-        total,
+        tableIds: orderType === 'dine_in' ? selectedTables : [],
         isUrgent,
         specialInstructions: specialInstructions || null,
-      }
-      if (orderType === 'dine_in') {
-        orderData.tables = { connect: selectedTables.map((id) => ({ id })) }
-      }
-      const res: any = await request('/api/graphql', CREATE_ORDER, { data: orderData })
-      const orderId = res.createRestaurantOrder.id
-      const courses = Array.from(new Set(cart.map((i) => i.courseNumber)))
-      for (const num of courses) {
-        const cRes: any = await request('/api/graphql', CREATE_ORDER_COURSE, {
-          data: {
-            order: { connect: { id: orderId } },
-            courseNumber: num,
-            courseType: num === 1 ? 'appetizers' : num === 2 ? 'mains' : 'desserts',
-            status: 'pending',
-          },
-        })
-        for (const item of cart.filter((i) => i.courseNumber === num)) {
-          await request('/api/graphql', CREATE_ORDER_ITEM, {
-            data: {
-              order: { connect: { id: orderId } },
-              course: { connect: { id: cRes.createOrderCourse.id } },
-              menuItem: { connect: { id: item.menuItem.id } },
-              quantity: item.quantity,
-              price: parseInt(item.menuItem.price),
-              courseNumber: item.courseNumber,
-            },
-          })
-        }
-      }
+        items: cart.map((item) => ({
+          menuItemId: item.menuItem.id,
+          quantity: item.quantity,
+          courseNumber: item.courseNumber,
+        })),
+      })
       setCart([])
       setSelectedTables([])
       setIsUrgent(false)
@@ -215,7 +191,8 @@ export function POSClient() {
   }
 
   const cartSubtotal = cart.reduce((s, i) => s + parseInt(i.menuItem.price) * i.quantity, 0)
-  const cartTax = Math.round(cartSubtotal * 0.08)
+  const taxRate = Number(data.storeSettings?.taxRate || 0)
+  const cartTax = Math.round(cartSubtotal * (taxRate / 100))
   const cartTotal = cartSubtotal + cartTax
   const cartItemCount = cart.reduce((s, i) => s + i.quantity, 0)
 
@@ -597,7 +574,7 @@ export function POSClient() {
                 <span className="tabular-nums">{formatMoney(cartSubtotal)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Tax (8%)</span>
+                <span>Tax ({taxRate.toFixed(2)}%)</span>
                 <span className="tabular-nums">{formatMoney(cartTax)}</span>
               </div>
               <div className="flex justify-between font-semibold text-sm border-t border-border pt-1.5 mt-1.5">

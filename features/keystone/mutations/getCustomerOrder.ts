@@ -89,28 +89,5 @@ export default async function getCustomerOrder(
     return order;
   }
 
-  const currentUser = await sudoContext.query.User.findOne({
-    where: { id: sessionUserId },
-    query: `id email`,
-  });
-
-  if (currentUser?.email && order.customerEmail === currentUser.email) {
-    if (!order.customer?.id) {
-      await sudoContext.query.RestaurantOrder.updateOne({
-        where: { id: order.id },
-        data: {
-          customer: { connect: { id: sessionUserId } },
-        },
-      });
-    }
-
-    return {
-      ...order,
-      customer: {
-        id: sessionUserId,
-      },
-    };
-  }
-
   throw new Error("Order not found");
 }

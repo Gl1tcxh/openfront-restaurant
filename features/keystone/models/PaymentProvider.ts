@@ -7,7 +7,9 @@ import { trackingFields } from "./trackingFields";
 export const PaymentProvider = list({
   access: {
     operation: {
-      query: () => true, // Public read for storefront
+      query: ({ session }) =>
+        permissions.canReadPayments({ session }) ||
+        permissions.canManagePayments({ session }),
       create: permissions.canManagePayments,
       update: permissions.canManagePayments,
       delete: permissions.canManagePayments,

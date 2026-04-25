@@ -18,6 +18,7 @@ import { transferTable, combineTables } from "./tableManagement";
 import { fireCourse, recallCourse } from "./courseManagement";
 import { syncKitchenTickets, updateKitchenTicketStatus, fulfillKitchenTicketItem } from "./kdsTickets";
 import handlePaymentProviderWebhook from "./handlePaymentProviderWebhook";
+import createPOSOrder from "./createPOSOrder";
 
 const graphql = String.raw;
 
@@ -101,6 +102,15 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
           paymentSessionId: ID
         ): RestaurantOrder
 
+        createPOSOrder(
+          orderType: String!
+          guestCount: Int
+          tableIds: [ID!]
+          isUrgent: Boolean
+          specialInstructions: String
+          items: [POSOrderItemInput!]!
+        ): RestaurantOrder
+
         transferTable(
           orderId: String!
           fromTableId: String!
@@ -172,6 +182,12 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         error: String
       }
 
+      input POSOrderItemInput {
+        menuItemId: ID!
+        quantity: Int!
+        courseNumber: Int
+      }
+
       type InitiatePaymentSessionResult {
         id: ID!
         data: JSON
@@ -228,6 +244,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         voidOrder,
         initiatePaymentSession,
         completeActiveCart,
+        createPOSOrder,
         transferTable,
         combineTables,
         fireCourse,

@@ -1,4 +1,5 @@
 import type { Context } from ".keystone/types";
+import { permissions } from "../access";
 
 interface TransferTableArgs {
   orderId: string;
@@ -21,8 +22,8 @@ export async function transferTable(
   args: TransferTableArgs,
   context: Context
 ): Promise<TableManagementResult> {
-  if (!context.session?.itemId) {
-    return { success: false, error: "Must be signed in" };
+  if (!permissions.canManageTables({ session: context.session })) {
+    return { success: false, error: "Not authorized" };
   }
 
   const { orderId, fromTableId, toTableId } = args;
@@ -73,8 +74,8 @@ export async function combineTables(
   args: CombineTablesArgs,
   context: Context
 ): Promise<TableManagementResult> {
-  if (!context.session?.itemId) {
-    return { success: false, error: "Must be signed in" };
+  if (!permissions.canManageTables({ session: context.session })) {
+    return { success: false, error: "Not authorized" };
   }
 
   const { orderId, tableIds } = args;

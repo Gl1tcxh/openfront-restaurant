@@ -1,4 +1,7 @@
 import type { Context } from ".keystone/types";
+import { calculateRestaurantTotals } from "../../lib/restaurant-order-pricing";
+import { permissions } from "../access";
+import { getStoreDeliverySettings } from "../utils/deliveryValidation";
 
 interface SplitCheckByItemArgs {
   orderId: string;
@@ -21,12 +24,21 @@ function cents(value: unknown): number {
   return Number.isFinite(n) ? Math.round(n) : 0;
 }
 
-function calculateTotalsFromItems(items: Array<{ quantity?: number | null; price?: number | null }>) {
+async function calculateTotalsFromItems(
+  items: Array<{ quantity?: number | null; price?: number | null }>,
+  orderType: string | null | undefined,
+  context: Context
+) {
+  const settings = await getStoreDeliverySettings(context);
   const subtotal = items.reduce((sum, item) => {
     return sum + cents(item.price) * (item.quantity || 0);
   }, 0);
-  const tax = Math.round(subtotal * 0.08);
-  const total = subtotal + tax;
+  const { tax, total } = calculateRestaurantTotals({
+    subtotal,
+    orderType,
+    taxRate: settings?.taxRate,
+    currencyCode: settings?.currencyCode || "USD",
+  });
   return { subtotal, tax, total };
 }
 
@@ -43,11 +55,11 @@ export async function splitCheckByItem(
   args: SplitCheckByItemArgs,
   context: Context
 ): Promise<SplitCheckResult> {
-  if (!context.session?.itemId) {
+  if (!permissions.canManageOrders({ session: context.session })) {
     return {
       success: false,
       newOrderIds: [],
-      error: "Must be signed in to split check",
+      error: "Not authorized to split check",
     };
   }
 
@@ -91,7 +103,7 @@ export async function splitCheckByItem(
       };
     }
 
-    const newTotals = calculateTotalsFromItems(itemsToMove as any);
+    const newTotals = await calculateTotalsFromItems(itemsToMove as any, originalOrder.orderType, context);
 
     const newOrder = await context.db.RestaurantOrder.createOne({
       data: {
@@ -131,7 +143,7 @@ export async function splitCheckByItem(
       query: 'id quantity price',
     });
 
-    const remainingTotals = calculateTotalsFromItems(remainingItems as any);
+    const remainingTotals = await calculateTotalsFromItems(remainingItems as any, originalOrder.orderType, context);
 
     await context.db.RestaurantOrder.updateOne({
       where: { id: orderId },
@@ -165,11 +177,11 @@ export async function splitCheckByGuest(
   args: SplitCheckByGuestArgs,
   context: Context
 ): Promise<SplitCheckResult> {
-  if (!context.session?.itemId) {
+  if (!permissions.canManageOrders({ session: context.session })) {
     return {
       success: false,
       newOrderIds: [],
-      error: "Must be signed in to split check",
+      error: "Not authorized to split check",
     };
   }
 

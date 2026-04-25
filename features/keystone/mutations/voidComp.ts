@@ -1,25 +1,22 @@
 import type { Context } from ".keystone/types";
+import { calculateRestaurantTotals } from "../../lib/restaurant-order-pricing";
+import { permissions } from "../access";
+import { getStoreDeliverySettings } from "../utils/deliveryValidation";
 
 interface VoidItemArgs {
   orderItemId: string;
   reason: string;
-  managerApproval?: boolean;
-  managerId?: string;
 }
 
 interface CompItemArgs {
   orderItemId: string;
   reason: string;
   compAmount?: number; // Partial comp amount in cents, or null for full comp
-  managerApproval?: boolean;
-  managerId?: string;
 }
 
 interface VoidOrderArgs {
   orderId: string;
   reason: string;
-  managerApproval?: boolean;
-  managerId?: string;
 }
 
 interface VoidCompResult {
@@ -29,22 +26,37 @@ interface VoidCompResult {
   error: string | null;
 }
 
-// Check if user has manager permissions
-async function hasManagerPermission(context: Context): Promise<boolean> {
-  if (!context.session?.itemId) return false;
+function canManageOrders(context: Context): boolean {
+  return permissions.canManageOrders({ session: context.session });
+}
 
-  const user = await context.db.User.findOne({
-    where: { id: context.session.itemId },
+async function recalculateOrderTotals({
+  order,
+  subtotal,
+  context,
+}: {
+  order: any;
+  subtotal: number;
+  context: Context;
+}) {
+  const settings = await getStoreDeliverySettings(context);
+  const safeSubtotal = Math.max(0, subtotal);
+  const { tax } = calculateRestaurantTotals({
+    subtotal: safeSubtotal,
+    orderType: order.orderType,
+    taxRate: settings?.taxRate,
+    currencyCode: settings?.currencyCode || order.currencyCode || "USD",
   });
 
-  if (!user || !user.roleId) return false;
+  const tip = Math.max(0, order.tip || 0);
+  const discount = Math.max(0, order.discount || 0);
+  const total = Math.max(0, safeSubtotal + tax + tip - discount);
 
-  const role = await context.db.Role.findOne({
-    where: { id: user.roleId },
-  });
-
-  // Manager needs canManageOrders permission
-  return role?.canManageOrders === true;
+  return {
+    subtotal: safeSubtotal,
+    tax: Math.max(0, tax),
+    total,
+  };
 }
 
 // Void an individual order item
@@ -53,16 +65,16 @@ export async function voidOrderItem(
   args: VoidItemArgs,
   context: Context
 ): Promise<VoidCompResult> {
-  if (!context.session?.itemId) {
+  if (!canManageOrders(context)) {
     return {
       success: false,
       requiresManagerApproval: false,
       adjustedAmount: null,
-      error: "Must be signed in to void items",
+      error: "Not authorized to void items",
     };
   }
 
-  const { orderItemId, reason, managerApproval, managerId } = args;
+  const { orderItemId, reason } = args;
 
   if (!reason || reason.trim() === "") {
     return {
@@ -74,7 +86,6 @@ export async function voidOrderItem(
   }
 
   try {
-    // Get the order item
     const orderItem = await context.db.OrderItem.findOne({
       where: { id: orderItemId },
     });
@@ -88,47 +99,28 @@ export async function voidOrderItem(
       };
     }
 
-    // Check if manager approval is needed
-    const isManager = await hasManagerPermission(context);
-
-    if (!isManager && !managerApproval) {
-      return {
-        success: false,
-        requiresManagerApproval: true,
-        adjustedAmount: null,
-        error: "Manager approval required for void",
-      };
-    }
-
-    // Calculate the void amount (all values in cents)
     const voidAmount = (orderItem.price || 0) * (orderItem.quantity || 0);
 
-    // Delete the order item
     await context.db.OrderItem.deleteOne({
       where: { id: orderItemId },
     });
 
-    // Update the order totals
     if (orderItem.orderId) {
       const order = await context.db.RestaurantOrder.findOne({
         where: { id: orderItem.orderId },
       });
 
       if (order) {
-        const currentSubtotal = (order.subtotal || 0) - voidAmount;
-        // Keep current tax ratio or recalculate if needed. 
-        // For now, simple proportional adjustment or re-summing would be better.
-        // But for simplicity in this mutation:
-        const taxRate = order.subtotal ? (order.tax || 0) / order.subtotal : 0.08;
-        const newTax = Math.round(currentSubtotal * taxRate);
-        const newTotal = currentSubtotal + newTax;
+        const totals = await recalculateOrderTotals({
+          order,
+          subtotal: (order.subtotal || 0) - voidAmount,
+          context,
+        });
 
         await context.db.RestaurantOrder.updateOne({
           where: { id: orderItem.orderId },
           data: {
-            subtotal: Math.max(0, currentSubtotal),
-            tax: Math.max(0, newTax),
-            total: Math.max(0, newTotal),
+            ...totals,
             specialInstructions: order.specialInstructions
               ? `${order.specialInstructions} | VOID: ${reason}`
               : `VOID: ${reason}`,
@@ -162,16 +154,16 @@ export async function compOrderItem(
   args: CompItemArgs,
   context: Context
 ): Promise<VoidCompResult> {
-  if (!context.session?.itemId) {
+  if (!canManageOrders(context)) {
     return {
       success: false,
       requiresManagerApproval: false,
       adjustedAmount: null,
-      error: "Must be signed in to comp items",
+      error: "Not authorized to comp items",
     };
   }
 
-  const { orderItemId, reason, compAmount, managerApproval, managerId } = args;
+  const { orderItemId, reason, compAmount } = args;
 
   if (!reason || reason.trim() === "") {
     return {
@@ -183,7 +175,6 @@ export async function compOrderItem(
   }
 
   try {
-    // Get the order item
     const orderItem = await context.db.OrderItem.findOne({
       where: { id: orderItemId },
     });
@@ -197,35 +188,19 @@ export async function compOrderItem(
       };
     }
 
-    // Check if manager approval is needed
-    const isManager = await hasManagerPermission(context);
-
-    if (!isManager && !managerApproval) {
-      return {
-        success: false,
-        requiresManagerApproval: true,
-        adjustedAmount: null,
-        error: "Manager approval required for comp",
-      };
-    }
-
-    // Calculate the comp amount (all in cents)
     const itemTotal = (orderItem.price || 0) * (orderItem.quantity || 0);
     const actualCompAmount = compAmount !== undefined && compAmount !== null
       ? Math.min(compAmount, itemTotal)
-      : itemTotal; // Full comp
+      : itemTotal;
 
-    // Update the order item price to reflect comp
     const perItemComp = Math.floor(actualCompAmount / (orderItem.quantity || 1));
     const newPrice = (orderItem.price || 0) - perItemComp;
 
     if (newPrice <= 0) {
-      // Full comp - delete the item
       await context.db.OrderItem.deleteOne({
         where: { id: orderItemId },
       });
     } else {
-      // Partial comp - update the price
       await context.db.OrderItem.updateOne({
         where: { id: orderItemId },
         data: {
@@ -237,24 +212,22 @@ export async function compOrderItem(
       });
     }
 
-    // Update the order totals
     if (orderItem.orderId) {
       const order = await context.db.RestaurantOrder.findOne({
         where: { id: orderItem.orderId },
       });
 
       if (order) {
-        const currentSubtotal = (order.subtotal || 0) - actualCompAmount;
-        const taxRate = order.subtotal ? (order.tax || 0) / order.subtotal : 0.08;
-        const newTax = Math.round(currentSubtotal * taxRate);
-        const newTotal = currentSubtotal + newTax;
+        const totals = await recalculateOrderTotals({
+          order,
+          subtotal: (order.subtotal || 0) - actualCompAmount,
+          context,
+        });
 
         await context.db.RestaurantOrder.updateOne({
           where: { id: orderItem.orderId },
           data: {
-            subtotal: Math.max(0, currentSubtotal),
-            tax: Math.max(0, newTax),
-            total: Math.max(0, newTotal),
+            ...totals,
             specialInstructions: order.specialInstructions
               ? `${order.specialInstructions} | COMP: ${reason}`
               : `COMP: ${reason}`,
@@ -288,16 +261,16 @@ export async function voidOrder(
   args: VoidOrderArgs,
   context: Context
 ): Promise<VoidCompResult> {
-  if (!context.session?.itemId) {
+  if (!canManageOrders(context)) {
     return {
       success: false,
       requiresManagerApproval: false,
       adjustedAmount: null,
-      error: "Must be signed in to void orders",
+      error: "Not authorized to void orders",
     };
   }
 
-  const { orderId, reason, managerApproval, managerId } = args;
+  const { orderId, reason } = args;
 
   if (!reason || reason.trim() === "") {
     return {
@@ -309,7 +282,6 @@ export async function voidOrder(
   }
 
   try {
-    // Get the order
     const order = await context.db.RestaurantOrder.findOne({
       where: { id: orderId },
     });
@@ -323,21 +295,8 @@ export async function voidOrder(
       };
     }
 
-    // Check if manager approval is needed
-    const isManager = await hasManagerPermission(context);
-
-    if (!isManager && !managerApproval) {
-      return {
-        success: false,
-        requiresManagerApproval: true,
-        adjustedAmount: null,
-        error: "Manager approval required for void",
-      };
-    }
-
     const voidAmount = order.total || 0;
 
-    // Delete all order items
     const orderItems = await context.db.OrderItem.findMany({
       where: { order: { id: { equals: orderId } } },
     });
@@ -348,7 +307,6 @@ export async function voidOrder(
       });
     }
 
-    // Update order status to cancelled
     await context.db.RestaurantOrder.updateOne({
       where: { id: orderId },
       data: {

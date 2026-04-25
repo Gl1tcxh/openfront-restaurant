@@ -4830,6 +4830,7 @@ type Mutation {
   voidOrder(orderId: String!, reason: String!, managerApproval: Boolean, managerId: String): VoidCompResult
   initiatePaymentSession(cartId: ID!, paymentProviderId: String!): InitiatePaymentSessionResult
   completeActiveCart(cartId: ID!, paymentSessionId: ID): RestaurantOrder
+  createPOSOrder(orderType: String!, guestCount: Int, tableIds: [ID!], isUrgent: Boolean, specialInstructions: String, items: [POSOrderItemInput!]!): RestaurantOrder
   transferTable(orderId: String!, fromTableId: String!, toTableId: String!): TableManagementResult
   combineTables(orderId: String!, tableIds: [String!]!): TableManagementResult
   fireCourse(courseId: String!): CourseManagementResult
@@ -5179,6 +5180,12 @@ type VoidCompResult {
   requiresManagerApproval: Boolean!
   adjustedAmount: Int
   error: String
+}
+
+input POSOrderItemInput {
+  menuItemId: ID!
+  quantity: Int!
+  courseNumber: Int
 }
 
 type InitiatePaymentSessionResult {

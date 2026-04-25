@@ -24,7 +24,7 @@ function MenuSectionComponent({
 
   return (
     <section id={sectionId} className={className || "scroll-mt-32"}>
-      <div className="mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-2xl">
           <h2 className="storefront-heading">{title}</h2>
           {description ? <p className="storefront-copy mt-3">{description}</p> : null}
@@ -34,7 +34,7 @@ function MenuSectionComponent({
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {items.map((item) => (
           <MenuItemCard
             key={item.id}

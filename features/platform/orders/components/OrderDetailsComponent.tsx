@@ -224,9 +224,9 @@ export function OrderDetailsComponent({
                       ) : null}
                       {(order.deliveryCity || order.deliveryState || order.deliveryZip || order.deliveryCountryCode) && (
                         <p className="text-xs text-muted-foreground">
-                          [order.deliveryCity, order.deliveryState, order.deliveryZip, order.deliveryCountryCode]
+                          {[order.deliveryCity, order.deliveryState, order.deliveryZip, order.deliveryCountryCode]
                             .filter(Boolean)
-                            .join(", ")
+                            .join(", ")}
                         </p>
                       )}
                     </div>

@@ -1,7 +1,7 @@
 {
   "storeInfo": {
-    "name": "Stack Burger Co.",
-    "tagline": "Stacked Fresh, Served Bold",
+    "name": "Stack Kitchen",
+    "tagline": "Cooked fresh, served your way",
     "address": "742 Artisan Way, Brooklyn, NY 11201",
     "phone": "(718) 555-0142",
     "currencyCode": "USD",
@@ -25,9 +25,9 @@
     "taxRate": 8.75,
     "estimatedDelivery": "30-45 min",
     "estimatedPickup": "15-20 min",
-    "heroHeadline": "Thoughtfully crafted burgers.",
-    "heroSubheadline": "Premium ingredients from local farms, bold flavors, and a commitment to quality in every bite.",
-    "heroTagline": "Locally Sourced · Made Fresh Daily",
+    "heroHeadline": "Fresh meals for pickup and delivery.",
+    "heroSubheadline": "A modern ordering storefront with house favorites, quick pickup, and a menu built to customize.",
+    "heroTagline": "Made fresh daily · Ready when you are",
     "promoBanner": "Free pickup discount · 10% off all pickup orders",
     "rating": 4.8,
     "reviewCount": 2341
@@ -181,12 +181,12 @@
       "prepTime": 15
     },
     {
-      "name": "BBQ Bacon Burger",
-      "description": "Juicy beef patty topped with crispy bacon, cheddar cheese, onion rings, and tangy BBQ sauce.",
+      "name": "Signature Cheeseburger",
+      "description": "Seasoned beef patty with cheddar cheese, house sauce, lettuce, tomato, and pickles on a toasted brioche bun.",
       "price": "13.99",
       "category": "Featured",
-      "image": "/images/bacon-bbq-burger-onion-rings.png",
-      "calories": 950,
+      "image": "/images/classic-hamburger-with-lettuce-tomato.jpg",
+      "calories": 860,
       "popular": true,
       "featured": true,
       "available": true,
@@ -227,12 +227,12 @@
       "prepTime": 15
     },
     {
-      "name": "Western Burger",
-      "description": "BBQ sauce, bacon, cheddar, and a crispy onion ring on top.",
+      "name": "Smoky BBQ Burger",
+      "description": "Beef patty with cheddar cheese, smoky BBQ sauce, crispy onion ring, and pickles.",
       "price": "13.49",
       "category": "Burgers",
       "image": "/images/western-burger-with-bbq-and-bacon.jpg",
-      "calories": 920,
+      "calories": 840,
       "available": true,
       "kitchenStation": "grill",
       "prepTime": 15
@@ -306,11 +306,11 @@
     },
     {
       "name": "Loaded Fries",
-      "description": "Fries topped with cheese sauce, bacon bits, and sour cream.",
+      "description": "Fries topped with cheese sauce, scallions, and a side of creamy house dip.",
       "price": "6.99",
       "category": "Sides",
       "image": "/images/loaded-fries.png",
-      "calories": 680,
+      "calories": 620,
       "popular": true,
       "available": true,
       "kitchenStation": "fryer",

@@ -215,11 +215,13 @@ export const getMenuItem = cache(async function (id: string) {
 });
 
 export const getStorefrontPaymentConfig = cache(async function (): Promise<StorefrontPaymentConfig> {
-  const GET_PAYMENT_PROVIDERS_QUERY = gql`
-    query GetStorefrontPaymentProviders {
-      paymentProviders(where: { isInstalled: { equals: true } }) {
+  const LIST_PAYMENT_PROVIDERS_QUERY = gql`
+    query ListPaymentProviders {
+      activeCartPaymentProviders {
+        id
+        name
         code
-        createPaymentFunction
+        isInstalled
       }
     }
   `
@@ -228,25 +230,19 @@ export const getStorefrontPaymentConfig = cache(async function (): Promise<Store
   const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || null
 
   try {
-    const data = await openfrontClient.request(GET_PAYMENT_PROVIDERS_QUERY)
-    const providers = data?.paymentProviders || []
+    const data = await openfrontClient.request(LIST_PAYMENT_PROVIDERS_QUERY)
+    const providers = data?.activeCartPaymentProviders || []
 
     const hasStripe = providers.some(
-      (provider: any) =>
-        provider?.createPaymentFunction === 'stripe' ||
-        provider?.code?.startsWith('pp_stripe_')
+      (provider: any) => provider?.code?.startsWith('pp_stripe_')
     )
 
     const hasPayPal = providers.some(
-      (provider: any) =>
-        provider?.createPaymentFunction === 'paypal' ||
-        provider?.code?.startsWith('pp_paypal')
+      (provider: any) => provider?.code?.startsWith('pp_paypal')
     )
 
     const hasCash = providers.some(
-      (provider: any) =>
-        provider?.createPaymentFunction === 'manual' ||
-        provider?.code === 'pp_system_default'
+      (provider: any) => provider?.code === 'pp_system_default'
     )
 
     return {

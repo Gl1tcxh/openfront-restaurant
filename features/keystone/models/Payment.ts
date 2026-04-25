@@ -83,6 +83,7 @@ export const Payment = list({
         { label: "Debit Card", value: "debit_card" },
         { label: "Cash", value: "cash" },
         { label: "Gift Card", value: "gift_card" },
+        { label: "PayPal", value: "paypal" },
         { label: "Apple Pay", value: "apple_pay" },
         { label: "Google Pay", value: "google_pay" },
       ],

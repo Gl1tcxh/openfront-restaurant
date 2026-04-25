@@ -69,17 +69,6 @@ const GET_KDS_DATA = gql`
   }
 `
 
-const SYNC_TICKETS = gql`
-  mutation SyncKitchenTickets {
-    syncKitchenTickets {
-      success
-      created
-      updated
-      error
-    }
-  }
-`
-
 const UPDATE_TICKET_STATUS = gql`
   mutation UpdateKitchenTicketStatus($ticketId: String!, $status: String!) {
     updateKitchenTicketStatus(ticketId: $ticketId, status: $status) {
@@ -587,11 +576,6 @@ export function KDSClient() {
 
   const fetchKDS = async () => {
     try {
-      const syncRes: any = await request('/api/graphql', SYNC_TICKETS)
-      if (syncRes?.syncKitchenTickets?.success === false) {
-        setMutationError(syncRes.syncKitchenTickets.error || 'Ticket sync failed')
-      }
-
       const res: any = await request('/api/graphql', GET_KDS_DATA)
 
       setStations((res.kitchenStations || []).map((s: any) => ({ id: s.id, name: s.name })))
@@ -600,9 +584,7 @@ export function KDSClient() {
         items: Array.isArray(ticket.items) ? ticket.items : [],
       })))
 
-      if (res?.kitchenTickets?.length > 0 && !syncRes?.syncKitchenTickets?.error) {
-        setMutationError(null)
-      }
+      setMutationError(null)
     } catch (err) {
       console.error(err)
       setMutationError('KDS failed to load data. Check session and GraphQL logs.')

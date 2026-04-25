@@ -32,11 +32,11 @@ export const RESTAURANT_TEMPLATES: Record<'full' | 'minimal' | 'custom', Restaur
       categories: ['Featured', 'Burgers', 'Chicken', 'Sides', 'Drinks', 'Desserts'],
       menuItems: [
         'The Big Stack',
-        'BBQ Bacon Burger',
+        'Signature Cheeseburger',
         'Classic Burger',
         'Mushroom Swiss',
         'Spicy Jalapeño',
-        'Western Burger',
+        'Smoky BBQ Burger',
         'Garden Veggie Burger',
         'Crispy Chicken Sandwich',
         'Spicy Chicken Sandwich',

@@ -1405,11 +1405,245 @@ var MenuItemModifier = (0, import_core9.list)({
 var import_core10 = require("@keystone-6/core");
 var import_fields11 = require("@keystone-6/core/fields");
 var import_crypto = __toESM(require("crypto"));
+
+// features/keystone/utils/kitchenTicketSync.ts
+var ACTIVE_ORDER_STATUSES = ["sent_to_kitchen", "in_progress", "ready"];
+var ACTIVE_TICKET_STATUSES = ["new", "in_progress", "ready"];
+function normalizeStationName(name) {
+  return name.trim().toLowerCase();
+}
+function displayStationName(value) {
+  return value.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+}
+function isExpediterStation(stationName) {
+  const n = (stationName || "").toLowerCase();
+  return n.includes("expo") || n.includes("expediter");
+}
+function isKitchenActiveOrderStatus(status) {
+  return ACTIVE_ORDER_STATUSES.includes(status || "");
+}
+function getTicketStatusForOrderStatus(orderStatus) {
+  if (orderStatus === "ready") return "ready";
+  if (orderStatus === "in_progress") return "in_progress";
+  return "new";
+}
+async function getOrCreateStation(stationKey, context, cachedStations) {
+  const normalized = normalizeStationName(stationKey);
+  const existing = cachedStations.find((s) => normalizeStationName(s.name) === normalized);
+  if (existing) return existing;
+  const created = await context.sudo().db.KitchenStation.createOne({
+    data: {
+      name: displayStationName(stationKey),
+      isActive: true,
+      displayOrder: cachedStations.length
+    }
+  });
+  const createdStation = {
+    id: created.id,
+    name: displayStationName(stationKey),
+    displayOrder: cachedStations.length
+  };
+  cachedStations.push(createdStation);
+  return createdStation;
+}
+function mapOrderItemsByStation(order) {
+  const grouped = {};
+  for (const item of order.orderItems || []) {
+    if (!item?.id) continue;
+    const station = item.menuItem?.kitchenStation || "expo";
+    if (!grouped[station]) grouped[station] = [];
+    grouped[station].push({
+      id: item.id,
+      name: item.menuItem?.name || "Item",
+      quantity: item.quantity || 1,
+      notes: item.specialInstructions || null,
+      station,
+      status: "new",
+      fulfilledAt: null
+    });
+  }
+  return grouped;
+}
+async function reconcileRestaurantOrderStatus(orderId, context) {
+  const sudo = context.sudo();
+  const [order, tickets] = await Promise.all([
+    sudo.query.RestaurantOrder.findOne({
+      where: { id: orderId },
+      query: "id status"
+    }),
+    sudo.query.KitchenTicket.findMany({
+      where: { order: { id: { equals: orderId } } },
+      query: "id status"
+    })
+  ]);
+  if (!order || !tickets.length) return;
+  const hasNew = tickets.some((t) => t.status === "new");
+  const hasInProgress = tickets.some((t) => t.status === "in_progress");
+  const hasReady = tickets.some((t) => t.status === "ready");
+  const hasServed = tickets.some((t) => t.status === "served");
+  const allServed = tickets.every((t) => ["served", "cancelled"].includes(t.status));
+  let nextStatus = null;
+  if (hasInProgress) nextStatus = "in_progress";
+  else if (hasReady && !hasNew) nextStatus = "ready";
+  else if (hasReady || hasNew) nextStatus = "sent_to_kitchen";
+  else if (allServed || hasServed) nextStatus = "served";
+  if (nextStatus && nextStatus !== order.status) {
+    await sudo.db.RestaurantOrder.updateOne({
+      where: { id: orderId },
+      data: { status: nextStatus }
+    });
+  }
+}
+async function syncKitchenTicketsForOrder(orderId, context) {
+  const sudo = context.sudo();
+  const order = await sudo.query.RestaurantOrder.findOne({
+    where: { id: orderId },
+    query: `
+      id
+      status
+      isUrgent
+      onHold
+      createdAt
+      orderItems {
+        id
+        quantity
+        specialInstructions
+        menuItem { id name kitchenStation }
+      }
+    `
+  });
+  if (!order) {
+    return { created: 0, updated: 0, removed: 0 };
+  }
+  const existingTickets = await sudo.query.KitchenTicket.findMany({
+    where: {
+      order: { id: { equals: order.id } },
+      status: { in: [...ACTIVE_TICKET_STATUSES, "served", "cancelled"] }
+    },
+    query: "id items status firedAt station { id name }",
+    orderBy: { firedAt: "asc" }
+  });
+  if (order.status === "completed" || order.status === "cancelled") {
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    let updated2 = 0;
+    for (const ticket of existingTickets.filter((t) => ACTIVE_TICKET_STATUSES.includes(t.status))) {
+      await sudo.db.KitchenTicket.updateOne({
+        where: { id: ticket.id },
+        data: {
+          status: order.status === "completed" ? "served" : "cancelled",
+          completedAt: order.status === "completed" ? now : void 0,
+          servedAt: order.status === "completed" ? now : void 0
+        }
+      });
+      updated2 += 1;
+    }
+    return { created: 0, updated: updated2, removed: 0 };
+  }
+  if (!isKitchenActiveOrderStatus(order.status)) {
+    return { created: 0, updated: 0, removed: 0 };
+  }
+  const stations = await sudo.query.KitchenStation.findMany({
+    query: "id name displayOrder",
+    where: { isActive: { equals: true } },
+    orderBy: { displayOrder: "asc" }
+  });
+  const stationItemMap = mapOrderItemsByStation(order);
+  let created = 0;
+  let updated = 0;
+  let removed = 0;
+  const desiredStationKeys = new Set(Object.keys(stationItemMap).map(normalizeStationName));
+  if (desiredStationKeys.size === 0) {
+    for (const ticket of existingTickets.filter((t) => ACTIVE_TICKET_STATUSES.includes(t.status))) {
+      await sudo.db.KitchenTicket.deleteOne({ where: { id: ticket.id } });
+      removed += 1;
+    }
+    return { created, updated, removed };
+  }
+  for (const [stationKey, items] of Object.entries(stationItemMap)) {
+    const station = await getOrCreateStation(stationKey, context, stations);
+    const matchingTickets = existingTickets.filter(
+      (ticket) => normalizeStationName(ticket.station?.name || "") === normalizeStationName(station.name)
+    );
+    const priority = order.isUrgent ? 100 : order.onHold ? -10 : 0;
+    const ticketType = isExpediterStation(station.name) ? "expediter" : "prep";
+    if (matchingTickets.length > 0) {
+      const existing = matchingTickets[0];
+      const existingItems = existing.items || [];
+      const existingMap = new Map(existingItems.map((i) => [i.id, i]));
+      const mergedItems = items.map((item) => {
+        const prev = existingMap.get(item.id);
+        if (!prev) return item;
+        return {
+          ...item,
+          status: prev.status || "new",
+          fulfilledAt: prev.fulfilledAt || null
+        };
+      });
+      await sudo.db.KitchenTicket.updateOne({
+        where: { id: existing.id },
+        data: {
+          items: mergedItems,
+          priority,
+          ticketType,
+          firedAt: existing.firedAt || order.createdAt
+        }
+      });
+      updated += 1;
+      for (const duplicate of matchingTickets.slice(1)) {
+        await sudo.db.KitchenTicket.deleteOne({ where: { id: duplicate.id } });
+        removed += 1;
+      }
+    } else {
+      await sudo.db.KitchenTicket.createOne({
+        data: {
+          order: { connect: { id: order.id } },
+          station: { connect: { id: station.id } },
+          items,
+          priority,
+          ticketType,
+          status: getTicketStatusForOrderStatus(order.status),
+          firedAt: order.createdAt
+        }
+      });
+      created += 1;
+    }
+  }
+  for (const ticket of existingTickets.filter((ticket2) => ACTIVE_TICKET_STATUSES.includes(ticket2.status))) {
+    const stationName = normalizeStationName(ticket.station?.name || "");
+    if (!desiredStationKeys.has(stationName)) {
+      await sudo.db.KitchenTicket.deleteOne({ where: { id: ticket.id } });
+      removed += 1;
+    }
+  }
+  await reconcileRestaurantOrderStatus(order.id, context);
+  return { created, updated, removed };
+}
+async function syncKitchenTicketsForActiveOrders(context) {
+  const orders = await context.sudo().query.RestaurantOrder.findMany({
+    where: {
+      status: { in: [...ACTIVE_ORDER_STATUSES] }
+    },
+    orderBy: { createdAt: "asc" },
+    query: "id"
+  });
+  let created = 0;
+  let updated = 0;
+  let removed = 0;
+  for (const order of orders) {
+    const result = await syncKitchenTicketsForOrder(order.id, context);
+    created += result.created;
+    updated += result.updated;
+    removed += result.removed;
+  }
+  return { created, updated, removed };
+}
+
+// features/keystone/models/RestaurantOrder.ts
 var RestaurantOrder = (0, import_core10.list)({
   access: {
     operation: {
-      query: permissions.canManageOrders,
-      create: isSignedIn,
+      query: ({ session }) => permissions.canReadOrders({ session }) || permissions.canManageOrders({ session }),
+      create: permissions.canManageOrders,
       update: permissions.canManageOrders,
       delete: permissions.canManageOrders
     }
@@ -1444,6 +1678,18 @@ var RestaurantOrder = (0, import_core10.list)({
               (table) => sudo.db.Table.updateOne({ where: { id: table.id }, data: { status: "cleaning" } })
             ));
           }
+        }
+      }
+      const previousStatus = originalItem?.status;
+      const currentStatus = item?.status;
+      const orderId = String(item?.id || "");
+      const enteredKitchenFlow = operation === "create" ? isKitchenActiveOrderStatus(item?.status) : isKitchenActiveOrderStatus(currentStatus) && !isKitchenActiveOrderStatus(previousStatus);
+      const leftKitchenFlow = operation === "update" && isKitchenActiveOrderStatus(previousStatus) && ["completed", "cancelled"].includes(currentStatus || "");
+      if (orderId && (enteredKitchenFlow || leftKitchenFlow)) {
+        try {
+          await syncKitchenTicketsForOrder(orderId, context);
+        } catch (err) {
+          console.error("Kitchen ticket sync error:", err);
         }
       }
       if (operation === "update" && item?.status === "completed" && originalItem?.status !== "completed") {
@@ -1679,6 +1925,24 @@ var Address = (0, import_core11.list)({
 var import_core12 = require("@keystone-6/core");
 var import_fields13 = require("@keystone-6/core/fields");
 var OrderItem = (0, import_core12.list)({
+  hooks: {
+    afterOperation: async ({ operation, item, originalItem, context }) => {
+      const orderId = String(
+        item?.orderId || item?.order?.id || originalItem?.orderId || originalItem?.order?.id || ""
+      );
+      if (!orderId) return;
+      const order = await context.sudo().query.RestaurantOrder.findOne({
+        where: { id: orderId },
+        query: "id status"
+      });
+      if (!order || !isKitchenActiveOrderStatus(order.status)) return;
+      try {
+        await syncKitchenTicketsForOrder(order.id, context);
+      } catch (err) {
+        console.error(`Kitchen ticket sync error after order item ${operation}:`, err);
+      }
+    }
+  },
   access: {
     operation: {
       query: permissions.canReadOrders,
@@ -2189,6 +2453,7 @@ var Payment = (0, import_core17.list)({
         { label: "Debit Card", value: "debit_card" },
         { label: "Cash", value: "cash" },
         { label: "Gift Card", value: "gift_card" },
+        { label: "PayPal", value: "paypal" },
         { label: "Apple Pay", value: "apple_pay" },
         { label: "Google Pay", value: "google_pay" }
       ],
@@ -2493,8 +2758,7 @@ var import_fields23 = require("@keystone-6/core/fields");
 var PaymentProvider = (0, import_core22.list)({
   access: {
     operation: {
-      query: () => true,
-      // Public read for storefront
+      query: ({ session }) => permissions.canReadPayments({ session }) || permissions.canManagePayments({ session }),
       create: permissions.canManagePayments,
       update: permissions.canManagePayments,
       delete: permissions.canManagePayments
@@ -3500,15 +3764,15 @@ var StoreSettings = (0, import_core35.list)({
     }),
     // Hero/Branding
     heroHeadline: (0, import_fields36.text)({
-      defaultValue: "Thoughtfully crafted burgers.",
+      defaultValue: "Fresh meals for pickup and delivery.",
       ui: { description: "Main hero headline" }
     }),
     heroSubheadline: (0, import_fields36.text)({
-      defaultValue: "Premium ingredients from local farms, bold flavors, and a commitment to quality in every bite.",
+      defaultValue: "A modern ordering storefront with house favorites, quick pickup, and a menu built to customize.",
       ui: { description: "Hero subheadline/description" }
     }),
     heroTagline: (0, import_fields36.text)({
-      defaultValue: "Locally Sourced \xB7 Made Fresh Daily",
+      defaultValue: "Made fresh daily \xB7 Ready when you are",
       ui: { description: "Small tagline above headline" }
     }),
     // Promo Banner
@@ -4236,24 +4500,86 @@ async function handleWebhook({ provider, event, headers }) {
 }
 
 // features/keystone/mutations/processPayment.ts
+function cents(value) {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? Math.round(parsed) : 0;
+}
+async function applyTipToOrder(orderId, tipAmount, context) {
+  const sudo = context.sudo();
+  const order = await sudo.query.RestaurantOrder.findOne({
+    where: { id: orderId },
+    query: "id total tip"
+  });
+  if (!order) {
+    return null;
+  }
+  const currentTip = cents(order.tip);
+  const nextTip = Math.max(currentTip, cents(tipAmount));
+  if (nextTip !== currentTip) {
+    const baseTotal = Math.max(0, cents(order.total) - currentTip);
+    const nextTotal = baseTotal + nextTip;
+    await sudo.db.RestaurantOrder.updateOne({
+      where: { id: orderId },
+      data: {
+        tip: nextTip,
+        total: nextTotal
+      }
+    });
+    return {
+      ...order,
+      tip: nextTip,
+      total: nextTotal
+    };
+  }
+  return order;
+}
+async function maybeCompleteOrder(orderId, context) {
+  const sudo = context.sudo();
+  const [order, payments] = await Promise.all([
+    sudo.query.RestaurantOrder.findOne({
+      where: { id: orderId },
+      query: "id status total"
+    }),
+    sudo.query.Payment.findMany({
+      where: {
+        order: { id: { equals: orderId } },
+        status: { equals: "succeeded" }
+      },
+      query: "id amount"
+    })
+  ]);
+  if (!order) {
+    return;
+  }
+  const totalPaid = payments.reduce((sum, payment) => sum + cents(payment.amount), 0);
+  const totalDue = cents(order.total);
+  if (totalPaid >= totalDue && order.status !== "completed") {
+    await sudo.db.RestaurantOrder.updateOne({
+      where: { id: orderId },
+      data: { status: "completed" }
+    });
+  }
+}
 async function processPayment(root, args, context) {
-  if (!context.session?.itemId) {
+  if (!permissions.canManagePayments({ session: context.session })) {
     return {
       success: false,
       paymentId: null,
       clientSecret: null,
-      error: "Must be signed in to process payment"
+      error: "Not authorized to process payment"
     };
   }
   const { orderId, amount, paymentMethod, tipAmount = 0 } = args;
   try {
-    const settings = await context.sudo().query.StoreSettings.findOne({
+    const sudo = context.sudo();
+    const settings = await sudo.query.StoreSettings.findOne({
       where: { id: "1" },
       query: "currencyCode"
     });
     const currency = (settings?.currencyCode || "USD").toLowerCase();
-    const order = await context.db.RestaurantOrder.findOne({
-      where: { id: orderId }
+    const order = await sudo.query.RestaurantOrder.findOne({
+      where: { id: orderId },
+      query: "id orderNumber status total tip"
     });
     if (!order) {
       return {
@@ -4271,9 +4597,9 @@ async function processPayment(root, args, context) {
         error: "Order is already completed"
       };
     }
-    const providerCode = paymentMethod === "cash" ? "pp_system_default" : ["credit_card", "debit_card", "apple_pay", "google_pay"].includes(
-      paymentMethod
-    ) ? "pp_stripe_stripe" : null;
+    await applyTipToOrder(orderId, tipAmount, context);
+    const isImmediateSettlement = ["cash", "gift_card"].includes(paymentMethod);
+    const providerCode = paymentMethod === "cash" ? "pp_system_default" : ["credit_card", "debit_card", "apple_pay", "google_pay"].includes(paymentMethod) ? "pp_stripe_stripe" : null;
     const providers = providerCode ? await context.query.PaymentProvider.findMany({
       where: {
         code: { equals: providerCode },
@@ -4284,9 +4610,8 @@ async function processPayment(root, args, context) {
     const provider = providers[0] || null;
     let clientSecret = null;
     let providerPaymentId = null;
-    let paymentStatus = "pending";
-    let usesStripe = false;
-    if (provider && provider.isInstalled) {
+    let paymentStatus = isImmediateSettlement ? "succeeded" : "pending";
+    if (!isImmediateSettlement && provider && provider.isInstalled) {
       const providerResponse = await createPayment({
         provider,
         order,
@@ -4296,8 +4621,7 @@ async function processPayment(root, args, context) {
       clientSecret = providerResponse?.clientSecret || null;
       providerPaymentId = providerResponse?.paymentIntentId || providerResponse?.orderId || providerResponse?.paymentId || null;
       paymentStatus = providerResponse?.status || "pending";
-      usesStripe = provider.code === "pp_stripe_stripe" && !!providerPaymentId;
-    } else {
+    } else if (!isImmediateSettlement) {
       const paymentIntent = await createPaymentIntent({
         amount,
         orderId,
@@ -4308,7 +4632,6 @@ async function processPayment(root, args, context) {
       });
       clientSecret = paymentIntent.client_secret;
       providerPaymentId = paymentIntent.id;
-      usesStripe = true;
     }
     const payment = await context.db.Payment.createOne({
       data: {
@@ -4323,10 +4646,14 @@ async function processPayment(root, args, context) {
         },
         paymentProvider: provider ? { connect: { id: provider.id } } : void 0,
         tipAmount,
+        processedAt: paymentStatus === "succeeded" ? (/* @__PURE__ */ new Date()).toISOString() : void 0,
         order: { connect: { id: orderId } },
         processedBy: { connect: { id: context.session.itemId } }
       }
     });
+    if (paymentStatus === "succeeded") {
+      await maybeCompleteOrder(orderId, context);
+    }
     return {
       success: true,
       paymentId: payment.id,
@@ -4345,11 +4672,11 @@ async function processPayment(root, args, context) {
   }
 }
 async function capturePaymentMutation(root, args, context) {
-  if (!context.session?.itemId) {
+  if (!permissions.canManagePayments({ session: context.session })) {
     return {
       success: false,
       status: null,
-      error: "Must be signed in to capture payment"
+      error: "Not authorized to capture payment"
     };
   }
   const { paymentIntentId } = args;
@@ -4375,22 +4702,20 @@ async function capturePaymentMutation(root, args, context) {
       paymentId: payment.providerPaymentId || paymentIntentId,
       amount: args.amount ?? void 0
     }) : await capturePayment(paymentIntentId);
+    const didSucceed = ["succeeded", "captured"].includes(capturedPayment.status);
     await context.db.Payment.updateOne({
       where: { id: payment.id },
       data: {
-        status: capturedPayment.status === "succeeded" ? "succeeded" : "processing",
-        processedAt: (/* @__PURE__ */ new Date()).toISOString()
+        status: didSucceed ? "succeeded" : "processing",
+        processedAt: didSucceed ? (/* @__PURE__ */ new Date()).toISOString() : void 0
       }
     });
-    if (capturedPayment.status === "succeeded" && payment.order?.id) {
-      await context.db.RestaurantOrder.updateOne({
-        where: { id: payment.order.id },
-        data: { status: "completed" }
-      });
+    if (didSucceed && payment.order?.id) {
+      await maybeCompleteOrder(payment.order.id, context);
     }
     return {
       success: true,
-      status: capturedPayment.status,
+      status: didSucceed ? "succeeded" : capturedPayment.status,
       error: null
     };
   } catch (err) {
@@ -4404,11 +4729,11 @@ async function capturePaymentMutation(root, args, context) {
   }
 }
 async function getPaymentStatus2(root, args, context) {
-  if (!context.session?.itemId) {
+  if (!(permissions.canReadPayments({ session: context.session }) || permissions.canManagePayments({ session: context.session }))) {
     return {
       status: null,
       amount: null,
-      error: "Must be signed in to check payment status"
+      error: "Not authorized to check payment status"
     };
   }
   try {
@@ -4442,473 +4767,6 @@ async function getPaymentStatus2(root, args, context) {
     return {
       status: null,
       amount: null,
-      error: errorMessage
-    };
-  }
-}
-
-// features/keystone/mutations/splitCheck.ts
-function cents(value) {
-  const n = Number(value || 0);
-  return Number.isFinite(n) ? Math.round(n) : 0;
-}
-function calculateTotalsFromItems(items) {
-  const subtotal = items.reduce((sum, item) => {
-    return sum + cents(item.price) * (item.quantity || 0);
-  }, 0);
-  const tax = Math.round(subtotal * 0.08);
-  const total = subtotal + tax;
-  return { subtotal, tax, total };
-}
-function buildSplitOrderNumber(suffix) {
-  const now = /* @__PURE__ */ new Date();
-  const datePart = now.toISOString().slice(2, 10).replace(/-/g, "");
-  const timePart = now.getTime().toString().slice(-4);
-  return `${datePart}-${timePart}-${suffix}`;
-}
-async function splitCheckByItem(root, args, context) {
-  if (!context.session?.itemId) {
-    return {
-      success: false,
-      newOrderIds: [],
-      error: "Must be signed in to split check"
-    };
-  }
-  const { orderId, itemIds } = args;
-  if (!itemIds || itemIds.length === 0) {
-    return {
-      success: false,
-      newOrderIds: [],
-      error: "Must select at least one item to split"
-    };
-  }
-  try {
-    const originalOrder = await context.query.RestaurantOrder.findOne({
-      where: { id: orderId },
-      query: "id orderNumber orderType orderSource status specialInstructions server { id } tables { id }"
-    });
-    if (!originalOrder) {
-      return {
-        success: false,
-        newOrderIds: [],
-        error: "Order not found"
-      };
-    }
-    const itemsToMove = await context.query.OrderItem.findMany({
-      where: {
-        id: { in: itemIds },
-        order: { id: { equals: orderId } }
-      },
-      query: "id quantity price"
-    });
-    if (itemsToMove.length === 0) {
-      return {
-        success: false,
-        newOrderIds: [],
-        error: "No valid items found to split"
-      };
-    }
-    const newTotals = calculateTotalsFromItems(itemsToMove);
-    const newOrder = await context.db.RestaurantOrder.createOne({
-      data: {
-        orderNumber: buildSplitOrderNumber("S"),
-        orderType: originalOrder.orderType || "dine_in",
-        orderSource: originalOrder.orderSource || "pos",
-        status: originalOrder.status || "open",
-        guestCount: 1,
-        subtotal: newTotals.subtotal,
-        tax: newTotals.tax,
-        total: newTotals.total,
-        specialInstructions: originalOrder.specialInstructions ? `${originalOrder.specialInstructions} | Split from ${originalOrder.orderNumber}` : `Split from ${originalOrder.orderNumber}`,
-        tables: (originalOrder.tables || []).length ? { connect: (originalOrder.tables || []).map((t) => ({ id: t.id })) } : void 0,
-        server: originalOrder.server?.id ? { connect: { id: originalOrder.server.id } } : void 0
-      }
-    });
-    for (const item of itemsToMove) {
-      await context.db.OrderItem.updateOne({
-        where: { id: item.id },
-        data: {
-          order: { connect: { id: newOrder.id } }
-        }
-      });
-    }
-    const remainingItems = await context.query.OrderItem.findMany({
-      where: {
-        order: { id: { equals: orderId } }
-      },
-      query: "id quantity price"
-    });
-    const remainingTotals = calculateTotalsFromItems(remainingItems);
-    await context.db.RestaurantOrder.updateOne({
-      where: { id: orderId },
-      data: {
-        subtotal: remainingTotals.subtotal,
-        tax: remainingTotals.tax,
-        total: remainingTotals.total
-      }
-    });
-    return {
-      success: true,
-      newOrderIds: [newOrder.id],
-      error: null
-    };
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error(`Error splitting check by item: ${errorMessage}`);
-    return {
-      success: false,
-      newOrderIds: [],
-      error: errorMessage
-    };
-  }
-}
-async function splitCheckByGuest(root, args, context) {
-  if (!context.session?.itemId) {
-    return {
-      success: false,
-      newOrderIds: [],
-      error: "Must be signed in to split check"
-    };
-  }
-  const { orderId, guestCount } = args;
-  if (guestCount < 2) {
-    return {
-      success: false,
-      newOrderIds: [],
-      error: "Guest count must be at least 2 to split"
-    };
-  }
-  try {
-    const originalOrder = await context.query.RestaurantOrder.findOne({
-      where: { id: orderId },
-      query: "id orderNumber orderType orderSource status specialInstructions total subtotal tax server { id } tables { id }"
-    });
-    if (!originalOrder) {
-      return {
-        success: false,
-        newOrderIds: [],
-        error: "Order not found"
-      };
-    }
-    const totalAmount = cents(originalOrder.total);
-    const totalSubtotal = cents(originalOrder.subtotal);
-    const totalTax = cents(originalOrder.tax);
-    const splitTotalBase = Math.floor(totalAmount / guestCount);
-    const splitSubtotalBase = Math.floor(totalSubtotal / guestCount);
-    const splitTaxBase = Math.floor(totalTax / guestCount);
-    let totalRemainder = totalAmount - splitTotalBase * guestCount;
-    let subtotalRemainder = totalSubtotal - splitSubtotalBase * guestCount;
-    let taxRemainder = totalTax - splitTaxBase * guestCount;
-    const newOrderIds = [];
-    for (let i = 1; i < guestCount; i++) {
-      const thisTotal = splitTotalBase + (totalRemainder > 0 ? 1 : 0);
-      const thisSubtotal = splitSubtotalBase + (subtotalRemainder > 0 ? 1 : 0);
-      const thisTax = splitTaxBase + (taxRemainder > 0 ? 1 : 0);
-      if (totalRemainder > 0) totalRemainder -= 1;
-      if (subtotalRemainder > 0) subtotalRemainder -= 1;
-      if (taxRemainder > 0) taxRemainder -= 1;
-      const newOrder = await context.db.RestaurantOrder.createOne({
-        data: {
-          orderNumber: buildSplitOrderNumber(`G${i + 1}`),
-          orderType: originalOrder.orderType || "dine_in",
-          orderSource: originalOrder.orderSource || "pos",
-          status: originalOrder.status || "open",
-          guestCount: 1,
-          subtotal: thisSubtotal,
-          tax: thisTax,
-          total: thisTotal,
-          specialInstructions: `Split from order ${originalOrder.orderNumber} (Guest ${i + 1} of ${guestCount})`,
-          tables: (originalOrder.tables || []).length ? { connect: (originalOrder.tables || []).map((t) => ({ id: t.id })) } : void 0,
-          server: originalOrder.server?.id ? { connect: { id: originalOrder.server.id } } : void 0
-        }
-      });
-      newOrderIds.push(newOrder.id);
-    }
-    const originalTotal = splitTotalBase + (totalRemainder > 0 ? 1 : 0);
-    const originalSubtotal = splitSubtotalBase + (subtotalRemainder > 0 ? 1 : 0);
-    const originalTax = splitTaxBase + (taxRemainder > 0 ? 1 : 0);
-    await context.db.RestaurantOrder.updateOne({
-      where: { id: orderId },
-      data: {
-        guestCount: 1,
-        subtotal: originalSubtotal,
-        tax: originalTax,
-        total: originalTotal,
-        specialInstructions: originalOrder.specialInstructions ? `${originalOrder.specialInstructions} | Split check (Guest 1 of ${guestCount})` : `Split check (Guest 1 of ${guestCount})`
-      }
-    });
-    return {
-      success: true,
-      newOrderIds,
-      error: null
-    };
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error(`Error splitting check by guest: ${errorMessage}`);
-    return {
-      success: false,
-      newOrderIds: [],
-      error: errorMessage
-    };
-  }
-}
-
-// features/keystone/mutations/voidComp.ts
-async function hasManagerPermission(context) {
-  if (!context.session?.itemId) return false;
-  const user = await context.db.User.findOne({
-    where: { id: context.session.itemId }
-  });
-  if (!user || !user.roleId) return false;
-  const role = await context.db.Role.findOne({
-    where: { id: user.roleId }
-  });
-  return role?.canManageOrders === true;
-}
-async function voidOrderItem(root, args, context) {
-  if (!context.session?.itemId) {
-    return {
-      success: false,
-      requiresManagerApproval: false,
-      adjustedAmount: null,
-      error: "Must be signed in to void items"
-    };
-  }
-  const { orderItemId, reason, managerApproval, managerId } = args;
-  if (!reason || reason.trim() === "") {
-    return {
-      success: false,
-      requiresManagerApproval: false,
-      adjustedAmount: null,
-      error: "Reason is required for void"
-    };
-  }
-  try {
-    const orderItem = await context.db.OrderItem.findOne({
-      where: { id: orderItemId }
-    });
-    if (!orderItem) {
-      return {
-        success: false,
-        requiresManagerApproval: false,
-        adjustedAmount: null,
-        error: "Order item not found"
-      };
-    }
-    const isManager = await hasManagerPermission(context);
-    if (!isManager && !managerApproval) {
-      return {
-        success: false,
-        requiresManagerApproval: true,
-        adjustedAmount: null,
-        error: "Manager approval required for void"
-      };
-    }
-    const voidAmount = (orderItem.price || 0) * (orderItem.quantity || 0);
-    await context.db.OrderItem.deleteOne({
-      where: { id: orderItemId }
-    });
-    if (orderItem.orderId) {
-      const order = await context.db.RestaurantOrder.findOne({
-        where: { id: orderItem.orderId }
-      });
-      if (order) {
-        const currentSubtotal = (order.subtotal || 0) - voidAmount;
-        const taxRate = order.subtotal ? (order.tax || 0) / order.subtotal : 0.08;
-        const newTax = Math.round(currentSubtotal * taxRate);
-        const newTotal = currentSubtotal + newTax;
-        await context.db.RestaurantOrder.updateOne({
-          where: { id: orderItem.orderId },
-          data: {
-            subtotal: Math.max(0, currentSubtotal),
-            tax: Math.max(0, newTax),
-            total: Math.max(0, newTotal),
-            specialInstructions: order.specialInstructions ? `${order.specialInstructions} | VOID: ${reason}` : `VOID: ${reason}`
-          }
-        });
-      }
-    }
-    return {
-      success: true,
-      requiresManagerApproval: false,
-      adjustedAmount: voidAmount,
-      error: null
-    };
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error(`Error voiding item: ${errorMessage}`);
-    return {
-      success: false,
-      requiresManagerApproval: false,
-      adjustedAmount: null,
-      error: errorMessage
-    };
-  }
-}
-async function compOrderItem(root, args, context) {
-  if (!context.session?.itemId) {
-    return {
-      success: false,
-      requiresManagerApproval: false,
-      adjustedAmount: null,
-      error: "Must be signed in to comp items"
-    };
-  }
-  const { orderItemId, reason, compAmount, managerApproval, managerId } = args;
-  if (!reason || reason.trim() === "") {
-    return {
-      success: false,
-      requiresManagerApproval: false,
-      adjustedAmount: null,
-      error: "Reason is required for comp"
-    };
-  }
-  try {
-    const orderItem = await context.db.OrderItem.findOne({
-      where: { id: orderItemId }
-    });
-    if (!orderItem) {
-      return {
-        success: false,
-        requiresManagerApproval: false,
-        adjustedAmount: null,
-        error: "Order item not found"
-      };
-    }
-    const isManager = await hasManagerPermission(context);
-    if (!isManager && !managerApproval) {
-      return {
-        success: false,
-        requiresManagerApproval: true,
-        adjustedAmount: null,
-        error: "Manager approval required for comp"
-      };
-    }
-    const itemTotal = (orderItem.price || 0) * (orderItem.quantity || 0);
-    const actualCompAmount = compAmount !== void 0 && compAmount !== null ? Math.min(compAmount, itemTotal) : itemTotal;
-    const perItemComp = Math.floor(actualCompAmount / (orderItem.quantity || 1));
-    const newPrice = (orderItem.price || 0) - perItemComp;
-    if (newPrice <= 0) {
-      await context.db.OrderItem.deleteOne({
-        where: { id: orderItemId }
-      });
-    } else {
-      await context.db.OrderItem.updateOne({
-        where: { id: orderItemId },
-        data: {
-          price: newPrice,
-          specialInstructions: orderItem.specialInstructions ? `${orderItem.specialInstructions} | COMP: ${reason}` : `COMP: ${reason}`
-        }
-      });
-    }
-    if (orderItem.orderId) {
-      const order = await context.db.RestaurantOrder.findOne({
-        where: { id: orderItem.orderId }
-      });
-      if (order) {
-        const currentSubtotal = (order.subtotal || 0) - actualCompAmount;
-        const taxRate = order.subtotal ? (order.tax || 0) / order.subtotal : 0.08;
-        const newTax = Math.round(currentSubtotal * taxRate);
-        const newTotal = currentSubtotal + newTax;
-        await context.db.RestaurantOrder.updateOne({
-          where: { id: orderItem.orderId },
-          data: {
-            subtotal: Math.max(0, currentSubtotal),
-            tax: Math.max(0, newTax),
-            total: Math.max(0, newTotal),
-            specialInstructions: order.specialInstructions ? `${order.specialInstructions} | COMP: ${reason}` : `COMP: ${reason}`
-          }
-        });
-      }
-    }
-    return {
-      success: true,
-      requiresManagerApproval: false,
-      adjustedAmount: actualCompAmount,
-      error: null
-    };
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error(`Error comping item: ${errorMessage}`);
-    return {
-      success: false,
-      requiresManagerApproval: false,
-      adjustedAmount: null,
-      error: errorMessage
-    };
-  }
-}
-async function voidOrder(root, args, context) {
-  if (!context.session?.itemId) {
-    return {
-      success: false,
-      requiresManagerApproval: false,
-      adjustedAmount: null,
-      error: "Must be signed in to void orders"
-    };
-  }
-  const { orderId, reason, managerApproval, managerId } = args;
-  if (!reason || reason.trim() === "") {
-    return {
-      success: false,
-      requiresManagerApproval: false,
-      adjustedAmount: null,
-      error: "Reason is required for void"
-    };
-  }
-  try {
-    const order = await context.db.RestaurantOrder.findOne({
-      where: { id: orderId }
-    });
-    if (!order) {
-      return {
-        success: false,
-        requiresManagerApproval: false,
-        adjustedAmount: null,
-        error: "Order not found"
-      };
-    }
-    const isManager = await hasManagerPermission(context);
-    if (!isManager && !managerApproval) {
-      return {
-        success: false,
-        requiresManagerApproval: true,
-        adjustedAmount: null,
-        error: "Manager approval required for void"
-      };
-    }
-    const voidAmount = order.total || 0;
-    const orderItems = await context.db.OrderItem.findMany({
-      where: { order: { id: { equals: orderId } } }
-    });
-    for (const item of orderItems) {
-      await context.db.OrderItem.deleteOne({
-        where: { id: item.id }
-      });
-    }
-    await context.db.RestaurantOrder.updateOne({
-      where: { id: orderId },
-      data: {
-        status: "cancelled",
-        subtotal: 0,
-        tax: 0,
-        total: 0,
-        specialInstructions: order.specialInstructions ? `${order.specialInstructions} | VOIDED: ${reason}` : `VOIDED: ${reason}`
-      }
-    });
-    return {
-      success: true,
-      requiresManagerApproval: false,
-      adjustedAmount: voidAmount,
-      error: null
-    };
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
-    console.error(`Error voiding order: ${errorMessage}`);
-    return {
-      success: false,
-      requiresManagerApproval: false,
-      adjustedAmount: null,
       error: errorMessage
     };
   }
@@ -4983,79 +4841,6 @@ function calculateRestaurantTotals({
     tip,
     total
   };
-}
-
-// features/keystone/utils/cartAccess.ts
-var cookie = __toESM(require("cookie"));
-function getRequestCartId(context) {
-  const cookieHeader = context.req?.headers?.cookie;
-  if (!cookieHeader) return void 0;
-  return cookie.parse(cookieHeader)._restaurant_cart_id;
-}
-function canBypassCartAccess(context, mode) {
-  if (permissions.canManageOrders({ session: context.session })) return true;
-  if (mode === "read" && permissions.canReadOrders({ session: context.session })) return true;
-  return false;
-}
-function assertOwnership({
-  context,
-  cartId,
-  cartUserId,
-  mode
-}) {
-  if (canBypassCartAccess(context, mode)) return;
-  const requestCartId = getRequestCartId(context);
-  const sessionItemId = context.session?.itemId;
-  const ownsByUser = Boolean(sessionItemId && cartUserId && cartUserId === sessionItemId);
-  const ownsByCookie = requestCartId === cartId;
-  if (!ownsByUser && !ownsByCookie) {
-    throw new Error("Access denied");
-  }
-}
-async function assertCanAccessCart(context, cartId, mode = "write") {
-  const cart = await context.sudo().query.Cart.findOne({
-    where: { id: cartId },
-    query: `
-      id
-      user {
-        id
-      }
-    `
-  });
-  if (!cart) {
-    throw new Error("Cart not found");
-  }
-  assertOwnership({
-    context,
-    cartId: cart.id,
-    cartUserId: cart.user?.id,
-    mode
-  });
-  return cart;
-}
-async function assertCanAccessCartItem(context, cartItemId, mode = "write") {
-  const cartItem = await context.sudo().query.CartItem.findOne({
-    where: { id: cartItemId },
-    query: `
-      id
-      cart {
-        id
-        user {
-          id
-        }
-      }
-    `
-  });
-  if (!cartItem?.cart?.id) {
-    throw new Error("Cart not found for this item");
-  }
-  assertOwnership({
-    context,
-    cartId: cartItem.cart.id,
-    cartUserId: cartItem.cart.user?.id,
-    mode
-  });
-  return cartItem;
 }
 
 // features/lib/delivery-zones.ts
@@ -5201,6 +4986,536 @@ function normalizeDeliveryFields(data) {
     next.deliveryZip = normalizePostalCode(next.deliveryZip);
   }
   return next;
+}
+
+// features/keystone/mutations/splitCheck.ts
+function cents2(value) {
+  const n = Number(value || 0);
+  return Number.isFinite(n) ? Math.round(n) : 0;
+}
+async function calculateTotalsFromItems(items, orderType, context) {
+  const settings = await getStoreDeliverySettings(context);
+  const subtotal = items.reduce((sum, item) => {
+    return sum + cents2(item.price) * (item.quantity || 0);
+  }, 0);
+  const { tax, total } = calculateRestaurantTotals({
+    subtotal,
+    orderType,
+    taxRate: settings?.taxRate,
+    currencyCode: settings?.currencyCode || "USD"
+  });
+  return { subtotal, tax, total };
+}
+function buildSplitOrderNumber(suffix) {
+  const now = /* @__PURE__ */ new Date();
+  const datePart = now.toISOString().slice(2, 10).replace(/-/g, "");
+  const timePart = now.getTime().toString().slice(-4);
+  return `${datePart}-${timePart}-${suffix}`;
+}
+async function splitCheckByItem(root, args, context) {
+  if (!permissions.canManageOrders({ session: context.session })) {
+    return {
+      success: false,
+      newOrderIds: [],
+      error: "Not authorized to split check"
+    };
+  }
+  const { orderId, itemIds } = args;
+  if (!itemIds || itemIds.length === 0) {
+    return {
+      success: false,
+      newOrderIds: [],
+      error: "Must select at least one item to split"
+    };
+  }
+  try {
+    const originalOrder = await context.query.RestaurantOrder.findOne({
+      where: { id: orderId },
+      query: "id orderNumber orderType orderSource status specialInstructions server { id } tables { id }"
+    });
+    if (!originalOrder) {
+      return {
+        success: false,
+        newOrderIds: [],
+        error: "Order not found"
+      };
+    }
+    const itemsToMove = await context.query.OrderItem.findMany({
+      where: {
+        id: { in: itemIds },
+        order: { id: { equals: orderId } }
+      },
+      query: "id quantity price"
+    });
+    if (itemsToMove.length === 0) {
+      return {
+        success: false,
+        newOrderIds: [],
+        error: "No valid items found to split"
+      };
+    }
+    const newTotals = await calculateTotalsFromItems(itemsToMove, originalOrder.orderType, context);
+    const newOrder = await context.db.RestaurantOrder.createOne({
+      data: {
+        orderNumber: buildSplitOrderNumber("S"),
+        orderType: originalOrder.orderType || "dine_in",
+        orderSource: originalOrder.orderSource || "pos",
+        status: originalOrder.status || "open",
+        guestCount: 1,
+        subtotal: newTotals.subtotal,
+        tax: newTotals.tax,
+        total: newTotals.total,
+        specialInstructions: originalOrder.specialInstructions ? `${originalOrder.specialInstructions} | Split from ${originalOrder.orderNumber}` : `Split from ${originalOrder.orderNumber}`,
+        tables: (originalOrder.tables || []).length ? { connect: (originalOrder.tables || []).map((t) => ({ id: t.id })) } : void 0,
+        server: originalOrder.server?.id ? { connect: { id: originalOrder.server.id } } : void 0
+      }
+    });
+    for (const item of itemsToMove) {
+      await context.db.OrderItem.updateOne({
+        where: { id: item.id },
+        data: {
+          order: { connect: { id: newOrder.id } }
+        }
+      });
+    }
+    const remainingItems = await context.query.OrderItem.findMany({
+      where: {
+        order: { id: { equals: orderId } }
+      },
+      query: "id quantity price"
+    });
+    const remainingTotals = await calculateTotalsFromItems(remainingItems, originalOrder.orderType, context);
+    await context.db.RestaurantOrder.updateOne({
+      where: { id: orderId },
+      data: {
+        subtotal: remainingTotals.subtotal,
+        tax: remainingTotals.tax,
+        total: remainingTotals.total
+      }
+    });
+    return {
+      success: true,
+      newOrderIds: [newOrder.id],
+      error: null
+    };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.error(`Error splitting check by item: ${errorMessage}`);
+    return {
+      success: false,
+      newOrderIds: [],
+      error: errorMessage
+    };
+  }
+}
+async function splitCheckByGuest(root, args, context) {
+  if (!permissions.canManageOrders({ session: context.session })) {
+    return {
+      success: false,
+      newOrderIds: [],
+      error: "Not authorized to split check"
+    };
+  }
+  const { orderId, guestCount } = args;
+  if (guestCount < 2) {
+    return {
+      success: false,
+      newOrderIds: [],
+      error: "Guest count must be at least 2 to split"
+    };
+  }
+  try {
+    const originalOrder = await context.query.RestaurantOrder.findOne({
+      where: { id: orderId },
+      query: "id orderNumber orderType orderSource status specialInstructions total subtotal tax server { id } tables { id }"
+    });
+    if (!originalOrder) {
+      return {
+        success: false,
+        newOrderIds: [],
+        error: "Order not found"
+      };
+    }
+    const totalAmount = cents2(originalOrder.total);
+    const totalSubtotal = cents2(originalOrder.subtotal);
+    const totalTax = cents2(originalOrder.tax);
+    const splitTotalBase = Math.floor(totalAmount / guestCount);
+    const splitSubtotalBase = Math.floor(totalSubtotal / guestCount);
+    const splitTaxBase = Math.floor(totalTax / guestCount);
+    let totalRemainder = totalAmount - splitTotalBase * guestCount;
+    let subtotalRemainder = totalSubtotal - splitSubtotalBase * guestCount;
+    let taxRemainder = totalTax - splitTaxBase * guestCount;
+    const newOrderIds = [];
+    for (let i = 1; i < guestCount; i++) {
+      const thisTotal = splitTotalBase + (totalRemainder > 0 ? 1 : 0);
+      const thisSubtotal = splitSubtotalBase + (subtotalRemainder > 0 ? 1 : 0);
+      const thisTax = splitTaxBase + (taxRemainder > 0 ? 1 : 0);
+      if (totalRemainder > 0) totalRemainder -= 1;
+      if (subtotalRemainder > 0) subtotalRemainder -= 1;
+      if (taxRemainder > 0) taxRemainder -= 1;
+      const newOrder = await context.db.RestaurantOrder.createOne({
+        data: {
+          orderNumber: buildSplitOrderNumber(`G${i + 1}`),
+          orderType: originalOrder.orderType || "dine_in",
+          orderSource: originalOrder.orderSource || "pos",
+          status: originalOrder.status || "open",
+          guestCount: 1,
+          subtotal: thisSubtotal,
+          tax: thisTax,
+          total: thisTotal,
+          specialInstructions: `Split from order ${originalOrder.orderNumber} (Guest ${i + 1} of ${guestCount})`,
+          tables: (originalOrder.tables || []).length ? { connect: (originalOrder.tables || []).map((t) => ({ id: t.id })) } : void 0,
+          server: originalOrder.server?.id ? { connect: { id: originalOrder.server.id } } : void 0
+        }
+      });
+      newOrderIds.push(newOrder.id);
+    }
+    const originalTotal = splitTotalBase + (totalRemainder > 0 ? 1 : 0);
+    const originalSubtotal = splitSubtotalBase + (subtotalRemainder > 0 ? 1 : 0);
+    const originalTax = splitTaxBase + (taxRemainder > 0 ? 1 : 0);
+    await context.db.RestaurantOrder.updateOne({
+      where: { id: orderId },
+      data: {
+        guestCount: 1,
+        subtotal: originalSubtotal,
+        tax: originalTax,
+        total: originalTotal,
+        specialInstructions: originalOrder.specialInstructions ? `${originalOrder.specialInstructions} | Split check (Guest 1 of ${guestCount})` : `Split check (Guest 1 of ${guestCount})`
+      }
+    });
+    return {
+      success: true,
+      newOrderIds,
+      error: null
+    };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.error(`Error splitting check by guest: ${errorMessage}`);
+    return {
+      success: false,
+      newOrderIds: [],
+      error: errorMessage
+    };
+  }
+}
+
+// features/keystone/mutations/voidComp.ts
+function canManageOrders(context) {
+  return permissions.canManageOrders({ session: context.session });
+}
+async function recalculateOrderTotals({
+  order,
+  subtotal,
+  context
+}) {
+  const settings = await getStoreDeliverySettings(context);
+  const safeSubtotal = Math.max(0, subtotal);
+  const { tax } = calculateRestaurantTotals({
+    subtotal: safeSubtotal,
+    orderType: order.orderType,
+    taxRate: settings?.taxRate,
+    currencyCode: settings?.currencyCode || order.currencyCode || "USD"
+  });
+  const tip = Math.max(0, order.tip || 0);
+  const discount = Math.max(0, order.discount || 0);
+  const total = Math.max(0, safeSubtotal + tax + tip - discount);
+  return {
+    subtotal: safeSubtotal,
+    tax: Math.max(0, tax),
+    total
+  };
+}
+async function voidOrderItem(root, args, context) {
+  if (!canManageOrders(context)) {
+    return {
+      success: false,
+      requiresManagerApproval: false,
+      adjustedAmount: null,
+      error: "Not authorized to void items"
+    };
+  }
+  const { orderItemId, reason } = args;
+  if (!reason || reason.trim() === "") {
+    return {
+      success: false,
+      requiresManagerApproval: false,
+      adjustedAmount: null,
+      error: "Reason is required for void"
+    };
+  }
+  try {
+    const orderItem = await context.db.OrderItem.findOne({
+      where: { id: orderItemId }
+    });
+    if (!orderItem) {
+      return {
+        success: false,
+        requiresManagerApproval: false,
+        adjustedAmount: null,
+        error: "Order item not found"
+      };
+    }
+    const voidAmount = (orderItem.price || 0) * (orderItem.quantity || 0);
+    await context.db.OrderItem.deleteOne({
+      where: { id: orderItemId }
+    });
+    if (orderItem.orderId) {
+      const order = await context.db.RestaurantOrder.findOne({
+        where: { id: orderItem.orderId }
+      });
+      if (order) {
+        const totals = await recalculateOrderTotals({
+          order,
+          subtotal: (order.subtotal || 0) - voidAmount,
+          context
+        });
+        await context.db.RestaurantOrder.updateOne({
+          where: { id: orderItem.orderId },
+          data: {
+            ...totals,
+            specialInstructions: order.specialInstructions ? `${order.specialInstructions} | VOID: ${reason}` : `VOID: ${reason}`
+          }
+        });
+      }
+    }
+    return {
+      success: true,
+      requiresManagerApproval: false,
+      adjustedAmount: voidAmount,
+      error: null
+    };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.error(`Error voiding item: ${errorMessage}`);
+    return {
+      success: false,
+      requiresManagerApproval: false,
+      adjustedAmount: null,
+      error: errorMessage
+    };
+  }
+}
+async function compOrderItem(root, args, context) {
+  if (!canManageOrders(context)) {
+    return {
+      success: false,
+      requiresManagerApproval: false,
+      adjustedAmount: null,
+      error: "Not authorized to comp items"
+    };
+  }
+  const { orderItemId, reason, compAmount } = args;
+  if (!reason || reason.trim() === "") {
+    return {
+      success: false,
+      requiresManagerApproval: false,
+      adjustedAmount: null,
+      error: "Reason is required for comp"
+    };
+  }
+  try {
+    const orderItem = await context.db.OrderItem.findOne({
+      where: { id: orderItemId }
+    });
+    if (!orderItem) {
+      return {
+        success: false,
+        requiresManagerApproval: false,
+        adjustedAmount: null,
+        error: "Order item not found"
+      };
+    }
+    const itemTotal = (orderItem.price || 0) * (orderItem.quantity || 0);
+    const actualCompAmount = compAmount !== void 0 && compAmount !== null ? Math.min(compAmount, itemTotal) : itemTotal;
+    const perItemComp = Math.floor(actualCompAmount / (orderItem.quantity || 1));
+    const newPrice = (orderItem.price || 0) - perItemComp;
+    if (newPrice <= 0) {
+      await context.db.OrderItem.deleteOne({
+        where: { id: orderItemId }
+      });
+    } else {
+      await context.db.OrderItem.updateOne({
+        where: { id: orderItemId },
+        data: {
+          price: newPrice,
+          specialInstructions: orderItem.specialInstructions ? `${orderItem.specialInstructions} | COMP: ${reason}` : `COMP: ${reason}`
+        }
+      });
+    }
+    if (orderItem.orderId) {
+      const order = await context.db.RestaurantOrder.findOne({
+        where: { id: orderItem.orderId }
+      });
+      if (order) {
+        const totals = await recalculateOrderTotals({
+          order,
+          subtotal: (order.subtotal || 0) - actualCompAmount,
+          context
+        });
+        await context.db.RestaurantOrder.updateOne({
+          where: { id: orderItem.orderId },
+          data: {
+            ...totals,
+            specialInstructions: order.specialInstructions ? `${order.specialInstructions} | COMP: ${reason}` : `COMP: ${reason}`
+          }
+        });
+      }
+    }
+    return {
+      success: true,
+      requiresManagerApproval: false,
+      adjustedAmount: actualCompAmount,
+      error: null
+    };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.error(`Error comping item: ${errorMessage}`);
+    return {
+      success: false,
+      requiresManagerApproval: false,
+      adjustedAmount: null,
+      error: errorMessage
+    };
+  }
+}
+async function voidOrder(root, args, context) {
+  if (!canManageOrders(context)) {
+    return {
+      success: false,
+      requiresManagerApproval: false,
+      adjustedAmount: null,
+      error: "Not authorized to void orders"
+    };
+  }
+  const { orderId, reason } = args;
+  if (!reason || reason.trim() === "") {
+    return {
+      success: false,
+      requiresManagerApproval: false,
+      adjustedAmount: null,
+      error: "Reason is required for void"
+    };
+  }
+  try {
+    const order = await context.db.RestaurantOrder.findOne({
+      where: { id: orderId }
+    });
+    if (!order) {
+      return {
+        success: false,
+        requiresManagerApproval: false,
+        adjustedAmount: null,
+        error: "Order not found"
+      };
+    }
+    const voidAmount = order.total || 0;
+    const orderItems = await context.db.OrderItem.findMany({
+      where: { order: { id: { equals: orderId } } }
+    });
+    for (const item of orderItems) {
+      await context.db.OrderItem.deleteOne({
+        where: { id: item.id }
+      });
+    }
+    await context.db.RestaurantOrder.updateOne({
+      where: { id: orderId },
+      data: {
+        status: "cancelled",
+        subtotal: 0,
+        tax: 0,
+        total: 0,
+        specialInstructions: order.specialInstructions ? `${order.specialInstructions} | VOIDED: ${reason}` : `VOIDED: ${reason}`
+      }
+    });
+    return {
+      success: true,
+      requiresManagerApproval: false,
+      adjustedAmount: voidAmount,
+      error: null
+    };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.error(`Error voiding order: ${errorMessage}`);
+    return {
+      success: false,
+      requiresManagerApproval: false,
+      adjustedAmount: null,
+      error: errorMessage
+    };
+  }
+}
+
+// features/keystone/utils/cartAccess.ts
+var cookie = __toESM(require("cookie"));
+function getRequestCartId(context) {
+  const cookieHeader = context.req?.headers?.cookie;
+  if (!cookieHeader) return void 0;
+  return cookie.parse(cookieHeader)._restaurant_cart_id;
+}
+function canBypassCartAccess(context, mode) {
+  if (permissions.canManageOrders({ session: context.session })) return true;
+  if (mode === "read" && permissions.canReadOrders({ session: context.session })) return true;
+  return false;
+}
+function assertOwnership({
+  context,
+  cartId,
+  cartUserId,
+  mode
+}) {
+  if (canBypassCartAccess(context, mode)) return;
+  const requestCartId = getRequestCartId(context);
+  const sessionItemId = context.session?.itemId;
+  const ownsByUser = Boolean(sessionItemId && cartUserId && cartUserId === sessionItemId);
+  const ownsByCookie = requestCartId === cartId;
+  if (!ownsByUser && !ownsByCookie) {
+    throw new Error("Access denied");
+  }
+}
+async function assertCanAccessCart(context, cartId, mode = "write") {
+  const cart = await context.sudo().query.Cart.findOne({
+    where: { id: cartId },
+    query: `
+      id
+      user {
+        id
+      }
+    `
+  });
+  if (!cart) {
+    throw new Error("Cart not found");
+  }
+  assertOwnership({
+    context,
+    cartId: cart.id,
+    cartUserId: cart.user?.id,
+    mode
+  });
+  return cart;
+}
+async function assertCanAccessCartItem(context, cartItemId, mode = "write") {
+  const cartItem = await context.sudo().query.CartItem.findOne({
+    where: { id: cartItemId },
+    query: `
+      id
+      cart {
+        id
+        user {
+          id
+        }
+      }
+    `
+  });
+  if (!cartItem?.cart?.id) {
+    throw new Error("Cart not found for this item");
+  }
+  assertOwnership({
+    context,
+    cartId: cartItem.cart.id,
+    cartUserId: cartItem.cart.user?.id,
+    mode
+  });
+  return cartItem;
 }
 
 // features/keystone/mutations/initiatePaymentSession.ts
@@ -5579,6 +5894,9 @@ async function completeActiveCart(root, { cartId, paymentSessionId }, context) {
       }
     });
   }
+  if (isKitchenActiveOrderStatus(order.status)) {
+    await syncKitchenTicketsForOrder(order.id, context);
+  }
   const paymentMethodMap = {
     pp_stripe_stripe: "credit_card",
     pp_paypal_paypal: "paypal",
@@ -5844,26 +6162,6 @@ async function getCustomerOrder(root, { orderId, secretKey }, context) {
   if (order.customer?.id === sessionUserId) {
     return order;
   }
-  const currentUser = await sudoContext.query.User.findOne({
-    where: { id: sessionUserId },
-    query: `id email`
-  });
-  if (currentUser?.email && order.customerEmail === currentUser.email) {
-    if (!order.customer?.id) {
-      await sudoContext.query.RestaurantOrder.updateOne({
-        where: { id: order.id },
-        data: {
-          customer: { connect: { id: sessionUserId } }
-        }
-      });
-    }
-    return {
-      ...order,
-      customer: {
-        id: sessionUserId
-      }
-    };
-  }
   throw new Error("Order not found");
 }
 
@@ -5874,19 +6172,9 @@ async function getCustomerOrders(root, { limit = 10, offset = 0 }, context) {
     throw new Error("Not authenticated");
   }
   const sudoContext = context.sudo();
-  const currentUser = await sudoContext.query.User.findOne({
-    where: { id: sessionUserId },
-    query: `email`
-  });
-  const whereClauses = [{ customer: { id: { equals: sessionUserId } } }];
-  if (currentUser?.email) {
-    whereClauses.push({
-      customerEmail: { equals: currentUser.email }
-    });
-  }
   const orders = await sudoContext.query.RestaurantOrder.findMany({
     where: {
-      OR: whereClauses
+      customer: { id: { equals: sessionUserId } }
     },
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -5931,8 +6219,8 @@ async function activeCartPaymentProviders(root, _args, context) {
 
 // features/keystone/mutations/tableManagement.ts
 async function transferTable(root, args, context) {
-  if (!context.session?.itemId) {
-    return { success: false, error: "Must be signed in" };
+  if (!permissions.canManageTables({ session: context.session })) {
+    return { success: false, error: "Not authorized" };
   }
   const { orderId, fromTableId, toTableId } = args;
   const sudo = context.sudo();
@@ -5968,8 +6256,8 @@ async function transferTable(root, args, context) {
   }
 }
 async function combineTables(root, args, context) {
-  if (!context.session?.itemId) {
-    return { success: false, error: "Must be signed in" };
+  if (!permissions.canManageTables({ session: context.session })) {
+    return { success: false, error: "Not authorized" };
   }
   const { orderId, tableIds } = args;
   const sudo = context.sudo();
@@ -5998,8 +6286,8 @@ async function combineTables(root, args, context) {
 
 // features/keystone/mutations/courseManagement.ts
 async function fireCourse(root, args, context) {
-  if (!context.session?.itemId) {
-    return { success: false, error: "Must be signed in" };
+  if (!permissions.canManageKitchen({ session: context.session })) {
+    return { success: false, error: "Not authorized" };
   }
   const { courseId } = args;
   const sudo = context.sudo();
@@ -6031,8 +6319,8 @@ async function fireCourse(root, args, context) {
   }
 }
 async function recallCourse(root, args, context) {
-  if (!context.session?.itemId) {
-    return { success: false, error: "Must be signed in" };
+  if (!permissions.canManageKitchen({ session: context.session })) {
+    return { success: false, error: "Not authorized" };
   }
   const { courseId } = args;
   const sudo = context.sudo();
@@ -6051,179 +6339,13 @@ async function recallCourse(root, args, context) {
 }
 
 // features/keystone/mutations/kdsTickets.ts
-function normalizeStationName(name) {
-  return name.trim().toLowerCase();
-}
-function displayStationName(value) {
-  return value.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
-}
-function isExpediterStation(stationName) {
-  const n = (stationName || "").toLowerCase();
-  return n.includes("expo") || n.includes("expediter");
-}
-async function getOrCreateStation(stationKey, context, cachedStations) {
-  const normalized = normalizeStationName(stationKey);
-  const existing = cachedStations.find((s) => normalizeStationName(s.name) === normalized);
-  if (existing) return existing;
-  const created = await context.sudo().db.KitchenStation.createOne({
-    data: {
-      name: displayStationName(stationKey),
-      isActive: true,
-      displayOrder: cachedStations.length
-    }
-  });
-  const createdStation = {
-    id: created.id,
-    name: displayStationName(stationKey),
-    displayOrder: cachedStations.length
-  };
-  cachedStations.push(createdStation);
-  return createdStation;
-}
-function mapOrderItemsByStation(order) {
-  const grouped = {};
-  for (const item of order.orderItems || []) {
-    if (!item?.id) continue;
-    const station = item.menuItem?.kitchenStation || "expo";
-    if (!grouped[station]) grouped[station] = [];
-    grouped[station].push({
-      id: item.id,
-      name: item.menuItem?.name || "Item",
-      quantity: item.quantity || 1,
-      notes: item.specialInstructions || null,
-      station,
-      status: "new",
-      fulfilledAt: null
-    });
-  }
-  return grouped;
-}
-async function reconcileRestaurantOrderStatus(orderId, context) {
-  const tickets = await context.sudo().query.KitchenTicket.findMany({
-    where: { order: { id: { equals: orderId } } },
-    query: "id status"
-  });
-  if (!tickets.length) return;
-  const hasNewOrInProgress = tickets.some((t) => ["new", "in_progress"].includes(t.status));
-  const hasReady = tickets.some((t) => t.status === "ready");
-  const hasServed = tickets.some((t) => t.status === "served");
-  const allServed = tickets.every((t) => t.status === "served");
-  let nextStatus = null;
-  if (hasNewOrInProgress) nextStatus = "in_progress";
-  else if (hasReady) nextStatus = "ready";
-  else if (allServed || hasServed) nextStatus = "served";
-  if (nextStatus) {
-    await context.sudo().db.RestaurantOrder.updateOne({
-      where: { id: orderId },
-      data: { status: nextStatus }
-    });
-  }
-}
 async function syncKitchenTickets(root, args, context) {
-  if (!context.session?.itemId) {
-    return { success: false, error: "Must be signed in", created: 0, updated: 0 };
+  if (!permissions.canManageKitchen({ session: context.session })) {
+    return { success: false, error: "Not authorized", created: 0, updated: 0 };
   }
   try {
-    const sudo = context.sudo();
-    const stations = await sudo.query.KitchenStation.findMany({
-      query: "id name displayOrder",
-      where: { isActive: { equals: true } },
-      orderBy: { displayOrder: "asc" }
-    });
-    const orders = await sudo.query.RestaurantOrder.findMany({
-      where: {
-        status: { in: ["open", "sent_to_kitchen", "in_progress", "ready"] }
-      },
-      orderBy: { createdAt: "asc" },
-      query: `
-        id
-        status
-        isUrgent
-        onHold
-        createdAt
-        courses {
-          id
-          orderItems {
-            id
-            quantity
-            specialInstructions
-            menuItem { id name kitchenStation }
-          }
-        }
-        orderItems {
-          id
-          quantity
-          specialInstructions
-          menuItem { id name kitchenStation }
-        }
-      `
-    });
-    let created = 0;
-    let updated = 0;
-    for (const order of orders) {
-      const stationItemMap = mapOrderItemsByStation(order);
-      for (const [stationKey, items] of Object.entries(stationItemMap)) {
-        const station = await getOrCreateStation(stationKey, context, stations);
-        const existingTickets = await sudo.query.KitchenTicket.findMany({
-          where: {
-            order: { id: { equals: order.id } },
-            station: { id: { equals: station.id } },
-            status: { in: ["new", "in_progress", "ready"] }
-          },
-          query: "id items status firedAt",
-          orderBy: { firedAt: "asc" }
-        });
-        const priority = order.isUrgent ? 100 : order.onHold ? -10 : 0;
-        if (existingTickets.length > 0) {
-          const existing = existingTickets[0];
-          const existingItems = existing.items || [];
-          const existingMap = new Map(existingItems.map((i) => [i.id, i]));
-          const mergedItems = items.map((item) => {
-            const prev = existingMap.get(item.id);
-            if (!prev) return item;
-            return {
-              ...item,
-              status: prev.status || "new",
-              fulfilledAt: prev.fulfilledAt || null
-            };
-          });
-          await sudo.db.KitchenTicket.updateOne({
-            where: { id: existing.id },
-            data: {
-              items: mergedItems,
-              priority,
-              status: existing.status === "ready" && order.status !== "ready" ? "in_progress" : void 0
-            }
-          });
-          const duplicateTickets = existingTickets.slice(1);
-          for (const duplicate of duplicateTickets) {
-            await sudo.db.KitchenTicket.deleteOne({ where: { id: duplicate.id } });
-          }
-          updated += 1;
-        } else {
-          await sudo.db.KitchenTicket.createOne({
-            data: {
-              order: { connect: { id: order.id } },
-              station: { connect: { id: station.id } },
-              items,
-              priority,
-              status: order.status === "ready" ? "ready" : "new",
-              firedAt: order.createdAt
-            }
-          });
-          updated += 1;
-          created += 1;
-        }
-      }
-      if (Object.keys(stationItemMap).length > 0 && order.status === "open") {
-        await sudo.db.RestaurantOrder.updateOne({
-          where: { id: order.id },
-          data: { status: "sent_to_kitchen" }
-        });
-      }
-      await reconcileRestaurantOrderStatus(order.id, context);
-    }
-    return { success: true, error: null, created, updated };
+    const result = await syncKitchenTicketsForActiveOrders(context);
+    return { success: true, error: null, created: result.created, updated: result.updated };
   } catch (err) {
     return {
       success: false,
@@ -6234,8 +6356,8 @@ async function syncKitchenTickets(root, args, context) {
   }
 }
 async function updateKitchenTicketStatus(root, args, context) {
-  if (!context.session?.itemId) {
-    return { success: false, error: "Must be signed in" };
+  if (!permissions.canManageKitchen({ session: context.session })) {
+    return { success: false, error: "Not authorized" };
   }
   try {
     const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -6281,8 +6403,8 @@ async function updateKitchenTicketStatus(root, args, context) {
   }
 }
 async function fulfillKitchenTicketItem(root, args, context) {
-  if (!context.session?.itemId) {
-    return { success: false, error: "Must be signed in" };
+  if (!permissions.canManageKitchen({ session: context.session })) {
+    return { success: false, error: "Not authorized" };
   }
   try {
     const sudo = context.sudo();
@@ -6321,8 +6443,51 @@ async function fulfillKitchenTicketItem(root, args, context) {
 }
 
 // features/keystone/mutations/handlePaymentProviderWebhook.ts
+function normalizeHeaders(headers) {
+  const normalized = {};
+  for (const [key, value] of Object.entries(headers || {})) {
+    normalized[String(key).toLowerCase()] = Array.isArray(value) ? String(value[0] || "") : String(value ?? "");
+  }
+  return normalized;
+}
+function getCandidateProviderPaymentIds(type, resource) {
+  const ids = /* @__PURE__ */ new Set();
+  const add = (value) => {
+    if (typeof value === "string" && value.trim()) ids.add(value.trim());
+  };
+  add(resource?.id);
+  add(resource?.payment_intent);
+  add(resource?.supplementary_data?.related_ids?.order_id);
+  add(resource?.supplementary_data?.related_ids?.capture_id);
+  if (type.startsWith("PAYMENT.CAPTURE.")) {
+    add(resource?.supplementary_data?.related_ids?.order_id);
+    add(resource?.id);
+  }
+  return Array.from(ids);
+}
+async function findPaymentByProviderIds(providerPaymentIds, context) {
+  const sudo = context.sudo();
+  for (const providerPaymentId of providerPaymentIds) {
+    const payments = await sudo.query.Payment.findMany({
+      where: { providerPaymentId: { equals: providerPaymentId } },
+      query: "id status data order { id status }",
+      take: 1
+    });
+    if (payments.length > 0) {
+      return { payment: payments[0], providerPaymentId };
+    }
+  }
+  return null;
+}
 async function handlePaymentProviderWebhook(root, { providerCode, event, headers }, context) {
   const sudoContext = context.sudo();
+  if (!providerCode || !/^[a-z0-9_\-]+$/i.test(providerCode)) {
+    throw new Error("Invalid provider code");
+  }
+  if (!event || typeof event !== "object") {
+    throw new Error("Webhook event payload is required");
+  }
+  const normalizedHeaders = normalizeHeaders(headers);
   const providers = await sudoContext.query.PaymentProvider.findMany({
     where: { code: { equals: providerCode } },
     query: `
@@ -6337,79 +6502,185 @@ async function handlePaymentProviderWebhook(root, { providerCode, event, headers
       handleWebhookFunction
       credentials
       metadata
-    `
+    `,
+    take: 1
   });
   const provider = providers[0];
   if (!provider || !provider.isInstalled) {
     throw new Error(`Payment provider ${providerCode} not found or not installed`);
   }
-  const { type, resource } = await handleWebhook({ provider, event, headers });
-  if (type === "payment_intent.succeeded" || type === "charge.succeeded") {
-    const paymentIntentId = resource.id || resource.payment_intent;
-    const payments = await sudoContext.query.Payment.findMany({
-      where: {
-        providerPaymentId: { equals: paymentIntentId }
-      },
-      query: "id data order { id }"
-    });
-    if (payments.length > 0) {
-      const payment = payments[0];
-      await sudoContext.db.Payment.updateOne({
-        where: { id: payment.id },
-        data: {
-          status: "succeeded",
-          processedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          data: {
-            ...payment.data || {},
-            chargeId: resource.latest_charge || resource.id
-          }
-        }
-      });
-      if (payment.order?.id) {
-        await sudoContext.db.RestaurantOrder.updateOne({
-          where: { id: payment.order.id },
-          data: {
-            status: "sent_to_kitchen"
-          }
-        });
-      }
-    }
-  } else if (type === "payment_intent.payment_failed") {
-    const paymentIntentId = resource.id;
-    const payments = await sudoContext.query.Payment.findMany({
-      where: { providerPaymentId: { equals: paymentIntentId } },
-      query: "id"
-    });
-    if (payments.length > 0) {
-      await sudoContext.db.Payment.updateOne({
-        where: { id: payments[0].id },
-        data: {
-          status: "failed",
-          errorMessage: resource.last_payment_error?.message || "Payment failed"
-        }
-      });
-    }
-  } else if (type === "payment_intent.canceled") {
-    const paymentIntentId = resource.id;
-    const payments = await sudoContext.query.Payment.findMany({
-      where: { providerPaymentId: { equals: paymentIntentId } },
-      query: "id order { id }"
-    });
-    if (payments.length > 0) {
-      const payment = payments[0];
-      await sudoContext.db.Payment.updateOne({
-        where: { id: payment.id },
-        data: { status: "cancelled" }
-      });
-      if (payment.order?.id) {
-        await sudoContext.db.RestaurantOrder.updateOne({
-          where: { id: payment.order.id },
-          data: { status: "cancelled" }
-        });
-      }
-    }
+  if (!provider.handleWebhookFunction || provider.handleWebhookFunction === "manual") {
+    throw new Error(`Provider ${providerCode} does not support authenticated webhook handling`);
   }
-  return { success: true };
+  const parsed = await handleWebhook({ provider, event, headers: normalizedHeaders });
+  if (!parsed?.isValid || !parsed?.type) {
+    throw new Error("Webhook verification failed");
+  }
+  const type = String(parsed.type);
+  const resource = parsed.resource || {};
+  const candidateIds = getCandidateProviderPaymentIds(type, resource);
+  const matched = candidateIds.length > 0 ? await findPaymentByProviderIds(candidateIds, context) : null;
+  if (!matched) {
+    return { success: true, error: null };
+  }
+  const { payment } = matched;
+  if (["payment_intent.succeeded", "charge.succeeded", "CHECKOUT.ORDER.APPROVED", "PAYMENT.CAPTURE.COMPLETED"].includes(type)) {
+    await sudoContext.db.Payment.updateOne({
+      where: { id: payment.id },
+      data: {
+        status: "succeeded",
+        processedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        errorMessage: null,
+        data: {
+          ...payment.data || {},
+          webhookType: type,
+          webhookResourceId: resource.id || null,
+          chargeId: resource.latest_charge || resource.id || null
+        }
+      }
+    });
+    if (payment.order?.id && !["completed", "cancelled"].includes(payment.order.status || "")) {
+      await sudoContext.db.RestaurantOrder.updateOne({
+        where: { id: payment.order.id },
+        data: {
+          status: "sent_to_kitchen"
+        }
+      });
+    }
+  } else if (["payment_intent.payment_failed", "PAYMENT.CAPTURE.DENIED", "PAYMENT.CAPTURE.DECLINED"].includes(type)) {
+    await sudoContext.db.Payment.updateOne({
+      where: { id: payment.id },
+      data: {
+        status: "failed",
+        errorMessage: resource.last_payment_error?.message || resource.status_details?.reason || "Payment failed",
+        data: {
+          ...payment.data || {},
+          webhookType: type,
+          webhookResourceId: resource.id || null
+        }
+      }
+    });
+  } else if (["payment_intent.canceled", "PAYMENT.CAPTURE.REVERSED", "CHECKOUT.ORDER.VOIDED"].includes(type)) {
+    await sudoContext.db.Payment.updateOne({
+      where: { id: payment.id },
+      data: {
+        status: "cancelled",
+        data: {
+          ...payment.data || {},
+          webhookType: type,
+          webhookResourceId: resource.id || null
+        }
+      }
+    });
+  }
+  return { success: true, error: null };
+}
+
+// features/keystone/mutations/createPOSOrder.ts
+function generateOrderNumber() {
+  const now = /* @__PURE__ */ new Date();
+  return `${now.toISOString().slice(2, 10).replace(/-/g, "")}-${now.getTime().toString().slice(-4)}`;
+}
+function getCourseType(courseNumber) {
+  if (courseNumber === 1) return "appetizers";
+  if (courseNumber === 2) return "mains";
+  if (courseNumber === 3) return "desserts";
+  return "mains";
+}
+async function createPOSOrder(root, args, context) {
+  if (!permissions.canManageOrders({ session: context.session })) {
+    throw new Error("Not authorized to create POS orders");
+  }
+  const orderType = args.orderType || "dine_in";
+  const items = (args.items || []).filter((item) => item?.menuItemId && (item.quantity || 0) > 0);
+  const tableIds = args.tableIds || [];
+  if (items.length === 0) {
+    throw new Error("Order must include at least one item");
+  }
+  if (orderType === "dine_in" && tableIds.length === 0) {
+    throw new Error("Dine-in orders require at least one table");
+  }
+  const sudo = context.sudo();
+  const [storeSettings, menuItems] = await Promise.all([
+    sudo.query.StoreSettings.findOne({
+      where: { id: "1" },
+      query: "currencyCode taxRate"
+    }),
+    sudo.query.MenuItem.findMany({
+      where: { id: { in: items.map((item) => item.menuItemId) } },
+      query: "id price available"
+    })
+  ]);
+  const menuItemMap = new Map(menuItems.map((item) => [item.id, item]));
+  const normalizedItems = items.map((item) => {
+    const menuItem = menuItemMap.get(item.menuItemId);
+    if (!menuItem) {
+      throw new Error(`Menu item not found: ${item.menuItemId}`);
+    }
+    if (!menuItem.available) {
+      throw new Error("One or more selected menu items are unavailable");
+    }
+    return {
+      menuItemId: item.menuItemId,
+      quantity: Math.max(1, item.quantity),
+      courseNumber: item.courseNumber || 1,
+      price: Number(menuItem.price || 0)
+    };
+  });
+  const subtotal = normalizedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const currencyCode = storeSettings?.currencyCode || "USD";
+  const { tax, total } = calculateRestaurantTotals({
+    subtotal,
+    orderType,
+    taxRate: storeSettings?.taxRate,
+    currencyCode
+  });
+  const order = await sudo.db.RestaurantOrder.createOne({
+    data: {
+      orderNumber: generateOrderNumber(),
+      orderType,
+      orderSource: "pos",
+      status: "open",
+      guestCount: Math.max(1, args.guestCount || 1),
+      subtotal,
+      tax,
+      total,
+      isUrgent: Boolean(args.isUrgent),
+      specialInstructions: args.specialInstructions || "",
+      currencyCode,
+      tables: tableIds.length ? { connect: tableIds.map((id) => ({ id })) } : void 0,
+      server: context.session?.itemId ? { connect: { id: context.session.itemId } } : void 0,
+      createdBy: context.session?.itemId ? { connect: { id: context.session.itemId } } : void 0
+    }
+  });
+  const courseMap = /* @__PURE__ */ new Map();
+  for (const item of normalizedItems) {
+    if (!courseMap.has(item.courseNumber)) {
+      const course = await sudo.db.OrderCourse.createOne({
+        data: {
+          order: { connect: { id: order.id } },
+          courseNumber: item.courseNumber,
+          courseType: getCourseType(item.courseNumber),
+          status: "pending"
+        }
+      });
+      courseMap.set(item.courseNumber, course.id);
+    }
+    await sudo.db.OrderItem.createOne({
+      data: {
+        order: { connect: { id: order.id } },
+        course: { connect: { id: courseMap.get(item.courseNumber) } },
+        menuItem: { connect: { id: item.menuItemId } },
+        quantity: item.quantity,
+        price: item.price,
+        courseNumber: item.courseNumber
+      }
+    });
+  }
+  return sudo.query.RestaurantOrder.findOne({
+    where: { id: order.id },
+    query: "id orderNumber status subtotal tax total"
+  });
 }
 
 // features/keystone/mutations/index.ts
@@ -6494,6 +6765,15 @@ function extendGraphqlSchema(baseSchema) {
           paymentSessionId: ID
         ): RestaurantOrder
 
+        createPOSOrder(
+          orderType: String!
+          guestCount: Int
+          tableIds: [ID!]
+          isUrgent: Boolean
+          specialInstructions: String
+          items: [POSOrderItemInput!]!
+        ): RestaurantOrder
+
         transferTable(
           orderId: String!
           fromTableId: String!
@@ -6565,6 +6845,12 @@ function extendGraphqlSchema(baseSchema) {
         error: String
       }
 
+      input POSOrderItemInput {
+        menuItemId: ID!
+        quantity: Int!
+        courseNumber: Int
+      }
+
       type InitiatePaymentSessionResult {
         id: ID!
         data: JSON
@@ -6621,6 +6907,7 @@ function extendGraphqlSchema(baseSchema) {
         voidOrder,
         initiatePaymentSession,
         completeActiveCart,
+        createPOSOrder,
         transferTable,
         combineTables,
         fireCourse,

@@ -16,21 +16,10 @@ export default async function getCustomerOrders(
   }
 
   const sudoContext = context.sudo();
-  const currentUser = await sudoContext.query.User.findOne({
-    where: { id: sessionUserId },
-    query: `email`,
-  });
-  const whereClauses: any[] = [{ customer: { id: { equals: sessionUserId } } }];
-
-  if (currentUser?.email) {
-    whereClauses.push({
-      customerEmail: { equals: currentUser.email },
-    });
-  }
 
   const orders = await sudoContext.query.RestaurantOrder.findMany({
     where: {
-      OR: whereClauses,
+      customer: { id: { equals: sessionUserId } },
     },
     orderBy: { createdAt: "desc" },
     take: limit,

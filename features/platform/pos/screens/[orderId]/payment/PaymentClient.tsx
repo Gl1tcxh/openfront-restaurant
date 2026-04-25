@@ -38,7 +38,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { gql, request } from 'graphql-request'
-import { formatCurrency } from '@/features/storefront/lib/currency'
+import { formatCurrency, fromMinorUnits, toMinorUnits } from '@/features/storefront/lib/currency'
 
 interface OrderItem {
   id: string
@@ -68,10 +68,10 @@ interface Order {
   total: string
   orderItems: OrderItem[]
   payments: Payment[]
-  table: {
+  tables: {
     id: string
-    name: string
-  } | null
+    tableNumber: string
+  }[]
 }
 
 interface SplitPayment {
@@ -108,9 +108,9 @@ const GET_ORDER = gql`
         status
         paymentMethod
       }
-      table {
+      tables {
         id
-        name
+        tableNumber
       }
     }
     storeSettings {
@@ -168,15 +168,6 @@ const CREATE_GIFT_CARD_TRANSACTION = gql`
   }
 `
 
-const UPDATE_ORDER_STATUS = gql`
-  mutation UpdateOrderStatus($id: ID!, $status: String!) {
-    updateRestaurantOrder(where: { id: $id }, data: { status: $status }) {
-      id
-      status
-    }
-  }
-`
-
 interface PaymentClientProps {
   orderId: string
 }
@@ -221,13 +212,17 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
     try {
       setLoading(true)
       const data = await request('/api/graphql', GET_ORDER, { id: orderId })
-      setOrder((data as any).restaurantOrder)
-      if ((data as any).storeSettings) {
-        setCurrencyConfig({
-          currencyCode: (data as any).storeSettings.currencyCode || 'USD',
-          locale: (data as any).storeSettings.locale || 'en-US'
-        })
-      }
+      const nextOrder = (data as any).restaurantOrder
+      const nextStoreSettings = (data as any).storeSettings || {}
+      const nextCurrencyCode = nextStoreSettings.currencyCode || 'USD'
+      const nextLocale = nextStoreSettings.locale || 'en-US'
+
+      setOrder(nextOrder)
+      setCurrencyConfig({
+        currencyCode: nextCurrencyCode,
+        locale: nextLocale,
+      })
+      setTipAmount(fromMinorUnits(Number(nextOrder?.tip || 0), nextCurrencyCode).toFixed(2))
     } catch (err) {
       console.error('Error fetching order:', err)
     } finally {
@@ -235,20 +230,33 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
     }
   }
 
+  const getCurrentTipCents = (): number => {
+    if (!order) return 0
+    return Number(order.tip || 0)
+  }
+
+  const getDesiredTipCents = (): number => {
+    const currentTip = getCurrentTipCents()
+    const requestedTip = toMinorUnits(tipAmount || '0', currencyConfig.currencyCode)
+    return Math.max(currentTip, requestedTip)
+  }
+
   const getOrderTotal = (): number => {
     if (!order) return 0
-    return parseFloat(order.total) + parseFloat(tipAmount || '0')
+    const currentTip = getCurrentTipCents()
+    const baseTotal = Math.max(0, Number(order.total || 0) - currentTip)
+    return baseTotal + getDesiredTipCents()
   }
 
   const getAmountPaid = (): number => {
     if (!order) return 0
     return order.payments
       .filter((p) => p.status === 'succeeded')
-      .reduce((sum, p) => sum + parseFloat(p.amount), 0)
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0)
   }
 
   const getRemainingBalance = (): number => {
-    return getOrderTotal() - getAmountPaid()
+    return Math.max(0, getOrderTotal() - getAmountPaid())
   }
 
   const getSplitTotal = (): number => {
@@ -256,7 +264,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
   }
 
   const getSplitRemaining = (): number => {
-    return getRemainingBalance() - getSplitTotal()
+    return Math.max(0, getRemainingBalance() - getSplitTotal())
   }
 
   // Cash payment
@@ -264,17 +272,17 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
     if (!order) return
 
     const total = getRemainingBalance()
-    const received = parseFloat(cashReceived || '0')
+    const receivedInCents = toMinorUnits(cashReceived || '0', currencyConfig.currencyCode)
     
-    if (received < total) {
+    if (receivedInCents < total) {
       alert('Cash received is less than the total amount')
       return
     }
 
     setProcessing(true)
     try {
-      const amountInCents = Math.round(total * 100)
-      const tipInCents = Math.round(parseFloat(tipAmount || '0') * 100)
+      const amountInCents = total
+      const tipInCents = getDesiredTipCents()
 
       const result = await request('/api/graphql', PROCESS_PAYMENT, {
         orderId: order.id,
@@ -286,13 +294,8 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
       const { success, error } = (result as any).processPayment
 
       if (success) {
-        // Update order status
-        await request('/api/graphql', UPDATE_ORDER_STATUS, {
-          id: order.id,
-          status: 'completed',
-        })
-
-        setChangeAmount(received - total)
+        await fetchOrder()
+        setChangeAmount(receivedInCents - total)
         setSuccessDialogOpen(true)
       } else {
         alert(`Payment failed: ${error}`)
@@ -313,8 +316,8 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
     setProcessing(true)
 
     try {
-      const amountInCents = Math.round(total * 100)
-      const tipInCents = Math.round(parseFloat(tipAmount || '0') * 100)
+      const amountInCents = total
+      const tipInCents = getDesiredTipCents()
 
       const result = await request('/api/graphql', PROCESS_PAYMENT, {
         orderId: order.id,
@@ -323,7 +326,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
         tipAmount: tipInCents,
       })
 
-      const { success, paymentId, clientSecret, error } = (result as any).processPayment
+      const { success, clientSecret, error } = (result as any).processPayment
 
       if (success && clientSecret) {
         // In a real implementation, you would use Stripe Elements here
@@ -334,21 +337,14 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
 
         const captureData = (captureResult as any).capturePayment
         if (captureData.success) {
-          await request('/api/graphql', UPDATE_ORDER_STATUS, {
-            id: order.id,
-            status: 'completed',
-          })
+          await fetchOrder()
           setChangeAmount(0)
           setSuccessDialogOpen(true)
         } else {
           alert(`Card capture failed: ${captureData.error}`)
         }
       } else if (success) {
-        // Payment succeeded without needing capture (e.g., manual provider)
-        await request('/api/graphql', UPDATE_ORDER_STATUS, {
-          id: order.id,
-          status: 'completed',
-        })
+        await fetchOrder()
         setChangeAmount(0)
         setSuccessDialogOpen(true)
       } else {
@@ -379,7 +375,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
       const cards = (data as any).giftCards
       if (cards && cards.length > 0) {
         const card = cards[0]
-        setGiftCardBalance(card.balance / 100) // Convert cents to dollars
+        setGiftCardBalance(Number(card.balance || 0))
         setGiftCardId(card.id)
       } else {
         setGiftCardError('Gift card not found or is disabled')
@@ -401,8 +397,8 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
 
     setProcessing(true)
     try {
-      const amountInCents = Math.round(amountToCharge * 100)
-      const tipInCents = Math.round(parseFloat(tipAmount || '0') * 100)
+      const amountInCents = amountToCharge
+      const tipInCents = getDesiredTipCents()
 
       // Process the payment
       const result = await request('/api/graphql', PROCESS_PAYMENT, {
@@ -416,7 +412,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
 
       if (success) {
         // Update gift card balance
-        const newBalance = Math.round((giftCardBalance - amountToCharge) * 100)
+        const newBalance = giftCardBalance - amountToCharge
         await request('/api/graphql', UPDATE_GIFT_CARD, {
           id: giftCardId,
           balance: newBalance,
@@ -431,12 +427,9 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
           },
         })
 
-        // If fully paid, complete the order
+        // If fully paid, refresh and show success
         if (amountToCharge >= total) {
-          await request('/api/graphql', UPDATE_ORDER_STATUS, {
-            id: order.id,
-            status: 'completed',
-          })
+          await fetchOrder()
           setChangeAmount(0)
           setSuccessDialogOpen(true)
         } else {
@@ -460,7 +453,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
 
   // Split payment functions
   const addSplitPayment = () => {
-    const amount = parseFloat(newSplitAmount || '0')
+    const amount = toMinorUnits(newSplitAmount || '0', currencyConfig.currencyCode)
     if (amount <= 0) return
     if (amount > getSplitRemaining()) {
       alert('Amount exceeds remaining balance')
@@ -491,7 +484,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
     try {
       for (let i = 0; i < splitPayments.length; i++) {
         const split = splitPayments[i]
-        const amountInCents = Math.round(split.amount * 100)
+        const amountInCents = split.amount
         
         // Update status to processing
         setSplitPayments((prev) =>
@@ -502,7 +495,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
           orderId: order.id,
           amount: amountInCents,
           paymentMethod: split.method === 'card' ? 'credit_card' : split.method,
-          tipAmount: i === 0 ? Math.round(parseFloat(tipAmount || '0') * 100) : 0,
+          tipAmount: i === 0 ? getDesiredTipCents() : 0,
         })
 
         const { success, clientSecret, error } = (result as any).processPayment
@@ -525,11 +518,8 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
         }
       }
 
-      // All payments successful
-      await request('/api/graphql', UPDATE_ORDER_STATUS, {
-        id: order.id,
-        status: 'completed',
-      })
+      // All payments processed; backend decides if the order is fully paid/completed
+      await fetchOrder()
       setChangeAmount(0)
       setSuccessDialogOpen(true)
     } catch (err) {
@@ -580,8 +570,8 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
               {order.status}
             </Badge>
           </div>
-          {order.table && (
-            <p className="text-sm text-muted-foreground">Table: {order.table.name}</p>
+          {order.tables?.length > 0 && (
+            <p className="text-sm text-muted-foreground">Table: {order.tables.map((table) => table.tableNumber).join(', ')}</p>
           )}
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
@@ -591,7 +581,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
                 <span>
                   {item.quantity}x {item.menuItem?.name || 'Unknown Item'}
                 </span>
-                <span>{formatCurrency(parseFloat(item.price), currencyConfig)}</span>
+                <span>{formatCurrency(item.price, currencyConfig)}</span>
               </div>
             ))}
           </div>
@@ -601,16 +591,16 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>{formatCurrency(parseFloat(order.subtotal), currencyConfig)}</span>
+              <span>{formatCurrency(order.subtotal, currencyConfig)}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Tax</span>
-              <span>{formatCurrency(parseFloat(order.tax), currencyConfig)}</span>
+              <span>{formatCurrency(order.tax, currencyConfig)}</span>
             </div>
             {parseFloat(order.discount) > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Discount</span>
-                <span>-{formatCurrency(parseFloat(order.discount), currencyConfig)}</span>
+                <span>-{formatCurrency(order.discount, currencyConfig)}</span>
               </div>
             )}
             <div className="flex justify-between items-center">
@@ -625,6 +615,10 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
               />
             </div>
             <Separator />
+            <div className="flex justify-between text-muted-foreground">
+              <span>Applied Tip</span>
+              <span>{formatCurrency(getDesiredTipCents(), currencyConfig)}</span>
+            </div>
             <div className="flex justify-between font-bold text-lg">
               <span>Total</span>
               <span>{formatCurrency(getOrderTotal(), currencyConfig)}</span>
@@ -700,23 +694,23 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
                       className="flex-1"
                       onClick={() => setCashReceived(amount.toString())}
                     >
-                      {formatCurrency(amount, currencyConfig)}
+                      {formatCurrency(amount, currencyConfig, { inputIsCents: false })}
                     </Button>
                   ))}
                   <Button
                     variant="outline"
                     className="flex-1"
-                    onClick={() => setCashReceived(Math.ceil(remaining).toString())}
+                    onClick={() => setCashReceived(fromMinorUnits(remaining, currencyConfig.currencyCode).toFixed(2))}
                   >
                     Exact
                   </Button>
                 </div>
 
-                {parseFloat(cashReceived || '0') >= remaining && (
+                {toMinorUnits(cashReceived || '0', currencyConfig.currencyCode) >= remaining && (
                   <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
                     <p className="text-sm text-muted-foreground">Change Due</p>
                     <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(parseFloat(cashReceived || '0') - remaining, currencyConfig)}
+                      {formatCurrency(toMinorUnits(cashReceived || '0', currencyConfig.currencyCode) - remaining, currencyConfig)}
                     </p>
                   </div>
                 )}
@@ -726,7 +720,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
                 size="lg"
                 className="w-full mt-4"
                 onClick={processCashPayment}
-                disabled={processing || parseFloat(cashReceived || '0') < remaining}
+                disabled={processing || toMinorUnits(cashReceived || '0', currencyConfig.currencyCode) < remaining}
               >
                 {processing ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -967,7 +961,7 @@ export function PaymentClient({ orderId }: PaymentClientProps) {
             <Button variant="outline" onClick={() => setSplitDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={addSplitPayment} disabled={!newSplitAmount || parseFloat(newSplitAmount) <= 0}>
+            <Button onClick={addSplitPayment} disabled={!newSplitAmount || toMinorUnits(newSplitAmount, currencyConfig.currencyCode) <= 0}>
               Add Payment
             </Button>
           </DialogFooter>
